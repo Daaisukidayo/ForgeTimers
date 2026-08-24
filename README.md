@@ -2,7 +2,7 @@
 
 # ForgeTimers
 
-ForgeTimers is an extension that makes `$setTimeout` and `$setInterval` survive a restart using better-sqlite3 package. Timers are written to disk when scheduled and re-armed automatically the next time your app starts.
+ForgeTimers is an extension that makes `$setTimeout` and `$setInterval` survive a restart. Timers are persisted when scheduled and re-armed automatically the next time your app starts.
 
 <a href="https://github.com/Daaisukidayo/ForgeTimers/"><img src="https://img.shields.io/github/package-json/v/Daaisukidayo/ForgeTimers/main?label=forge.timers&color=5c16d4" alt="forge.timers"></a>
 <a href="https://github.com/tryforge/ForgeScript/"><img src="https://img.shields.io/github/package-json/v/tryforge/ForgeScript/main?label=@tryforge/forgescript&color=5c16d4" alt="@tryforge/forgescript"></a>
