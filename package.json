@@ -1,0 +1,32 @@
+{
+  "name": "forge.timers",
+  "version": "1.0.0",
+  "description": "Persists $setTimeout/$setInterval timers to disk and restores them on restart.",
+  "main": "dist/index.js",
+  "scripts": {
+    "docgen": "tsc && typedoc src/index.ts && node dist/docgen",
+    "test": "tsc && node dist/__tests__/client.js"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Daaisukidayo",
+    "url": "https://github.com/Daaisukidayo/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Daaisukidayo/ForgeTimers.git"
+  },
+  "license": "GPL-3.0-only",
+  "type": "commonjs",
+  "devDependencies": {
+    "@tryforge/forgescript": "github:tryforge/ForgeScript#dev",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.2.0",
+    "dotenv": "^17.4.2",
+    "typedoc": "^0.28.20",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3"
+  }
+}
