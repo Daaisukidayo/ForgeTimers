@@ -6,7 +6,7 @@ ForgeTimers is an extension that makes `$setTimeout` and `$setInterval` survive 
 
 <a href="https://github.com/Daaisukidayo/ForgeTimers/"><img src="https://img.shields.io/github/package-json/v/Daaisukidayo/ForgeTimers/main?label=forge.timers&color=5c16d4" alt="forge.timers"></a>
 <a href="https://github.com/tryforge/ForgeScript/"><img src="https://img.shields.io/github/package-json/v/tryforge/ForgeScript/main?label=@tryforge/forgescript&color=5c16d4" alt="@tryforge/forgescript"></a>
-<a href="https://discord.gg/hcJgjzPvqb"><img src="https://img.shields.io/discord/739934735387721768?logo=discord" alt="Discord"></a>
+<a href="https://discord.gg/yFW5Ju6JP8"><img src="https://img.shields.io/discord/739934735387721768?logo=discord" alt="Discord"></a>
 
 </div>
 
