@@ -11,7 +11,7 @@
 <li><a href="" aria-current="page">IBaseTimerConfig</a></li></ul>
 <h1>Interface IBaseTimerConfig</h1></div>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">IBaseTimerConfig</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#maxoverdue">maxOverdue</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#persist">persist</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div>
-<section class="tsd-panel tsd-hierarchy" data-refl="1">
+<section class="tsd-panel tsd-hierarchy" data-refl="479">
 <h4>Hierarchy (<a href="../hierarchy.html#IBaseTimerConfig">View Summary</a>)</h4>
 <ul class="tsd-hierarchy">
 <li class="tsd-hierarchy-item"><span class="tsd-hierarchy-target">IBaseTimerConfig</span>
@@ -19,7 +19,7 @@
 <li class="tsd-hierarchy-item"><a href="ITimeoutConfig.html" class="tsd-signature-type tsd-kind-interface">ITimeoutConfig</a></li>
 <li class="tsd-hierarchy-item"><a href="IIntervalConfig.html" class="tsd-signature-type tsd-kind-interface">IIntervalConfig</a></li></ul></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in src/config.ts:3</li></ul></aside>
+<li>Defined in src/types.ts:1</li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -36,29 +36,19 @@
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="maxoverdue"><code class="tsd-tag">Optional</code><span>max<wbr/>Overdue</span><a href="#maxoverdue" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">maxOverdue</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
-<div class="tsd-comment tsd-typography"><p>How late (in ms) a timer may be when the bot comes back up
-Omitted / 0 means no limit</p>
+<div class="tsd-comment tsd-typography"><p>How late (in ms) a timer may be when the app comes back up.
+Omitted / 0 means no limit.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in src/config.ts:19</li></ul></aside></section>
+<li>Defined in src/types.ts:12</li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="persist"><code class="tsd-tag">Optional</code><span>persist</span><a href="#persist" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">persist</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
-<div class="tsd-comment tsd-typography"><p>What happens to this kind's timers across a restart</p>
+<div class="tsd-comment tsd-typography"><p>Whether persisted timers of this kind are re-armed on startup.
+With <code>false</code> they're dropped instead. Defaults to <code>true</code>.</p>
+</div><aside class="tsd-sources">
 <ul>
-<li><code>true</code> (default) - persisted timers are re-armed on startup</li>
-<li><code>false</code> - persisted timers are dropped on startup instead of being
-re-armed</li>
-</ul>
-</div>
-<div class="tsd-comment tsd-typography">
-<div class="tsd-tag-default">
-<h4 class="tsd-anchor-link" id="default">Default<a href="#default" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-3">true</span>
-</code><button type="button">Copy</button></pre>
-
-</div></div><aside class="tsd-sources">
-<ul>
-<li>Defined in src/config.ts:13</li></ul></aside></section></section></details></div>
+<li>Defined in src/types.ts:6</li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

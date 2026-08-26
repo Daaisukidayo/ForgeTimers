@@ -17,13 +17,17 @@ ForgeTimers is an extension that makes `$setTimeout` and `$setInterval` survive 
 1. [Installation](#installation)
 2. [Configuration](#configuration)
 3. [Storage](#storage)
+4. [Reading timers](#reading-timers)
 
 <h3 align="center">Installation</h3><hr>
+
+> ⚠️ **Warning**\
+> **ForgeTimers** requires the extension [**ForgeDB**](https://docs.botforge.org/p/ForgeDB/) installed in order to operate, and **ForgeScript 2.7.0** or newer.
 
 1. Run the following command to install the required `npm` package:
 
    ```bash
-   npm i github:Daaisukidayo/ForgeTimers better-sqlite3
+   npm i github:Daaisukidayo/ForgeTimers @tryforge/forge.db
    ```
 
 2. Here's an example of how your main file should look:
@@ -31,6 +35,7 @@ ForgeTimers is an extension that makes `$setTimeout` and `$setInterval` survive 
    ```js
    const { ForgeClient } = require("@tryforge/forgescript")
    const { ForgeTimers } = require("forge.timers")
+   const { ForgeDB } = require("@tryforge/forge.db")
 
    const timers = new ForgeTimers({
        timeoutConfig: {
@@ -41,10 +46,15 @@ ForgeTimers is an extension that makes `$setTimeout` and `$setInterval` survive 
        }
    })
 
+   const db = new ForgeDB({
+        ...options, // Change that to the options you currently have
+   })
+
    const client = new ForgeClient({
        ...options, // Change that to the options you currently have
        extensions: [
            timers,
+           db,
            // Add other extensions you installed here
        ]
    })
@@ -75,13 +85,19 @@ Both `timeoutConfig` and `intervalConfig` accept:
 
 <h3 align="center">Storage</h3><hr>
 
-Timers are kept in a SQLite database at `.forge/timers.db`. 
-To move the database, or to store timers somewhere else entirely:
+Timers are stored through **ForgeDB**, so they end up wherever you already keep your data - sqlite, mongodb, mysql or postgres. There's nothing extra to configure here: set ForgeDB up as usual and timers follow.
+
+On sqlite that means a `timers.db` file next to ForgeDB's own database.
+
+<h3 align="center">Reading timers</h3><hr>
+
+Stored timers can be read back from scripts:
+
+- **`$getTimer[kind;name;property?]`** - one timer. Without a property it returns the whole thing as JSON; with one it returns just that field. Available properties: `id`, `name`, `kind`, `code`, `duration`, `timestamp`, `fireAt`, `timeLeft`, `guildID`, `channelID`, `hostID`, `messageID`, `args`.
+- **`$getAllTimers[kind?]`** - every stored timer as JSON, optionally filtered to `timeout` or `interval`.
+- **`$wipeTimers`** - cancels every stored timer and clears them. Returns how many were running.
 
 ```js
-const { ForgeTimers, createSQLiteStores } = require("forge.timers")
-
-const timers = new ForgeTimers({
-    stores: createSQLiteStores("./data/timers.db")
-})
+$getTimer[timeout;reminder;timeLeft]
+$getAllTimers[interval]
 ```
