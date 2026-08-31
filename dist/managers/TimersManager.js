@@ -203,7 +203,7 @@ class TimersManager {
             compiled = forgescript_1.Compiler.compile(timer.code, timer.path);
         }
         catch (err) {
-            logger_1.Logger.error(err);
+            logger_1.Logger.untagged(err);
             // won't compile now, won't compile next boot either
             return { ok: false, gone: true, reason: "its code no longer compiles" };
         }

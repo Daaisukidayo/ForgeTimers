@@ -5,5 +5,6 @@ export declare class Logger extends BaseLogger {
     static warn(...args: unknown[]): void;
     static error(...args: unknown[]): void;
     static deprecated(...args: unknown[]): void;
+    static untagged(...args: unknown[]): void;
 }
 //# sourceMappingURL=logger.d.ts.map

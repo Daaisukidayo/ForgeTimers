@@ -257,7 +257,7 @@ export class TimersManager {
         try {
             compiled = Compiler.compile(timer.code, timer.path)
         } catch (err) {
-            Logger.error(err)
+            Logger.untagged(err)
             // won't compile now, won't compile next boot either
             return { ok: false, gone: true, reason: "its code no longer compiles" }
         }

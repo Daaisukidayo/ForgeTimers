@@ -22,4 +22,8 @@ export class Logger extends BaseLogger {
     public static override deprecated(...args: unknown[]) {
         BaseLogger.deprecated(PREFIX, ...args)
     }
+
+    public static untagged(...args: unknown[]) {
+        BaseLogger.error(...args)
+    }
 }

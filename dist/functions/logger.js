@@ -19,6 +19,9 @@ class Logger extends forgescript_1.Logger {
     static deprecated(...args) {
         forgescript_1.Logger.deprecated(PREFIX, ...args);
     }
+    static untagged(...args) {
+        forgescript_1.Logger.error(...args);
+    }
 }
 exports.Logger = Logger;
 //# sourceMappingURL=logger.js.map

@@ -214,7 +214,7 @@ function rehydrateLocalFunctions(stored, path, label) {
         }
         catch (err) {
             logger_1.Logger.warn(`${label} | Dropping local function "${fnName}": failed to recompile`);
-            logger_1.Logger.error(err);
+            logger_1.Logger.untagged(err);
         }
     }
     return out;

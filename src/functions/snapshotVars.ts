@@ -254,7 +254,7 @@ export function rehydrateLocalFunctions(
             }
         } catch (err) {
             Logger.warn(`${label} | Dropping local function "${fnName}": failed to recompile`)
-            Logger.error(err)
+            Logger.untagged(err)
         }
     }
 
