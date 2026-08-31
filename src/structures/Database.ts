@@ -1,5 +1,5 @@
 import { TimersDatabaseManager } from "../managers"
-import { DataSource, FindOptionsWhere } from "typeorm"
+import { DataSource, FindOptionsWhere, MongoRepository } from "typeorm"
 import { MongoTimer, Timer, TimerKind } from "./Timer"
 
 export type AnyTimer = typeof Timer | typeof MongoTimer
@@ -99,11 +99,15 @@ export class Database extends TimersDatabaseManager {
     }
 
     /**
-     * Wipes the entire database. Deletes rather than truncating, which needs raised
-     * privileges on postgres and drops the collection outright on mongodb.
+     * Wipes the entire database. Deletes rather than truncating, which would need raised
+     * privileges on postgres.
      * @returns
      */
     public static async wipe() {
-        return await this.db.getRepository(this.entities.Timer).deleteAll()
+        const repository = this.db.getRepository(this.entities.Timer)
+
+        if (this.type === "mongodb") return await (repository as MongoRepository<Timer>).deleteMany({})
+
+        return await repository.deleteAll()
     }
 }

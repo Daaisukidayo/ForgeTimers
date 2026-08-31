@@ -82,12 +82,15 @@ class Database extends managers_1.TimersDatabaseManager {
         return await this.db.getRepository(this.entities.Timer).delete({ id: Timer_1.Timer.idOf(kind, name) });
     }
     /**
-     * Wipes the entire database. Deletes rather than truncating, which needs raised
-     * privileges on postgres and drops the collection outright on mongodb.
+     * Wipes the entire database. Deletes rather than truncating, which would need raised
+     * privileges on postgres.
      * @returns
      */
     static async wipe() {
-        return await this.db.getRepository(this.entities.Timer).deleteAll();
+        const repository = this.db.getRepository(this.entities.Timer);
+        if (this.type === "mongodb")
+            return await repository.deleteMany({});
+        return await repository.deleteAll();
     }
 }
 exports.Database = Database;

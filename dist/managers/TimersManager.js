@@ -31,7 +31,8 @@ class TimersManager {
     }
     /**
      * Schedules a timer and persists it.
-     * @param options The timer to schedule.
+     * @param timer The timer to schedule.
+     * @param run What it executes when it fires.
      * @returns
      */
     async start(timer, run) {

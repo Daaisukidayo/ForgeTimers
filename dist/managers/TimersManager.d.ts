@@ -8,7 +8,8 @@ export declare class TimersManager {
     constructor(client: ForgeClient);
     /**
      * Schedules a timer and persists it.
-     * @param options The timer to schedule.
+     * @param timer The timer to schedule.
+     * @param run What it executes when it fires.
      * @returns
      */
     start(timer: Timer, run: () => Promise<void>): Promise<Timer>;
