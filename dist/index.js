@@ -21,12 +21,12 @@ exports.ForgeTimers = void 0;
 const forgescript_1 = require("@tryforge/forgescript");
 const managers_1 = require("./managers");
 const structures_1 = require("./structures");
-const noop_1 = __importDefault(require("./functions/noop"));
+const logger_1 = require("./functions/logger");
 const package_json_1 = require("../package.json");
 const path_1 = __importDefault(require("path"));
 class ForgeTimers extends forgescript_1.ForgeExtension {
     options;
-    name = "forge.timers";
+    name = "ForgeTimers";
     description = package_json_1.description;
     version = package_json_1.version;
     requireExtensions = ["forge.db"];
@@ -42,7 +42,7 @@ class ForgeTimers extends forgescript_1.ForgeExtension {
             .init()
             .then(() => true)
             .catch((err) => {
-            (0, noop_1.default)(err);
+            logger_1.Logger.error(err);
             return false;
         });
         this.timersManager = new managers_1.TimersManager(client);

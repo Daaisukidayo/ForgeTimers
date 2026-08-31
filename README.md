@@ -22,7 +22,7 @@ ForgeTimers is an extension that makes `$setTimeout` and `$setInterval` survive 
 <h3 align="center">Installation</h3><hr>
 
 > ⚠️ **Warning**\
-> **ForgeTimers** requires the extension [**ForgeDB**](https://docs.botforge.org/p/ForgeDB/) installed in order to operate, and **ForgeScript 2.7.0** or newer.
+> **ForgeTimers** requires the extension [**ForgeDB**](https://docs.botforge.org/?p=ForgeDB) installed in order to operate, and **ForgeScript 2.7.0** or newer.
 
 1. Run the following command to install the required `npm` package:
 
@@ -69,6 +69,12 @@ The extension overrides `$setTimeout`, `$setInterval`, `$clearTimeout` and `$cle
 
 <h3 align="center">Configuration</h3><hr>
 
+At the top level, `ForgeTimers` accepts:
+
+- **`pruneUnknownGuilds`** — whether timers belonging to a guild this process can't see are deleted on startup. Default `false`. An invisible guild is far more often a Discord outage or another process's shard than a kick, and the deletion can't be undone. Turn it on only on a single unsharded process, where a missing guild really does mean the bot was removed.
+
+Startup only compiles what it restores. Channels, messages and users are fetched when a timer actually fires, so booting with thousands of stored timers costs nothing extra, and a timer due next month is never discarded over an outage happening today. A timeout that could not reach Discord keeps its record and is retried on the next boot.
+
 Both `timeoutConfig` and `intervalConfig` accept:
 
 - **`persist`** — whether records are re-armed on startup. Default `true`. With `false`, timers are still written while the app runs, but the records are dropped on the next boot.
@@ -83,11 +89,19 @@ Both `timeoutConfig` and `intervalConfig` accept:
 
 `maxOverdue` is measured against the timer's *due time* - a timer due next week is never affected by a week of downtime. What happens past the limit differs by kind: an overdue **timeout** is discarded, while an **interval** only skips the stale tick and resumes.
 
+There is no upper bound on a duration: waits longer than node's own ~24.8 day limit are re-armed in chunks. An interval that survives a restart resumes on the time left on its current tick rather than waiting a whole fresh one, so its schedule doesn't drift with each restart.
+
+A timer is only dropped when its channel is really gone. If Discord can't be reached at startup - an outage, a rate limit, a network failure - the record is kept and retried on the next boot instead.
+
+A timer doesn't need a channel at all. One scheduled where there is none - a `clientReady` command, for instance - is persisted and restored just the same, and runs against the empty target ForgeScript gives that event. It belongs to no guild, so on a sharded bot it runs once, on shard 0, rather than once per shard.
+
 <h3 align="center">Storage</h3><hr>
 
 Timers are stored through **ForgeDB**, so they end up wherever you already keep your data - sqlite, mongodb, mysql or postgres. There's nothing extra to configure here: set ForgeDB up as usual and timers follow.
 
 On sqlite that means a `timers.db` file next to ForgeDB's own database.
+
+Variables are stored alongside the timer. Strings, numbers, booleans, arrays and plain objects survive, and so do dates, maps, sets, regular expressions and bigints. Anything with no meaning after a restart - a function, a class instance, a live Discord structure - is dropped, and the names that were dropped are logged when the timer is scheduled.
 
 <h3 align="center">Reading timers</h3><hr>
 
@@ -97,6 +111,7 @@ Stored timers can be read back from scripts:
 - **`$getAllTimers[kind?]`** - every stored timer as JSON, optionally filtered to `timeout` or `interval`.
 - **`$wipeTimers`** - cancels every stored timer and clears them. Returns how many were running.
 
+Example:
 ```js
 $getTimer[timeout;reminder;timeLeft]
 $getAllTimers[interval]

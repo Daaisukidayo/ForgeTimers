@@ -20,6 +20,7 @@ export default new NativeFunction({
     output: ArgType.Boolean,
     async execute(ctx, [name]) {
         const manager = ctx.client.getExtension(ForgeTimers, true).timersManager
-        return this.success(await manager.stop(TimerKind.timeout, name))
+        const [cleared, forgotten] = await manager.stop(TimerKind.timeout, name)
+        return this.success(cleared || forgotten)
     },
 })

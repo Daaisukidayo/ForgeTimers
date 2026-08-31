@@ -1,11 +1,14 @@
-import { Compiler, ForgeClient, Interpreter, Logger, Sendable } from "@tryforge/forgescript"
+import { Compiler, ForgeClient, Interpreter, Sendable } from "@tryforge/forgescript"
+import { GuildMember, User } from "discord.js"
+import { DiscordAPIError } from "discord.js"
 import { Database, Timer, TimerContext, TimerKind } from "../structures"
 import { ForgeTimers } from ".."
 import { IBaseTimerConfig } from "../types"
-import { rehydrateLocalFunctions } from "../functions/snapshotVars"
-import noop from "../functions/noop"
+import { rehydrateLocalFunctions, restoreVars } from "../functions/snapshotVars"
+import { setLongTimeout } from "../functions/schedule"
+import { Logger } from "../functions/logger"
 
-/** Precomputed numbers shared by every per-kind restore handler. */
+/** Shared by every per-kind restore handler */
 interface IRestoreTiming {
     config: IBaseTimerConfig
     /** How far past due the timer is, or 0 if it isn't yet. */
@@ -14,8 +17,38 @@ interface IRestoreTiming {
     late: boolean
 }
 
+/** `gone` means the target is really destroyed — drop it. Anything else waits for the next boot */
+interface IRestoreFailure {
+    ok: false
+    gone: boolean
+    reason: string
+}
+
+/** A run blocked by an outage isn't a run — the record is only spent when `ran` or `gone` */
+interface IRunOutcome {
+    ran: boolean
+    gone: boolean
+}
+
+type Runner = () => Promise<IRunOutcome>
+
+type IRunnerResult = { ok: true; run: Runner } | IRestoreFailure
+type ITargetResult = { ok: true; obj: Sendable } | IRestoreFailure
+
+/** Really gone, as opposed to a rate limit or an outage — only this may cost a timer */
+function isGone(err: unknown) {
+    return err instanceof DiscordAPIError && err.status === 404
+}
+
+function reasonOf(err: unknown) {
+    return err instanceof Error ? err.message : String(err)
+}
+
 export class TimersManager {
     private readonly timers: ForgeTimers
+
+    /** Bumped on every arm and every clear, so a callback can tell it was superseded */
+    private readonly generations = new Map<string, number>()
 
     public constructor(private readonly client: ForgeClient) {
         this.timers = client.getExtension(ForgeTimers, true)
@@ -28,18 +61,24 @@ export class TimersManager {
 
     /**
      * Schedules a timer and persists it.
-     * @param options The timer to schedule.
+     * @param timer The timer to schedule.
+     * @param run What it executes when it fires.
      * @returns
      */
     public async start(timer: Timer, run: () => Promise<void>) {
         const persisted = await this.timers.ready
 
         if (this.clear(timer.kind, timer.name)) {
-            Logger.warn(`[ForgeTimers] Replacing existing ${timer.kind} "${timer.name}"`)
+            Logger.warn(`Replacing existing ${timer.kind} "${timer.name}"`)
         }
 
-        if (persisted) await Database.set(timer).catch(noop)
-        this._arm(timer, run)
+        if (persisted) await Database.set(timer).catch(Logger.error)
+
+        // live timer already has its target, so it always runs
+        this._arm(timer, async () => {
+            await run()
+            return { ran: true, gone: false }
+        })
 
         return timer
     }
@@ -59,20 +98,31 @@ export class TimersManager {
         else clearTimeout(handle)
 
         map.delete(name)
+        this._claim(kind, name)
         return true
+    }
+
+    /** Takes the name over and hands back a check for whether it's still ours */
+    private _claim(kind: TimerKind, name: string) {
+        const key = Timer.idOf(kind, name)
+        const generation = (this.generations.get(key) ?? 0) + 1
+
+        this.generations.set(key, generation)
+        return () => this.generations.get(key) === generation
     }
 
     /**
      * Cancels a running timer and deletes it from the database.
      * @param kind The kind of the timer.
      * @param name The name of the timer.
-     * @returns
+     * @returns Whether it was running, and whether a stored record was removed.
      */
-    public async stop(kind: TimerKind, name: string) {
-        const persisted = await this.timers.ready
+    public async stop(kind: TimerKind, name: string): Promise<[boolean, boolean]> {
         const cleared = this.clear(kind, name)
-        if (persisted) await Database.delete(kind, name).catch(noop)
-        return cleared
+        if (!(await this.timers.ready)) return [cleared, false]
+
+        const result = await Database.delete(kind, name).catch(Logger.error)
+        return [cleared, !!result && (result.affected ?? 0) > 0]
     }
 
     /**
@@ -82,14 +132,14 @@ export class TimersManager {
     public async wipe() {
         if (!(await this.timers.ready)) return 0
 
-        const stored = await Database.getAll().catch(noop)
+        const stored = await Database.getAll().catch(Logger.error)
         let cleared = 0
 
         for (const timer of stored ?? []) {
             if (this.clear(timer.kind, timer.name)) cleared++
         }
 
-        await Database.wipe().catch(noop)
+        await Database.wipe().catch(Logger.error)
         return cleared
     }
 
@@ -105,7 +155,7 @@ export class TimersManager {
             case TimerKind.interval:
                 return this.client.intervals
             default:
-                // a kind with no map of its own isn't schedulable here yet
+                // no map for this kind yet, so nothing to schedule
                 return undefined
         }
     }
@@ -133,136 +183,246 @@ export class TimersManager {
         }
     }
 
-    private _arm(timer: Timer, run: () => Promise<void>) {
-        switch (timer.kind) {
-            case TimerKind.interval: {
-                const handle = setInterval(async () => {
-                    await run()
-                    await Database.set(timer.scheduleNext()).catch(noop)
-                }, timer.duration || undefined)
+    /** Arms `fn`, keeping the live map on the pending chunk so {@link clear} cancels the right one */
+    private _schedule(kind: TimerKind, name: string, delay: number, fn: () => void) {
+        const map = this.mapOf(kind)
+        setLongTimeout(delay, fn, (handle) => map?.set(name, handle))
+    }
 
-                this.client.intervals.set(timer.name, handle)
-                return
-            }
+    private _arm(timer: Timer, run: Runner) {
+        const owns = this._claim(timer.kind, timer.name)
+
+        switch (timer.kind) {
+            case TimerKind.interval:
+                return this._armInterval(timer, run, owns)
 
             case TimerKind.timeout:
-                break
+                return this._armTimeout(timer, run, owns)
 
             default:
                 return this._assertNever(timer.kind, timer.name)
         }
+    }
 
-        const handle = setTimeout(async () => {
-            await run()
+    private _armTimeout(timer: Timer, run: Runner, owns: () => boolean) {
+        this._schedule(timer.kind, timer.name, timer.timeLeft(), async () => {
+            const outcome = await run()
+
+            // someone took the name while we ran, their handle and row aren't ours to drop
+            if (!owns()) return
+
             this.client.timeouts.delete(timer.name)
-            await Database.delete(timer.kind, timer.name).catch(noop)
-        }, timer.timeLeft() || undefined)
 
-        this.client.timeouts.set(timer.name, handle)
+            // don't burn the record on an outage, retry it next boot
+            if (outcome.ran || outcome.gone) await Database.delete(timer.kind, timer.name).catch(Logger.error)
+        })
+    }
+
+    /** Self-arming rather than `setInterval`: handles ticks past node's cap, and resumes on time left */
+    private _armInterval(timer: Timer, run: Runner, owns: () => boolean) {
+        this._schedule(timer.kind, timer.name, timer.timeLeft(), async () => {
+            if (!owns()) return
+
+            // bump first: a slow run mustn't drag the phase, a crash mustn't look pending
+            await Database.set(timer.advance()).catch(Logger.error)
+
+            if (!owns()) {
+                // cancelled while that write was in flight, so take the row back out
+                if (!this.isLive(timer.kind, timer.name)) {
+                    await Database.delete(timer.kind, timer.name).catch(Logger.error)
+                }
+                return
+            }
+
+            this._armInterval(timer, run, owns)
+
+            const outcome = await run()
+            if (outcome.gone && owns()) {
+                Logger.warn(`Stopping interval "${timer.name}": its target is gone`)
+                this.clear(timer.kind, timer.name)
+                await Database.delete(timer.kind, timer.name).catch(Logger.error)
+            }
+        })
     }
 
     /**
-     * Rebuilds a runner for a stored timer, recompiling its code and
-     * refetching the channel or message it was scheduled from.
+     * Compiles now, fetches later. Boot stays free of requests, and a distant timer isn't
+     * thrown away over an outage happening today.
      * @param timer The timer to build a runner for.
      * @returns
      */
-    private async _runnerFor(timer: Timer) {
-        const obj = await this._rebuildTarget(timer)
-        if (!obj) return null
-
+    private _runnerFor(timer: Timer): IRunnerResult {
         let compiled
+
         try {
             compiled = Compiler.compile(timer.code, timer.path)
         } catch (err) {
-            noop(err)
-            return null
+            Logger.error(err)
+            // won't compile now, won't compile next boot either
+            return { ok: false, gone: true, reason: "its code no longer compiles" }
         }
 
-        const hasAuthor = "author" in obj || "user" in obj
-        const host = timer.hostID && !hasAuthor
-            ? await this.client.users.fetch(timer.hostID).catch(() => null)
-            : null
+        const version = timer.version ?? 0
+        const keywords = restoreVars(timer.vars?.keywords, version)
+        const environment = restoreVars(timer.vars?.environment, version)
 
-        const guild = timer.guildID ? this.client.guilds.cache.get(timer.guildID) : undefined
-        const hostMember = host && guild ? await guild.members.fetch(host.id).catch(() => null) : null
+        let resolved: { obj: Sendable; host: User | null; hostMember: GuildMember | null } | null = null
 
-        return async () => {
+        const run: Runner = async () => {
+            if (!resolved) {
+                const target = await this._rebuildTarget(timer)
+                if (!target.ok) {
+                    Logger.warn(
+                        target.gone
+                            ? `${timer.kind} "${timer.name}" has nowhere to run: ${target.reason}`
+                            : `Could not run ${timer.kind} "${timer.name}" yet: ${target.reason}`
+                    )
+                    return { ran: false, gone: target.gone }
+                }
+
+                const obj = target.obj
+                const hasAuthor = "author" in obj || "user" in obj
+                const host = timer.hostID && !hasAuthor
+                    ? await this.client.users.fetch(timer.hostID).catch(() => null)
+                    : null
+
+                const guild = timer.guildID ? this.client.guilds.cache.get(timer.guildID) : undefined
+                const hostMember = host && guild ? await guild.members.fetch(host.id).catch(() => null) : null
+
+                resolved = { obj, host, hostMember }
+            }
+
             const ctx = new TimerContext({
                 client: this.client,
-                command: null,
+                command: this._commandFor(timer),
                 data: compiled,
-                obj,
+                obj: resolved.obj,
                 doNotSend: true,
                 redirectErrorsToConsole: true,
-                keywords: { ...timer.vars?.keywords },
-                environment: { ...timer.vars?.environment },
+                keywords: { ...keywords },
+                environment: { ...environment },
                 localFunctions: rehydrateLocalFunctions(timer.vars?.localFunctions, timer.path, "ForgeTimers"),
                 args: timer.args ?? [],
-                host,
-                hostMember,
+                host: resolved.host,
+                hostMember: resolved.hostMember,
             })
 
-            await Interpreter.run(ctx).catch(noop)
-        }
-    }
-
-    private async _rebuildTarget(timer: Timer): Promise<Sendable | null> {
-        const channel = await this.client.channels.fetch(timer.channelID).catch(() => null)
-        if (!channel) return null
-
-        if (timer.messageID && "messages" in channel) {
-            const message = await channel.messages.fetch(timer.messageID).catch(() => null)
-            if (message) return message as Sendable
+            await Interpreter.run(ctx).catch(Logger.error)
+            return { ran: true, gone: false }
         }
 
-        return channel as Sendable
+        return { ok: true, run }
     }
 
     /**
-     * Whether this process should restore a given timer.
+     * Finds the live command again, so a restored run reads the same `$commandName`.
+     * @param timer The timer to look up.
+     * @returns
      */
-    private async _owns(timer: Timer) {
-        if (timer.guildID) {
-            if (this.client.guilds.cache.has(timer.guildID)) return true
-            if (this.client.shard) return false
+    private _commandFor(timer: Timer) {
+        if (!timer.path && !timer.commandName) return null
 
-            await Database.delete(timer.kind, timer.name).catch(noop)
-            return false
+        const commands = this.client.commands?.toArray() ?? []
+        const found = commands.find(
+            (command) =>
+                (timer.path && command.data.path === timer.path) ||
+                (timer.commandName && command.data.name === timer.commandName)
+        )
+
+        return found ?? null
+    }
+
+    private async _rebuildTarget(timer: Timer): Promise<ITargetResult> {
+        // no channel means empty target
+        if (!timer.channelID) return { ok: true, obj: {} }
+
+        let channel
+        try {
+            channel = await this.client.channels.fetch(timer.channelID)
+        } catch (err) {
+            return {
+                ok: false,
+                gone: isGone(err),
+                reason: `channel ${timer.channelID} could not be fetched: ${reasonOf(err)}`,
+            }
         }
 
-        // DM timer
-        return !this.client.shard || this.client.shard.ids.includes(0)
+        if (!channel) {
+            return { ok: false, gone: true, reason: `channel ${timer.channelID} no longer exists` }
+        }
+
+        // refills the author from hostID
+        if (timer.messageID && "messages" in channel) {
+            const message = await channel.messages.fetch(timer.messageID).catch(() => null)
+            if (message) return { ok: true, obj: message as Sendable }
+        }
+
+        return { ok: true, obj: channel as Sendable }
+    }
+
+    /** What we can't see is left alone — it's a sibling shard or an outage. Deleting is opt-in */
+    private async _owns(timer: Timer) {
+        if (!timer.guildID) {
+            // no guild means shard 0, otherwise sharding would run it twice
+            return !this.client.shard || this.client.shard.ids.includes(0)
+        }
+
+        if (this.client.guilds.cache.has(timer.guildID)) return true
+
+        if (!this.client.shard && this.timers.options.pruneUnknownGuilds) {
+            Logger.warn(
+                `Dropping ${timer.kind} "${timer.name}": guild ${timer.guildID} is not visible to this process`
+            )
+            await Database.delete(timer.kind, timer.name).catch(Logger.error)
+        }
+
+        return false
     }
 
     private async _restore() {
         if (!(await this.timers.ready)) return
 
-        const timers = await Database.getAll().catch(noop)
+        const timers = await Database.getAll().catch(Logger.error)
         if (!timers) return
 
         const dueNow: Array<() => Promise<void>> = []
 
         for (const timer of timers) {
             if (this.isLive(timer.kind, timer.name)) {
-                Logger.warn(`[ForgeTimers] Skipping ${timer.kind} "${timer.name}": already rescheduled since startup`)
+                Logger.warn(`Skipping ${timer.kind} "${timer.name}": already rescheduled since startup`)
                 continue
             }
 
             if (!(await this._owns(timer))) continue
 
+            const version = timer.version ?? 0
+            if (version > Timer.SCHEMA_VERSION) {
+                Logger.warn(
+                    `Leaving ${timer.kind} "${timer.name}" alone: it was stored under schema ${version}, and this build only understands ${Timer.SCHEMA_VERSION}`
+                )
+                continue
+            }
+
             const config = this.configOf(timer.kind)
             if (config.persist === false) {
-                await Database.delete(timer.kind, timer.name).catch(noop)
+                await Database.delete(timer.kind, timer.name).catch(Logger.error)
                 continue
             }
 
-            const run = await this._runnerFor(timer)
-            if (!run) {
-                await Database.delete(timer.kind, timer.name).catch(noop)
+            const runner = this._runnerFor(timer)
+            if (!runner.ok) {
+                if (runner.gone) {
+                    Logger.warn(`Dropping ${timer.kind} "${timer.name}": ${runner.reason}`)
+                    await Database.delete(timer.kind, timer.name).catch(Logger.error)
+                } else {
+                    Logger.warn(
+                        `Keeping ${timer.kind} "${timer.name}" for the next boot: ${runner.reason}`
+                    )
+                }
                 continue
             }
 
+            const run = runner.run
             const overdueBy = timer.overdueBy()
             const late = !!(overdueBy && config.maxOverdue && overdueBy > config.maxOverdue)
 
@@ -283,18 +443,18 @@ export class TimersManager {
         await Promise.allSettled(dueNow.map((task) => task()))
     }
 
-    /** Drops a one-shot timer that's too late, otherwise fires or re-arms it. */
+    /** Drops a one-shot that's too late, otherwise fires or re-arms it */
     private async _restoreTimeout(
         timer: Timer,
         timing: IRestoreTiming,
-        run: () => Promise<void>,
+        run: Runner,
         dueNow: Array<() => Promise<void>>
     ) {
         if (timing.late) {
             Logger.warn(
-                `[ForgeTimers] Discarding timeout "${timer.name}": overdue by ${timing.overdueBy}ms (max ${timing.config.maxOverdue}ms)`
+                `Discarding timeout "${timer.name}": overdue by ${timing.overdueBy}ms (max ${timing.config.maxOverdue}ms)`
             )
-            await Database.delete(timer.kind, timer.name).catch(noop)
+            await Database.delete(timer.kind, timer.name).catch(Logger.error)
             return
         }
 
@@ -302,8 +462,12 @@ export class TimersManager {
 
         dueNow.push(async () => {
             if (this.isLive(timer.kind, timer.name)) return
-            await run()
-            await Database.delete(timer.kind, timer.name).catch(noop)
+
+            const owns = this._claim(timer.kind, timer.name)
+            if (!owns()) return
+            
+            const outcome = await run()
+            if (outcome.ran || outcome.gone) await Database.delete(timer.kind, timer.name).catch(Logger.error)
         })
     }
 
@@ -311,37 +475,41 @@ export class TimersManager {
     private async _restoreInterval(
         timer: Timer,
         timing: IRestoreTiming,
-        run: () => Promise<void>,
+        run: Runner,
         dueNow: Array<() => Promise<void>>
     ) {
         if (timing.late) {
             Logger.warn(
-                `[ForgeTimers] Interval "${timer.name}": skipping tick overdue by ${timing.overdueBy}ms (max ${timing.config.maxOverdue}ms), resuming schedule`
+                `Interval "${timer.name}": skipping tick overdue by ${timing.overdueBy}ms (max ${timing.config.maxOverdue}ms), resuming schedule`
             )
-            await Database.set(timer.scheduleNext()).catch(noop)
+            await Database.set(timer.scheduleNext()).catch(Logger.error)
             return this._arm(timer, run)
         }
 
-        if (timer.isOverdue()) {
-            const missed = timer.missedTicks()
-            dueNow.push(async () => {
-                if (this.isLive(timer.kind, timer.name)) return
-                await this._replay(timer, missed, run)
-                await Database.set(timer.scheduleNext()).catch(noop)
-            })
-        }
+        // still on schedule, _arm picks up the time left on this tick
+        if (!timer.isOverdue()) return this._arm(timer, run)
 
-        this._arm(timer, run)
+        const missed = timer.missedTicks()
+
+        // arm inside the task, isLive would go true first and eat every replay
+        dueNow.push(async () => {
+            if (this.isLive(timer.kind, timer.name)) return
+            await this._replay(timer, missed, run)
+
+            // a script may have rescheduled this name while the replay was running
+            if (this.isLive(timer.kind, timer.name)) return
+
+            await Database.set(timer.scheduleNext()).catch(Logger.error)
+            this._arm(timer, run)
+        })
     }
 
     private _assertNever(kind: never, name: string): void {
-        Logger.warn(`[ForgeTimers] Skipping timer "${name}": unsupported kind "${kind}"`)
+        Logger.warn(`Skipping timer "${name}": unsupported kind "${kind}"`)
     }
 
-    /**
-     * Replays ticks that elapsed while the app was offline, honouring `restoredTicksLimit`.
-     */
-    private async _replay(timer: Timer, missed: number, run: () => Promise<void>) {
+    /** Replays what was missed offline, up to `restoredTicksLimit` */
+    private async _replay(timer: Timer, missed: number, run: Runner) {
         const limit = this.timers.options.intervalConfig?.restoredTicksLimit
         if (!limit) return
 
@@ -350,10 +518,14 @@ export class TimersManager {
 
         Logger.warn(
             missed > toRun
-                ? `[ForgeTimers] Interval "${timer.name}": replaying ${toRun} of ${missed} missed ticks.`
-                : `[ForgeTimers] Interval "${timer.name}": replaying ${toRun} missed tick(s).`
+                ? `Interval "${timer.name}": replaying ${toRun} of ${missed} missed ticks.`
+                : `Interval "${timer.name}": replaying ${toRun} missed tick(s).`
         )
 
-        for (let i = 0; i < toRun; i++) await run()
+        for (let i = 0; i < toRun; i++) {
+            // no point replaying into a target we can't reach
+            const outcome = await run()
+            if (!outcome.ran) return
+        }
     }
 }

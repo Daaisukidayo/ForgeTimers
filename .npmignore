@@ -1,2 +1,10 @@
+dist/__tests__
+dist/commit.*
+dist/docgen.*
+dist/functions/prompt.*
+
 node_modules
-.env
+src
+tsconfig*.json
+database
+docs

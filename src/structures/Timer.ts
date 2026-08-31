@@ -1,7 +1,7 @@
 import "reflect-metadata"
 import { Snowflake } from "discord.js"
 import { Column, Entity, ObjectIdColumn, PrimaryColumn } from "typeorm"
-import { IPersistedVars } from "../functions/snapshotVars"
+import { IPersistedVars, VARS_SCHEMA_VERSION } from "../functions/snapshotVars"
 
 export enum TimerKind {
     timeout = "timeout",
@@ -22,12 +22,22 @@ export interface ITimerStartOptions {
     path?: string | null
 
     /**
+     * The name of the command this timer was scheduled from, used to find the live
+     * command again on restore.
+     */
+    commandName?: string | null
+
+    /**
      * Delay for timeouts, tick length for intervals, in ms.
      */
     duration: number
 
     guildID?: Snowflake | null
-    channelID: Snowflake
+
+    /** 
+     * Null when scheduled outside a channel. 
+    */
+    channelID?: Snowflake | null
     hostID?: Snowflake | null
     messageID?: Snowflake | null
 
@@ -44,14 +54,17 @@ export interface ITimer extends ITimerStartOptions {
     timestamp: number
 
     /**
+     * The variable schema this timer was written under.
+     */
+    version?: number | null
+
+    /**
      * Absolute unix ms timestamp of the next time this should fire.
      */
     fireAt: number
 }
 
-/**
- * Epoch milliseconds overflow a 32-bit int on mysql and postgres, so these columns are bigint.
- */
+/** Epoch ms overflows an int32 on mysql and postgres, so these columns are bigint */
 const numericColumn = {
     to: (value?: number) => value,
     from: (value?: string | number | null) =>
@@ -60,6 +73,12 @@ const numericColumn = {
 
 @Entity()
 export class Timer implements ITimer {
+    /** What this build writes */
+    public static readonly SCHEMA_VERSION = VARS_SCHEMA_VERSION
+
+    /** Primary keys are `varchar(255)` on mysql, and a longer id is rejected, not truncated */
+    public static readonly MAX_ID_LENGTH = 255
+
     /**
      * The id of this timer, in the form `kind:name`.
      */
@@ -91,6 +110,16 @@ export class Timer implements ITimer {
     public path?: string | null
 
     /**
+     * The name of the command this timer was scheduled from.
+     */
+    @Column({ type: "text", nullable: true })
+    public commandName?: string | null
+
+    /** Variable schema this row was written under. Null predates it and means v0 */
+    @Column({ type: "int", nullable: true })
+    public version?: number | null
+
+    /**
      * The delay of this timeout, or the tick length of this interval, in ms.
      */
     @Column({ type: "bigint", transformer: numericColumn })
@@ -115,10 +144,10 @@ export class Timer implements ITimer {
     public guildID?: Snowflake | null
 
     /**
-     * The id of the channel this timer has been created in.
+     * The id of the channel this timer has been created in, if any.
      */
-    @Column()
-    public channelID: Snowflake
+    @Column({ type: "varchar", nullable: true })
+    public channelID?: Snowflake | null
 
     /**
      * The id of the user that scheduled this timer.
@@ -150,9 +179,11 @@ export class Timer implements ITimer {
         this.id = Timer.idOf(this.kind, this.name)
         this.code = options?.code ?? ""
         this.path = options?.path ?? null
+        this.commandName = options?.commandName ?? null
+        this.version = Timer.SCHEMA_VERSION
         this.duration = options?.duration ?? 0
         this.guildID = options?.guildID ?? null
-        this.channelID = options?.channelID ?? ""
+        this.channelID = options?.channelID ?? null
         this.hostID = options?.hostID ?? null
         this.messageID = options?.messageID ?? null
         this.args = options?.args
@@ -169,6 +200,15 @@ export class Timer implements ITimer {
      */
     public static idOf(kind: TimerKind, name: string) {
         return `${kind}:${name}`
+    }
+
+    /**
+     * Longest usable name, since the id carries the kind too.
+     * @param kind The kind of the timer.
+     * @returns
+     */
+    public static maxNameLength(kind: TimerKind) {
+        return Timer.MAX_ID_LENGTH - Timer.idOf(kind, "").length
     }
 
     /**
@@ -196,8 +236,7 @@ export class Timer implements ITimer {
     }
 
     /**
-     * Returns how many ticks elapsed since this timer was last due.
-     * Always 0 for timeouts, which only ever fire once.
+     * Ticks elapsed since it was last due. Always 0 for timeouts, they fire once.
      * @returns
      */
     public missedTicks() {
@@ -206,11 +245,23 @@ export class Timer implements ITimer {
     }
 
     /**
-     * Moves this timer's due time to the next tick.
+     * Pushes the due time a full duration out, dropping the phase. For an abandoned tick.
      * @returns
      */
     public scheduleNext() {
         this.fireAt = Date.now() + this.duration
+        return this
+    }
+
+    /**
+     * Steps whole ticks into the future, keeping the phase — a slow run shifts by ticks, not by itself.
+     * @returns
+     */
+    public advance() {
+        if (this.duration <= 0) return this.scheduleNext()
+
+        const ticks = Math.max(1, Math.floor((Date.now() - this.fireAt) / this.duration) + 1)
+        this.fireAt += ticks * this.duration
         return this
     }
 

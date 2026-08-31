@@ -81,7 +81,8 @@ export class Database extends TimersDatabaseManager {
         const oldData = await this.get(data.kind, data.name)
 
         if (oldData && this.type === "mongodb") {
-            await this.db.getRepository(this.entities.Timer).update(oldData.id, data as any)
+            // has to be an object
+            await this.db.getRepository(this.entities.Timer).update({ id: oldData.id }, data as any)
         } else {
             await this.db.getRepository(this.entities.Timer).save(data)
         }
@@ -98,10 +99,11 @@ export class Database extends TimersDatabaseManager {
     }
 
     /**
-     * Wipes the entire database.
+     * Wipes the entire database. Deletes rather than truncating, which needs raised
+     * privileges on postgres and drops the collection outright on mongodb.
      * @returns
      */
     public static async wipe() {
-        return await this.db.getRepository(this.entities.Timer).clear()
+        return await this.db.getRepository(this.entities.Timer).deleteAll()
     }
 }

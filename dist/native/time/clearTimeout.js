@@ -21,7 +21,8 @@ exports.default = new forgescript_1.NativeFunction({
     output: forgescript_1.ArgType.Boolean,
     async execute(ctx, [name]) {
         const manager = ctx.client.getExtension(__1.ForgeTimers, true).timersManager;
-        return this.success(await manager.stop(__1.TimerKind.timeout, name));
+        const [cleared, forgotten] = await manager.stop(__1.TimerKind.timeout, name);
+        return this.success(cleared || forgotten);
     },
 });
 //# sourceMappingURL=clearTimeout.js.map

@@ -13,19 +13,23 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MongoTimer = exports.Timer = exports.TimerKind = void 0;
 require("reflect-metadata");
 const typeorm_1 = require("typeorm");
+const snapshotVars_1 = require("../functions/snapshotVars");
 var TimerKind;
 (function (TimerKind) {
     TimerKind["timeout"] = "timeout";
     TimerKind["interval"] = "interval";
 })(TimerKind || (exports.TimerKind = TimerKind = {}));
-/**
- * Epoch milliseconds overflow a 32-bit int on mysql and postgres, so these columns are bigint.
- */
+/** Epoch ms overflows an int32 on mysql and postgres, so these columns are bigint */
 const numericColumn = {
     to: (value) => value,
     from: (value) => value === null || value === undefined ? value : Number(value),
 };
-let Timer = Timer_1 = class Timer {
+let Timer = class Timer {
+    static { Timer_1 = this; }
+    /** What this build writes */
+    static SCHEMA_VERSION = snapshotVars_1.VARS_SCHEMA_VERSION;
+    /** Primary keys are `varchar(255)` on mysql, and a longer id is rejected, not truncated */
+    static MAX_ID_LENGTH = 255;
     /**
      * The id of this timer, in the form `kind:name`.
      */
@@ -47,6 +51,12 @@ let Timer = Timer_1 = class Timer {
      */
     path;
     /**
+     * The name of the command this timer was scheduled from.
+     */
+    commandName;
+    /** Variable schema this row was written under. Null predates it and means v0 */
+    version;
+    /**
      * The delay of this timeout, or the tick length of this interval, in ms.
      */
     duration;
@@ -63,7 +73,7 @@ let Timer = Timer_1 = class Timer {
      */
     guildID;
     /**
-     * The id of the channel this timer has been created in.
+     * The id of the channel this timer has been created in, if any.
      */
     channelID;
     /**
@@ -88,9 +98,11 @@ let Timer = Timer_1 = class Timer {
         this.id = Timer_1.idOf(this.kind, this.name);
         this.code = options?.code ?? "";
         this.path = options?.path ?? null;
+        this.commandName = options?.commandName ?? null;
+        this.version = Timer_1.SCHEMA_VERSION;
         this.duration = options?.duration ?? 0;
         this.guildID = options?.guildID ?? null;
-        this.channelID = options?.channelID ?? "";
+        this.channelID = options?.channelID ?? null;
         this.hostID = options?.hostID ?? null;
         this.messageID = options?.messageID ?? null;
         this.args = options?.args;
@@ -106,6 +118,14 @@ let Timer = Timer_1 = class Timer {
      */
     static idOf(kind, name) {
         return `${kind}:${name}`;
+    }
+    /**
+     * Longest usable name, since the id carries the kind too.
+     * @param kind The kind of the timer.
+     * @returns
+     */
+    static maxNameLength(kind) {
+        return Timer_1.MAX_ID_LENGTH - Timer_1.idOf(kind, "").length;
     }
     /**
      * Returns the time left before this timer is due.
@@ -129,8 +149,7 @@ let Timer = Timer_1 = class Timer {
         return this.fireAt <= Date.now();
     }
     /**
-     * Returns how many ticks elapsed since this timer was last due.
-     * Always 0 for timeouts, which only ever fire once.
+     * Ticks elapsed since it was last due. Always 0 for timeouts, they fire once.
      * @returns
      */
     missedTicks() {
@@ -139,11 +158,22 @@ let Timer = Timer_1 = class Timer {
         return Math.floor(this.overdueBy() / this.duration) + 1;
     }
     /**
-     * Moves this timer's due time to the next tick.
+     * Pushes the due time a full duration out, dropping the phase. For an abandoned tick.
      * @returns
      */
     scheduleNext() {
         this.fireAt = Date.now() + this.duration;
+        return this;
+    }
+    /**
+     * Steps whole ticks into the future, keeping the phase — a slow run shifts by ticks, not by itself.
+     * @returns
+     */
+    advance() {
+        if (this.duration <= 0)
+            return this.scheduleNext();
+        const ticks = Math.max(1, Math.floor((Date.now() - this.fireAt) / this.duration) + 1);
+        this.fireAt += ticks * this.duration;
         return this;
     }
     /**
@@ -176,6 +206,14 @@ __decorate([
     __metadata("design:type", Object)
 ], Timer.prototype, "path", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "text", nullable: true }),
+    __metadata("design:type", Object)
+], Timer.prototype, "commandName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "int", nullable: true }),
+    __metadata("design:type", Object)
+], Timer.prototype, "version", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: "bigint", transformer: numericColumn }),
     __metadata("design:type", Number)
 ], Timer.prototype, "duration", void 0);
@@ -192,8 +230,8 @@ __decorate([
     __metadata("design:type", Object)
 ], Timer.prototype, "guildID", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({ type: "varchar", nullable: true }),
+    __metadata("design:type", Object)
 ], Timer.prototype, "channelID", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: "varchar", nullable: true }),

@@ -56,9 +56,10 @@ export declare class Database extends TimersDatabaseManager {
      */
     static delete(kind: TimerKind, name: string): Promise<import("typeorm").DeleteResult>;
     /**
-     * Wipes the entire database.
+     * Wipes the entire database. Deletes rather than truncating, which needs raised
+     * privileges on postgres and drops the collection outright on mongodb.
      * @returns
      */
-    static wipe(): Promise<void>;
+    static wipe(): Promise<import("typeorm").DeleteResult>;
 }
 //# sourceMappingURL=Database.d.ts.map

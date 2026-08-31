@@ -18,11 +18,7 @@ export interface ITimeoutConfig extends IBaseTimerConfig {
 }
 export interface IIntervalConfig extends IBaseTimerConfig {
     /**
-     * How many ticks missed during downtime to replay on startup.
-     *
-     * - `0` (default) — replay nothing, just resume the schedule.
-     * - `-1` — no limit: replay every tick that elapsed while offline. USE WITH CAUTION!
-     * - `n > 0` — replay at most n of the missed ticks.
+     * Missed ticks to replay on startup: `0` none (default), `-1` all - careful — or at most `n`.
      */
     restoredTicksLimit?: number;
     /**

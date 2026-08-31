@@ -2,17 +2,23 @@ import { ForgeClient, ForgeExtension } from "@tryforge/forgescript"
 import { TimersManager } from "./managers"
 import { Database } from "./structures"
 import { IIntervalConfig, ITimeoutConfig } from "./types"
-import noop from "./functions/noop"
+import { Logger } from "./functions/logger"
 import { description, version } from "../package.json"
 import path from "path"
 
 export interface IForgeTimersOptions {
     timeoutConfig?: ITimeoutConfig
     intervalConfig?: IIntervalConfig
+
+    /**
+     * Delete timers whose guild this process can't see on startup. Off by default. 
+     * That's usually an outage or a sibling shard. Only safe unsharded.
+     */
+    pruneUnknownGuilds?: boolean
 }
 
 export class ForgeTimers extends ForgeExtension {
-    name = "forge.timers"
+    name = "ForgeTimers"
     description = description
     version = version
     requireExtensions = ["forge.db"]
@@ -31,7 +37,7 @@ export class ForgeTimers extends ForgeExtension {
             .init()
             .then(() => true)
             .catch((err) => {
-                noop(err)
+                Logger.error(err)
                 return false
             })
         this.timersManager = new TimersManager(client)
