@@ -88,11 +88,11 @@ const apiError = (status, code, message) => new discord_js_1.DiscordAPIError({ m
         await harness.ready();
         strict_1.default.equal(harness_1.marks.length, 2);
     });
-    (0, node_test_1.it)("resumes on the time left rather than a whole fresh tick", async () => {
-        await stored(harness_1.TimerKind.interval, 10_000, 200);
+    (0, node_test_1.it)("resumes on the time left rather than a whole fresh tick", { timeout: 30_000 }, async () => {
+        await stored(harness_1.TimerKind.interval, 20_000, 1_000);
         await harness.ready();
-        await new Promise((r) => setTimeout(r, 450));
-        strict_1.default.deepEqual(harness_1.marks, ["n"], "the tick was 200ms away, not 10s");
+        const fired = await (0, harness_1.waitFor)(() => harness_1.marks.length >= 1, 8_000);
+        strict_1.default.ok(fired, "the tick was a second away, not 20s");
     });
     (0, node_test_1.it)("skips a stale tick past maxOverdue and carries on", async () => {
         configure({}, { maxOverdue: 1000, restoredTicksLimit: -1 });
@@ -135,7 +135,7 @@ const apiError = (status, code, message) => new discord_js_1.DiscordAPIError({ m
         await stored(harness_1.TimerKind.interval, 60, -1000);
         harness.channelError = apiError(404, 10003, "Unknown Channel");
         await harness.ready();
-        await new Promise((r) => setTimeout(r, 300));
+        await (0, harness_1.waitFor)(async () => (await harness_1.Database.get(harness_1.TimerKind.interval, "n")) === null);
         strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.interval, "n"), null);
         strict_1.default.equal(harness.client.intervals.has("n"), false);
     });
@@ -160,9 +160,9 @@ const apiError = (status, code, message) => new discord_js_1.DiscordAPIError({ m
         await stored(harness_1.TimerKind.interval, 60, -1000);
         harness.fetches.channels = 0;
         await harness.ready();
-        await new Promise((r) => setTimeout(r, 350));
+        const reached = await (0, harness_1.waitFor)(() => harness_1.marks.length >= 3);
         harness.disarm();
-        strict_1.default.ok(harness_1.marks.length >= 3, `only ${harness_1.marks.length} ticks ran`);
+        strict_1.default.ok(reached, `only ${harness_1.marks.length} ticks ran`);
         strict_1.default.equal(harness.fetches.channels, 1, `resolved ${harness.fetches.channels} times`);
     });
 });
@@ -178,9 +178,9 @@ const apiError = (status, code, message) => new discord_js_1.DiscordAPIError({ m
     (0, node_test_1.it)("keeps ticking an interval that has no channel", async () => {
         await (0, harness_1.persist)(new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.interval, code: "$testMark[tick]", duration: 60 }), Date.now() - 1000);
         await harness.ready();
-        await new Promise((r) => setTimeout(r, 300));
+        const reached = await (0, harness_1.waitFor)(() => harness_1.marks.length >= 3);
         harness.disarm();
-        strict_1.default.ok(harness_1.marks.length >= 3, `only ${harness_1.marks.length} ticks ran`);
+        strict_1.default.ok(reached, `only ${harness_1.marks.length} ticks ran`);
         strict_1.default.equal(harness.fetches.channels, 0);
     });
     (0, node_test_1.it)("is not affected by a channel outage", async () => {

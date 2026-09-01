@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { after, before, beforeEach, describe, it } from "node:test"
-import { boot, Database, marks, run, Timer, TimerKind } from "./harness"
+import { boot, Database, marks, run, Timer, TimerKind, waitFor } from "./harness"
 
 let harness: Awaited<ReturnType<typeof boot>>
 
@@ -40,13 +40,15 @@ describe("cancelling while a tick is in flight", () => {
     it("does not let a cancelled interval come back", async () => {
         await run(harness, "$setInterval[$testMark[tick];60;pulse]")
 
-        await withSlowWrites(120, async () => {
-            await sleep(90)
+        await waitFor(() => marks.length >= 1)
+
+        await withSlowWrites(600, async () => {
+            await sleep(150)
             assert.equal(await run(harness, "$clearInterval[pulse]"), "true")
         })
 
         marks.length = 0
-        await sleep(400)
+        await sleep(500)
 
         assert.equal(marks.length, 0, "a cancelled interval kept ticking")
         assert.equal(harness.client.intervals.has("pulse"), false, "and armed itself again")
@@ -56,10 +58,12 @@ describe("cancelling while a tick is in flight", () => {
     it("does not leave the row behind when the write lands after the cancel", async () => {
         await run(harness, "$setInterval[$testMark[tick];60;pulse]")
 
-        await withSlowWrites(150, async () => {
-            await sleep(90)
+        await waitFor(() => marks.length >= 1)
+
+        await withSlowWrites(600, async () => {
+            await sleep(150)
             await run(harness, "$clearInterval[pulse]")
-            await sleep(300)
+            await sleep(700)
         })
 
         assert.equal(await Database.get(TimerKind.interval, "pulse"), null)
@@ -71,8 +75,13 @@ describe("replacing a timer while it runs", () => {
         const manager = harness.ext.timersManager
 
         const first = new Timer({ name: "job", kind: TimerKind.timeout, code: "a", duration: 50, channelID: "chan-1" })
-        await manager.start(first, async () => { await sleep(300) })
-        await sleep(150)
+        let running = false
+        await manager.start(first, async () => {
+            running = true
+            await sleep(1500)
+            running = false
+        })
+        await waitFor(() => running)
 
         const second = new Timer({
             name: "job",
@@ -84,7 +93,7 @@ describe("replacing a timer while it runs", () => {
         await manager.start(second, async () => undefined)
         const handle = harness.client.timeouts.get("job")
 
-        await sleep(300)
+        await waitFor(() => !running)
 
         try {
             assert.equal(
@@ -102,13 +111,18 @@ describe("replacing a timer while it runs", () => {
         const manager = harness.ext.timersManager
 
         const first = new Timer({ name: "job", kind: TimerKind.timeout, code: "a", duration: 50, channelID: "chan-1" })
-        await manager.start(first, async () => { await sleep(200) })
-        await sleep(120)
+        let running = false
+        await manager.start(first, async () => {
+            running = true
+            await sleep(1000)
+            running = false
+        })
+        await waitFor(() => running)
 
         const second = new Timer({ name: "job", kind: TimerKind.timeout, code: "b", duration: 3_600_000, channelID: "chan-1" })
         await manager.start(second, async () => undefined)
         const handle = harness.client.timeouts.get("job")
-        await sleep(200)
+        await waitFor(() => !running)
 
         try {
             assert.equal(await run(harness, "$clearTimeout[job]"), "true")

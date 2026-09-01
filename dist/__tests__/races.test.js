@@ -37,22 +37,24 @@ async function withSlowWrites(delay, fn) {
 (0, node_test_1.describe)("cancelling while a tick is in flight", () => {
     (0, node_test_1.it)("does not let a cancelled interval come back", async () => {
         await (0, harness_1.run)(harness, "$setInterval[$testMark[tick];60;pulse]");
-        await withSlowWrites(120, async () => {
-            await sleep(90);
+        await (0, harness_1.waitFor)(() => harness_1.marks.length >= 1);
+        await withSlowWrites(600, async () => {
+            await sleep(150);
             strict_1.default.equal(await (0, harness_1.run)(harness, "$clearInterval[pulse]"), "true");
         });
         harness_1.marks.length = 0;
-        await sleep(400);
+        await sleep(500);
         strict_1.default.equal(harness_1.marks.length, 0, "a cancelled interval kept ticking");
         strict_1.default.equal(harness.client.intervals.has("pulse"), false, "and armed itself again");
         strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.interval, "pulse"), null, "and wrote itself back");
     });
     (0, node_test_1.it)("does not leave the row behind when the write lands after the cancel", async () => {
         await (0, harness_1.run)(harness, "$setInterval[$testMark[tick];60;pulse]");
-        await withSlowWrites(150, async () => {
-            await sleep(90);
+        await (0, harness_1.waitFor)(() => harness_1.marks.length >= 1);
+        await withSlowWrites(600, async () => {
+            await sleep(150);
             await (0, harness_1.run)(harness, "$clearInterval[pulse]");
-            await sleep(300);
+            await sleep(700);
         });
         strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.interval, "pulse"), null);
     });
@@ -61,8 +63,13 @@ async function withSlowWrites(delay, fn) {
     (0, node_test_1.it)("does not let the outgoing timeout drop its replacement", async () => {
         const manager = harness.ext.timersManager;
         const first = new harness_1.Timer({ name: "job", kind: harness_1.TimerKind.timeout, code: "a", duration: 50, channelID: "chan-1" });
-        await manager.start(first, async () => { await sleep(300); });
-        await sleep(150);
+        let running = false;
+        await manager.start(first, async () => {
+            running = true;
+            await sleep(1500);
+            running = false;
+        });
+        await (0, harness_1.waitFor)(() => running);
         const second = new harness_1.Timer({
             name: "job",
             kind: harness_1.TimerKind.timeout,
@@ -72,7 +79,7 @@ async function withSlowWrites(delay, fn) {
         });
         await manager.start(second, async () => undefined);
         const handle = harness.client.timeouts.get("job");
-        await sleep(300);
+        await (0, harness_1.waitFor)(() => !running);
         try {
             strict_1.default.equal(harness.client.timeouts.has("job"), true, "the replacement lost its handle and cannot be cancelled");
             strict_1.default.equal((await harness_1.Database.get(harness_1.TimerKind.timeout, "job"))?.code, "b", "and lost its record");
@@ -84,12 +91,17 @@ async function withSlowWrites(delay, fn) {
     (0, node_test_1.it)("keeps the replacement cancellable", async () => {
         const manager = harness.ext.timersManager;
         const first = new harness_1.Timer({ name: "job", kind: harness_1.TimerKind.timeout, code: "a", duration: 50, channelID: "chan-1" });
-        await manager.start(first, async () => { await sleep(200); });
-        await sleep(120);
+        let running = false;
+        await manager.start(first, async () => {
+            running = true;
+            await sleep(1000);
+            running = false;
+        });
+        await (0, harness_1.waitFor)(() => running);
         const second = new harness_1.Timer({ name: "job", kind: harness_1.TimerKind.timeout, code: "b", duration: 3_600_000, channelID: "chan-1" });
         await manager.start(second, async () => undefined);
         const handle = harness.client.timeouts.get("job");
-        await sleep(200);
+        await (0, harness_1.waitFor)(() => !running);
         try {
             strict_1.default.equal(await (0, harness_1.run)(harness, "$clearTimeout[job]"), "true");
             strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.timeout, "job"), null);

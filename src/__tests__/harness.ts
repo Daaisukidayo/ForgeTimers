@@ -63,6 +63,18 @@ let seeded = false
 
 export const marks: string[] = []
 
+/** Waits for something to become true instead of guessing how long it takes */
+export async function waitFor(condition: () => boolean | Promise<boolean>, timeout = 5000) {
+    const deadline = Date.now() + timeout
+
+    while (Date.now() < deadline) {
+        if (await condition()) return true
+        await new Promise((r) => setTimeout(r, 10))
+    }
+
+    return await condition()
+}
+
 let markRegistered = false
 
 function registerMark() {

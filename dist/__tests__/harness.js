@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TimerKind = exports.Timer = exports.Database = exports.marks = exports.DATABASE_ENV = void 0;
 exports.connectionFor = connectionFor;
+exports.waitFor = waitFor;
 exports.boot = boot;
 exports.run = run;
 exports.persist = persist;
@@ -35,6 +36,16 @@ function connectionFor(target) {
 }
 let seeded = false;
 exports.marks = [];
+/** Waits for something to become true instead of guessing how long it takes */
+async function waitFor(condition, timeout = 5000) {
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+        if (await condition())
+            return true;
+        await new Promise((r) => setTimeout(r, 10));
+    }
+    return await condition();
+}
 let markRegistered = false;
 function registerMark() {
     if (markRegistered)

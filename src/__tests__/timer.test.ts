@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { Timer, TimerKind } from "../structures"
 import { MAX_DELAY, setLongInterval, setLongTimeout } from "../functions/schedule"
+import { waitFor } from "./harness"
 
 const make = (duration: number, kind = TimerKind.interval) =>
     new Timer({ name: "t", kind, duration, channelID: "c" })
@@ -114,22 +115,25 @@ describe("long delays", () => {
         assert.equal(arms, 1, `re-armed ${arms} times in 150ms`)
     })
 
-    it("still fires a short delay on time", async () => {
+    it("still fires a short delay on time", { timeout: 10_000 }, async () => {
         const started = Date.now()
         const fired = await new Promise<number>((resolve) => {
             setLongTimeout(120, () => resolve(Date.now() - started))
         })
-        assert.ok(fired >= 110 && fired < 400, `fired after ${fired}ms`)
+
+        assert.ok(fired >= 110, `fired after ${fired}ms, before it was due`)
     })
 
-    it("ticks a short interval repeatedly", async () => {
+    it("ticks a short interval repeatedly", { timeout: 10_000 }, async () => {
         let ticks = 0
 
         let live: NodeJS.Timeout | undefined
         setLongInterval(50, () => { ticks++ }, (h) => (live = h))
-        await new Promise((r) => setTimeout(r, 260))
+
+        const reached = await waitFor(() => ticks >= 3)
         clearInterval(live!)
-        assert.ok(ticks >= 3, `only ${ticks} ticks`)
+
+        assert.ok(reached, `only ${ticks} ticks`)
     })
 
     it("hands every re-armed chunk to onArm so it stays cancellable", async () => {

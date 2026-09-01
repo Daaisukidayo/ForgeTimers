@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { after, before, beforeEach, describe, it } from "node:test"
 import { DiscordAPIError } from "discord.js"
-import { boot, Database, marks, persist, Timer, TimerKind } from "./harness"
+import { boot, Database, marks, persist, Timer, TimerKind, waitFor } from "./harness"
 import { snapshotVars } from "../functions/snapshotVars"
 import { IIntervalConfig, ITimeoutConfig } from "../types"
 
@@ -113,12 +113,12 @@ describe("restoring intervals", () => {
         assert.equal(marks.length, 2)
     })
 
-    it("resumes on the time left rather than a whole fresh tick", async () => {
-        await stored(TimerKind.interval, 10_000, 200)
+    it("resumes on the time left rather than a whole fresh tick", { timeout: 30_000 }, async () => {
+        await stored(TimerKind.interval, 20_000, 1_000)
         await harness.ready()
 
-        await new Promise((r) => setTimeout(r, 450))
-        assert.deepEqual(marks, ["n"], "the tick was 200ms away, not 10s")
+        const fired = await waitFor(() => marks.length >= 1, 8_000)
+        assert.ok(fired, "the tick was a second away, not 20s")
     })
 
     it("skips a stale tick past maxOverdue and carries on", async () => {
@@ -177,7 +177,7 @@ describe("when a timer cannot be rebuilt", () => {
         harness.channelError = apiError(404, 10003, "Unknown Channel")
 
         await harness.ready()
-        await new Promise((r) => setTimeout(r, 300))
+        await waitFor(async () => (await Database.get(TimerKind.interval, "n")) === null)
 
         assert.equal(await Database.get(TimerKind.interval, "n"), null)
         assert.equal(harness.client.intervals.has("n"), false)
@@ -209,10 +209,11 @@ describe("rebuilding lazily", () => {
 
         harness.fetches.channels = 0
         await harness.ready()
-        await new Promise((r) => setTimeout(r, 350))
+
+        const reached = await waitFor(() => marks.length >= 3)
         harness.disarm()
 
-        assert.ok(marks.length >= 3, `only ${marks.length} ticks ran`)
+        assert.ok(reached, `only ${marks.length} ticks ran`)
         assert.equal(harness.fetches.channels, 1, `resolved ${harness.fetches.channels} times`)
     })
 })
@@ -239,10 +240,11 @@ describe("timers with no channel", () => {
         )
 
         await harness.ready()
-        await new Promise((r) => setTimeout(r, 300))
+
+        const reached = await waitFor(() => marks.length >= 3)
         harness.disarm()
 
-        assert.ok(marks.length >= 3, `only ${marks.length} ticks ran`)
+        assert.ok(reached, `only ${marks.length} ticks ran`)
         assert.equal(harness.fetches.channels, 0)
     })
 

@@ -37,6 +37,8 @@ export interface ITestClient {
     disarm(): void;
 }
 export declare const marks: string[];
+/** Waits for something to become true instead of guessing how long it takes */
+export declare function waitFor(condition: () => boolean | Promise<boolean>, timeout?: number): Promise<boolean>;
 export declare function boot(options?: ConstructorParameters<typeof ForgeTimers>[0], target?: TestDatabase): Promise<ITestClient & {
     folder: string | undefined;
     cleanup: () => Promise<void>;
