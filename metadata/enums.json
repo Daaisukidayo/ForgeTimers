@@ -1,1 +1,1 @@
-{}
+{"TimerKind":["timeout","interval"],"TimerProperty":["id","name","kind","code","duration","timestamp","fireAt","timeLeft","guildID","channelID","hostID","messageID","args"]}

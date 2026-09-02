@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.os }} · node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [22, 24]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Reach git dependencies over https
+        run: git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npm test
+
+  databases:
+    name: postgres · mysql · mongodb
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: forgetimers
+          POSTGRES_PASSWORD: forgetimers
+          POSTGRES_DB: forgetimers
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U forgetimers"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: forgetimers
+          MYSQL_DATABASE: forgetimers
+          MYSQL_USER: forgetimers
+          MYSQL_PASSWORD: forgetimers
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -u root -pforgetimers --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ ping: 1 })'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      FORGETIMERS_TEST_POSTGRES: postgres://forgetimers:forgetimers@127.0.0.1:5432/forgetimers
+      FORGETIMERS_TEST_MYSQL: mysql://forgetimers:forgetimers@127.0.0.1:3306/forgetimers
+      FORGETIMERS_TEST_MONGODB: mongodb://127.0.0.1:27017/forgetimers
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Reach git dependencies over https
+        run: git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+
+      - run: npm ci
+
+      - run: npm test

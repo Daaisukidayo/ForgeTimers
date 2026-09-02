@@ -10,10 +10,10 @@
 <h1>forge.timers</h1></div>
 <div class="tsd-panel tsd-typography"><div align="center">
 <h1 id="forgetimers" class="tsd-anchor-link">ForgeTimers<a href="#forgetimers" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<p>ForgeTimers is an extension that makes <code>$setTimeout</code> and <code>$setInterval</code> survive a restart using better-sqlite3 package. Timers are written to disk when scheduled and re-armed automatically the next time your app starts.</p>
+<p>ForgeTimers is an extension that makes <code>$setTimeout</code> and <code>$setInterval</code> survive a restart. Timers are persisted when scheduled and re-armed automatically the next time your app starts.</p>
 <p><a href="https://github.com/Daaisukidayo/ForgeTimers/"><img src="https://img.shields.io/github/package-json/v/Daaisukidayo/ForgeTimers/main?label=forge.timers&color=5c16d4" alt="forge.timers"></a>
 <a href="https://github.com/tryforge/ForgeScript/"><img src="https://img.shields.io/github/package-json/v/tryforge/ForgeScript/main?label=@tryforge/forgescript&color=5c16d4" alt="@tryforge/forgescript"></a>
-<a href="https://discord.gg/hcJgjzPvqb"><img src="https://img.shields.io/discord/739934735387721768?logo=discord" alt="Discord"></a></p>
+<a href="https://discord.gg/yFW5Ju6JP8"><img src="https://img.shields.io/discord/739934735387721768?logo=discord" alt="Discord"></a></p>
 </div>
 <hr>
 <h2 id="contents" class="tsd-anchor-link">Contents<a href="#contents" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
@@ -21,18 +21,23 @@
 <li><a href="#installation">Installation</a></li>
 <li><a href="#configuration">Configuration</a></li>
 <li><a href="#storage">Storage</a></li>
+<li><a href="#reading-timers">Reading timers</a></li>
 </ol>
 <h3 align="center">Installation</h3><hr>
+<blockquote>
+<p>⚠️ <strong>Warning</strong><br>
+<strong>ForgeTimers</strong> requires the extension <a href="https://docs.botforge.org/?p=ForgeDB"><strong>ForgeDB</strong></a> installed in order to operate, and <strong>ForgeScript 2.7.0</strong> or newer.</p>
+</blockquote>
 <ol>
 <li>
 <p>Run the following command to install the required <code>npm</code> package:</p>
-<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">i</span><span class="hl-1"> </span><span class="hl-2">github:Daaisukidayo/ForgeTimers</span><span class="hl-1"> </span><span class="hl-2">better-sqlite3</span>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">i</span><span class="hl-1"> </span><span class="hl-2">github:Daaisukidayo/ForgeTimers</span><span class="hl-1"> </span><span class="hl-2">@tryforge/forge.db</span>
 </code><button type="button">Copy</button></pre>
 
 </li>
 <li>
 <p>Here's an example of how your main file should look:</p>
-<pre><code class="js"><span class="hl-3">const</span><span class="hl-1"> { </span><span class="hl-4">ForgeClient</span><span class="hl-1"> } = </span><span class="hl-0">require</span><span class="hl-1">(</span><span class="hl-2">&quot;@tryforge/forgescript&quot;</span><span class="hl-1">)</span><br/><span class="hl-3">const</span><span class="hl-1"> { </span><span class="hl-4">ForgeTimers</span><span class="hl-1"> } = </span><span class="hl-0">require</span><span class="hl-1">(</span><span class="hl-2">&quot;forge.timers&quot;</span><span class="hl-1">)</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">timers</span><span class="hl-1"> = </span><span class="hl-3">new</span><span class="hl-1"> </span><span class="hl-0">ForgeTimers</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-5">timeoutConfig:</span><span class="hl-1"> {</span><br/><span class="hl-1">        </span><span class="hl-5">maxOverdue:</span><span class="hl-1"> </span><span class="hl-6">86_400_000</span><span class="hl-1"> </span><span class="hl-7">// Discard timeouts over a day late</span><br/><span class="hl-1">    },</span><br/><span class="hl-1">    </span><span class="hl-5">intervalConfig:</span><span class="hl-1"> {</span><br/><span class="hl-1">        </span><span class="hl-5">restoredTicksLimit:</span><span class="hl-1"> </span><span class="hl-6">5</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1"> = </span><span class="hl-3">new</span><span class="hl-1"> </span><span class="hl-0">ForgeClient</span><span class="hl-1">({</span><br/><span class="hl-1">    ...</span><span class="hl-5">options</span><span class="hl-1">, </span><span class="hl-7">// Change that to the options you currently have</span><br/><span class="hl-1">    </span><span class="hl-5">extensions:</span><span class="hl-1"> [</span><br/><span class="hl-1">        </span><span class="hl-5">timers</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-7">// Add other extensions you installed here</span><br/><span class="hl-1">    ]</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-5">client</span><span class="hl-1">.</span><span class="hl-0">login</span><span class="hl-1">(</span><span class="hl-2">&quot;YourToken&quot;</span><span class="hl-1">)</span>
+<pre><code class="js"><span class="hl-3">const</span><span class="hl-1"> { </span><span class="hl-4">ForgeClient</span><span class="hl-1"> } = </span><span class="hl-0">require</span><span class="hl-1">(</span><span class="hl-2">&quot;@tryforge/forgescript&quot;</span><span class="hl-1">)</span><br/><span class="hl-3">const</span><span class="hl-1"> { </span><span class="hl-4">ForgeTimers</span><span class="hl-1"> } = </span><span class="hl-0">require</span><span class="hl-1">(</span><span class="hl-2">&quot;forge.timers&quot;</span><span class="hl-1">)</span><br/><span class="hl-3">const</span><span class="hl-1"> { </span><span class="hl-4">ForgeDB</span><span class="hl-1"> } = </span><span class="hl-0">require</span><span class="hl-1">(</span><span class="hl-2">&quot;@tryforge/forge.db&quot;</span><span class="hl-1">)</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">timers</span><span class="hl-1"> = </span><span class="hl-3">new</span><span class="hl-1"> </span><span class="hl-0">ForgeTimers</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-5">timeoutConfig:</span><span class="hl-1"> {</span><br/><span class="hl-1">        </span><span class="hl-5">maxOverdue:</span><span class="hl-1"> </span><span class="hl-6">86_400_000</span><span class="hl-1"> </span><span class="hl-7">// Discard timeouts over a day late</span><br/><span class="hl-1">    },</span><br/><span class="hl-1">    </span><span class="hl-5">intervalConfig:</span><span class="hl-1"> {</span><br/><span class="hl-1">        </span><span class="hl-5">restoredTicksLimit:</span><span class="hl-1"> </span><span class="hl-6">5</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1"> = </span><span class="hl-3">new</span><span class="hl-1"> </span><span class="hl-0">ForgeDB</span><span class="hl-1">({</span><br/><span class="hl-1">     ...</span><span class="hl-5">options</span><span class="hl-1">, </span><span class="hl-7">// Change that to the options you currently have</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1"> = </span><span class="hl-3">new</span><span class="hl-1"> </span><span class="hl-0">ForgeClient</span><span class="hl-1">({</span><br/><span class="hl-1">    ...</span><span class="hl-5">options</span><span class="hl-1">, </span><span class="hl-7">// Change that to the options you currently have</span><br/><span class="hl-1">    </span><span class="hl-5">extensions:</span><span class="hl-1"> [</span><br/><span class="hl-1">        </span><span class="hl-5">timers</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-5">db</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-7">// Add other extensions you installed here</span><br/><span class="hl-1">    ]</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-5">client</span><span class="hl-1">.</span><span class="hl-0">login</span><span class="hl-1">(</span><span class="hl-2">&quot;YourToken&quot;</span><span class="hl-1">)</span>
 </code><button type="button">Copy</button></pre>
 
 </li>
@@ -43,6 +48,11 @@
 Only <strong>named</strong> timers are persisted. <code>$setTimeout[...;1h]</code> stays in memory as before, while <code>$setTimeout[...;1h;reminder]</code> survives a restart. Re-using a name cancels the timer currently registered under it.</p>
 </blockquote>
 <h3 align="center">Configuration</h3><hr>
+<p>At the top level, <code>ForgeTimers</code> accepts:</p>
+<ul>
+<li><strong><code>pruneUnknownGuilds</code></strong> — whether timers belonging to a guild this process can't see are deleted on startup. Default <code>false</code>. An invisible guild is far more often a Discord outage or another process's shard than a kick, and the deletion can't be undone. Turn it on only on a single unsharded process, where a missing guild really does mean the bot was removed.</li>
+</ul>
+<p>Startup only compiles what it restores. Channels, messages and users are fetched when a timer actually fires, so booting with thousands of stored timers costs nothing extra, and a timer due next month is never discarded over an outage happening today. A timeout that could not reach Discord keeps its record and is retried on the next boot.</p>
 <p>Both <code>timeoutConfig</code> and <code>intervalConfig</code> accept:</p>
 <ul>
 <li><strong><code>persist</code></strong> — whether records are re-armed on startup. Default <code>true</code>. With <code>false</code>, timers are still written while the app runs, but the records are dropped on the next boot.</li>
@@ -57,10 +67,22 @@ Only <strong>named</strong> timers are persisted. <code>$setTimeout[...;1h]</cod
 <code>restoredTicksLimit: -1</code> on a 1-minute interval that was down for a day means 1440 executions on boot. Pair it with <code>maxOverdue</code> to bound the damage.</p>
 </blockquote>
 <p><code>maxOverdue</code> is measured against the timer's <em>due time</em> - a timer due next week is never affected by a week of downtime. What happens past the limit differs by kind: an overdue <strong>timeout</strong> is discarded, while an <strong>interval</strong> only skips the stale tick and resumes.</p>
+<p>There is no upper bound on a duration: waits longer than node's own ~24.8 day limit are re-armed in chunks. An interval that survives a restart resumes on the time left on its current tick rather than waiting a whole fresh one, so its schedule doesn't drift with each restart.</p>
+<p>A timer is only dropped when its channel is really gone. If Discord can't be reached at startup - an outage, a rate limit, a network failure - the record is kept and retried on the next boot instead.</p>
+<p>A timer doesn't need a channel at all. One scheduled where there is none - a <code>clientReady</code> command, for instance - is persisted and restored just the same, and runs against the empty target ForgeScript gives that event. It belongs to no guild, so on a sharded bot it runs once, on shard 0, rather than once per shard.</p>
 <h3 align="center">Storage</h3><hr>
-<p>Timers are kept in a SQLite database at <code>.forge/timers.db</code>.
-To move the database, or to store timers somewhere else entirely:</p>
-<pre><code class="js"><span class="hl-3">const</span><span class="hl-1"> { </span><span class="hl-4">ForgeTimers</span><span class="hl-1">, </span><span class="hl-4">createSQLiteStores</span><span class="hl-1"> } = </span><span class="hl-0">require</span><span class="hl-1">(</span><span class="hl-2">&quot;forge.timers&quot;</span><span class="hl-1">)</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">timers</span><span class="hl-1"> = </span><span class="hl-3">new</span><span class="hl-1"> </span><span class="hl-0">ForgeTimers</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-5">stores:</span><span class="hl-1"> </span><span class="hl-0">createSQLiteStores</span><span class="hl-1">(</span><span class="hl-2">&quot;./data/timers.db&quot;</span><span class="hl-1">)</span><br/><span class="hl-1">})</span>
+<p>Timers are stored through <strong>ForgeDB</strong>, so they end up wherever you already keep your data - sqlite, mongodb, mysql or postgres. There's nothing extra to configure here: set ForgeDB up as usual and timers follow.</p>
+<p>On sqlite that means a <code>timers.db</code> file next to ForgeDB's own database.</p>
+<p>Variables are stored alongside the timer. Strings, numbers, booleans, arrays and plain objects survive, and so do dates, maps, sets, regular expressions and bigints. Anything with no meaning after a restart - a function, a class instance, a live Discord structure - is dropped, and the names that were dropped are logged when the timer is scheduled.</p>
+<h3 align="center">Reading timers</h3><hr>
+<p>Stored timers can be read back from scripts:</p>
+<ul>
+<li><strong><code>$getTimer[kind;name;property?]</code></strong> - one timer. Without a property it returns the whole thing as JSON; with one it returns just that field. Available properties: <code>id</code>, <code>name</code>, <code>kind</code>, <code>code</code>, <code>duration</code>, <code>timestamp</code>, <code>fireAt</code>, <code>timeLeft</code>, <code>guildID</code>, <code>channelID</code>, <code>hostID</code>, <code>messageID</code>, <code>args</code>.</li>
+<li><strong><code>$getAllTimers[kind?]</code></strong> - every stored timer as JSON, optionally filtered to <code>timeout</code> or <code>interval</code>.</li>
+<li><strong><code>$wipeTimers</code></strong> - cancels every stored timer and clears them. Returns how many were running.</li>
+</ul>
+<p>Example:</p>
+<pre><code class="js"><span class="hl-5">$getTimer</span><span class="hl-1">[</span><span class="hl-5">timeout</span><span class="hl-1">;</span><span class="hl-5">reminder</span><span class="hl-1">;</span><span class="hl-5">timeLeft</span><span class="hl-1">]</span><br/><span class="hl-5">$getAllTimers</span><span class="hl-1">[</span><span class="hl-5">interval</span><span class="hl-1">]</span>
 </code><button type="button">Copy</button></pre>
 
 </div></div>

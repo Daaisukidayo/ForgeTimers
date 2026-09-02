@@ -1,0 +1,10 @@
+dist/__tests__
+dist/commit.*
+dist/docgen.*
+dist/functions/prompt.*
+
+node_modules
+src
+tsconfig*.json
+database
+docs
