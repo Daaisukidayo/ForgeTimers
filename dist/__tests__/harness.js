@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TimerKind = exports.Timer = exports.Database = exports.marks = exports.DATABASE_ENV = exports.ConfigSeed = void 0;
 exports.connectionFor = connectionFor;
 exports.waitFor = waitFor;
+exports.attach = attach;
 exports.boot = boot;
 exports.run = run;
 exports.persist = persist;
@@ -66,6 +67,7 @@ function registerMark() {
         },
     }));
 }
+/** forge.db arms this on every connection and never clears it, so the process idles it out */
 const FORGE_DB_WATCHDOG = 10_000;
 const realSetTimeout = globalThis.setTimeout;
 globalThis.setTimeout = ((handler, ms, ...rest) => {
@@ -74,22 +76,8 @@ globalThis.setTimeout = ((handler, ms, ...rest) => {
         handle.unref?.();
     return handle;
 });
-async function boot(options = {}, target = "sqlite") {
-    const connection = connectionFor(target);
-    if (!connection)
-        throw new Error(`${exports.DATABASE_ENV[target]} is not set`);
-    const folder = "folder" in connection ? connection.folder : undefined;
-    const home = process.cwd();
-    if (target === "quoriel") {
-        // quoriel/db hangs off the working directory and is read once
-        options = { ...options, storage: "quorieldb" };
-        process.chdir(folder);
-    }
-    else if (!seeded) {
-        new ConfigSeed(connection);
-        seeded = true;
-    }
-    const ext = new __1.ForgeTimers(options);
+/** Wraps an extension in a client it can believe in, without any of the setup boot() does */
+function attach(ext) {
     const channels = new Map();
     const users = new Map();
     const members = new Map();
@@ -118,7 +106,8 @@ async function boot(options = {}, target = "sqlite") {
         },
     };
     harness.client = {
-        options: {},
+        // a migration checks here for the extension it reads the old timers out of
+        options: { extensions: [{ name: "forge.db" }, { name: "QuorielDB" }] },
         canRespondToBots: () => true,
         timeouts: new Map(),
         intervals: new Map(),
@@ -149,7 +138,25 @@ async function boot(options = {}, target = "sqlite") {
     // after init, or the extension's own natives lose to the stock ones
     forgescript_1.FunctionManager.loadNative();
     registerMark();
-    await ext.ready;
+    return harness;
+}
+async function boot(options = {}, target = "sqlite") {
+    const connection = connectionFor(target);
+    if (!connection)
+        throw new Error(`${exports.DATABASE_ENV[target]} is not set`);
+    const folder = "folder" in connection ? connection.folder : undefined;
+    const home = process.cwd();
+    if (target === "quoriel") {
+        // quoriel/db hangs off the working directory and is read once
+        options = { ...options, storage: "quorieldb" };
+        process.chdir(folder);
+    }
+    else if (!seeded) {
+        new ConfigSeed(connection);
+        seeded = true;
+    }
+    const harness = attach(new __1.ForgeTimers(options));
+    await harness.ext.ready;
     await structures_1.Database.wipe().catch(() => undefined);
     async function cleanup() {
         await structures_1.Database.wipe().catch(() => undefined);

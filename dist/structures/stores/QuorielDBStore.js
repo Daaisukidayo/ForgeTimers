@@ -24,7 +24,7 @@ class QuorielDBStore {
     /** QuorielDB only opens types its config knows, so put ours there once */
     async register() {
         const file = (0, node_path_1.join)(process.cwd(), "quoriel", "db", "config.json");
-        const config = JSON.parse(await (0, promises_1.readFile)(file, "utf8"));
+        const config = await readConfig(file);
         if (config.types?.[exports.QUORIEL_TYPE])
             return false;
         // no entity to derive a key from, the id is the key
@@ -69,6 +69,15 @@ class QuorielDBStore {
     }
 }
 exports.QuorielDBStore = QuorielDBStore;
+/** QuorielDB logs a config it cannot parse and carries on, so ours is the error that names the file */
+async function readConfig(file) {
+    try {
+        return JSON.parse(await (0, promises_1.readFile)(file, "utf8"));
+    }
+    catch (err) {
+        throw new Error(`${file} could not be read: ${err instanceof Error ? err.message : String(err)}`);
+    }
+}
 /** Kept out of the import graph so ForgeDB users never need @quoriel/db installed */
 function load() {
     try {

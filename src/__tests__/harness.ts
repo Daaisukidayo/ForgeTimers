@@ -102,6 +102,7 @@ function registerMark() {
     )
 }
 
+/** forge.db arms this on every connection and never clears it, so the process idles it out */
 const FORGE_DB_WATCHDOG = 10_000
 
 const realSetTimeout = globalThis.setTimeout
@@ -111,26 +112,8 @@ globalThis.setTimeout = ((handler: never, ms?: number, ...rest: never[]) => {
     return handle
 }) as typeof globalThis.setTimeout
 
-export async function boot(
-    options: ConstructorParameters<typeof ForgeTimers>[0] = {},
-    target: TestDatabase = "sqlite"
-) {
-    const connection = connectionFor(target)
-    if (!connection) throw new Error(`${DATABASE_ENV[target as SqlDatabase]} is not set`)
-
-    const folder = "folder" in connection ? connection.folder : undefined
-    const home = process.cwd()
-
-    if (target === "quoriel") {
-        // quoriel/db hangs off the working directory and is read once
-        options = { ...options, storage: "quorieldb" }
-        process.chdir(folder!)
-    } else if (!seeded) {
-        new ConfigSeed(connection as never)
-        seeded = true
-    }
-
-    const ext = new ForgeTimers(options)
+/** Wraps an extension in a client it can believe in, without any of the setup boot() does */
+export function attach(ext: ForgeTimers): ITestClient {
     const channels = new Map<string, unknown>()
     const users = new Map<string, unknown>()
     const members = new Map<string, unknown>()
@@ -160,8 +143,8 @@ export async function boot(
     }
 
     harness.client = {
-
-        options: {},
+        // a migration checks here for the extension it reads the old timers out of
+        options: { extensions: [{ name: "forge.db" }, { name: "QuorielDB" }] },
         canRespondToBots: () => true,
         timeouts: new Map<string, NodeJS.Timeout>(),
         intervals: new Map<string, NodeJS.Timeout>(),
@@ -195,7 +178,31 @@ export async function boot(
     FunctionManager.loadNative()
     registerMark()
 
-    await ext.ready
+    return harness
+}
+
+export async function boot(
+    options: ConstructorParameters<typeof ForgeTimers>[0] = {},
+    target: TestDatabase = "sqlite"
+) {
+    const connection = connectionFor(target)
+    if (!connection) throw new Error(`${DATABASE_ENV[target as SqlDatabase]} is not set`)
+
+    const folder = "folder" in connection ? connection.folder : undefined
+    const home = process.cwd()
+
+    if (target === "quoriel") {
+        // quoriel/db hangs off the working directory and is read once
+        options = { ...options, storage: "quorieldb" }
+        process.chdir(folder!)
+    } else if (!seeded) {
+        new ConfigSeed(connection as never)
+        seeded = true
+    }
+
+    const harness = attach(new ForgeTimers(options))
+
+    await harness.ext.ready
     await Database.wipe().catch(() => undefined)
 
     async function cleanup() {

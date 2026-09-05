@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { after, before, beforeEach, describe, it } from "node:test"
 import { boot, Database, marks, persist, run, Timer, TimerKind, waitFor } from "./harness"
@@ -24,7 +24,8 @@ after(async () => {
     await harness.cleanup()
 })
 
-const config = () => JSON.parse(readFileSync(join(process.cwd(), "quoriel", "db", "config.json"), "utf8"))
+const configFile = () => join(process.cwd(), "quoriel", "db", "config.json")
+const config = () => JSON.parse(readFileSync(configFile(), "utf8"))
 
 describe("choosing a backend", () => {
     it("defaults to ForgeDB", () => {
@@ -55,6 +56,28 @@ describe("the record type", () => {
         await Database.use("quorieldb")
 
         assert.equal(JSON.stringify(config()), before)
+    })
+
+    it("registers itself again in a config that lost it", async () => {
+        const without = config()
+        delete without.types[QUORIEL_TYPE]
+        writeFileSync(configFile(), JSON.stringify(without, null, 4), "utf8")
+
+        await Database.use("quorieldb")
+
+        assert.deepEqual(config().types[QUORIEL_TYPE], { type: null, guild: false })
+    })
+
+    it("names the file when the config cannot be read", async () => {
+        const original = readFileSync(configFile(), "utf8")
+        writeFileSync(configFile(), "{ half a config", "utf8")
+
+        try {
+            await assert.rejects(Database.open("quorieldb"), /config\.json could not be read/)
+        } finally {
+            writeFileSync(configFile(), original, "utf8")
+            await Database.use("quorieldb")
+        }
     })
 })
 

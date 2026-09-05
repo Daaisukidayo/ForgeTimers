@@ -87,11 +87,7 @@ if (smoke) {
     const plan = (0, smoke_1.readPlan)();
     client.commands.add({
         type: discord_js_1.Events.ClientReady,
-        code: plan
-            ? `$smokeReport[booted]`
-            : `$setTimeout[${smoke_1.TIMEOUT_CODE};${smoke_1.TIMEOUT_DELAY};${smoke_1.TIMEOUT_NAME}]` +
-                `$setInterval[$smokeReport[interval];${smoke_1.INTERVAL_TICK};${smoke_1.INTERVAL_NAME}]` +
-                `$smokeReport[seeded]`,
+        code: plan ? `$smokeReport[booted]` : smoke_1.SEED_CODE,
     });
     client.once(discord_js_1.Events.ClientReady, () => void (0, smoke_1.runSmoke)(plan));
 }

@@ -24,7 +24,8 @@ let harness;
     harness.disarm();
     await harness.cleanup();
 });
-const config = () => JSON.parse((0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), "quoriel", "db", "config.json"), "utf8"));
+const configFile = () => (0, node_path_1.join)(process.cwd(), "quoriel", "db", "config.json");
+const config = () => JSON.parse((0, node_fs_1.readFileSync)(configFile(), "utf8"));
 (0, node_test_1.describe)("choosing a backend", () => {
     (0, node_test_1.it)("defaults to ForgeDB", () => {
         strict_1.default.deepEqual(new __1.ForgeTimers().requireExtensions, ["forge.db"]);
@@ -48,6 +49,24 @@ const config = () => JSON.parse((0, node_fs_1.readFileSync)((0, node_path_1.join
         const before = JSON.stringify(config());
         await harness_1.Database.use("quorieldb");
         strict_1.default.equal(JSON.stringify(config()), before);
+    });
+    (0, node_test_1.it)("registers itself again in a config that lost it", async () => {
+        const without = config();
+        delete without.types[structures_1.QUORIEL_TYPE];
+        (0, node_fs_1.writeFileSync)(configFile(), JSON.stringify(without, null, 4), "utf8");
+        await harness_1.Database.use("quorieldb");
+        strict_1.default.deepEqual(config().types[structures_1.QUORIEL_TYPE], { type: null, guild: false });
+    });
+    (0, node_test_1.it)("names the file when the config cannot be read", async () => {
+        const original = (0, node_fs_1.readFileSync)(configFile(), "utf8");
+        (0, node_fs_1.writeFileSync)(configFile(), "{ half a config", "utf8");
+        try {
+            await strict_1.default.rejects(harness_1.Database.open("quorieldb"), /config\.json could not be read/);
+        }
+        finally {
+            (0, node_fs_1.writeFileSync)(configFile(), original, "utf8");
+            await harness_1.Database.use("quorieldb");
+        }
     });
 });
 (0, node_test_1.describe)("timers on lmdb", () => {

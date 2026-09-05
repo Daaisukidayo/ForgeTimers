@@ -5,15 +5,7 @@ import { ForgeTimers } from "../../index"
 import { TimerStorage } from "../../structures"
 import { join } from "node:path"
 import { ForgeDB } from "@tryforge/forge.db"
-import {
-    INTERVAL_TICK,
-    INTERVAL_NAME,
-    readPlan,
-    runSmoke,
-    TIMEOUT_CODE,
-    TIMEOUT_DELAY,
-    TIMEOUT_NAME,
-} from "./smoke"
+import { readPlan, runSmoke, SEED_CODE } from "./smoke"
 config()
 
 /** Set by the restart check. Without it this file is the playground it has always been */
@@ -110,11 +102,7 @@ if (smoke) {
 
     client.commands.add({
         type: Events.ClientReady,
-        code: plan
-            ? `$smokeReport[booted]`
-            : `$setTimeout[${TIMEOUT_CODE};${TIMEOUT_DELAY};${TIMEOUT_NAME}]` +
-              `$setInterval[$smokeReport[interval];${INTERVAL_TICK};${INTERVAL_NAME}]` +
-              `$smokeReport[seeded]`,
+        code: plan ? `$smokeReport[booted]` : SEED_CODE,
     })
 
     client.once(Events.ClientReady, () => void runSmoke(plan))

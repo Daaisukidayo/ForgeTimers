@@ -52,6 +52,8 @@ export interface ITestClient {
 export declare const marks: string[];
 /** Waits for something to become true instead of guessing how long it takes */
 export declare function waitFor(condition: () => boolean | Promise<boolean>, timeout?: number): Promise<boolean>;
+/** Wraps an extension in a client it can believe in, without any of the setup boot() does */
+export declare function attach(ext: ForgeTimers): ITestClient;
 export declare function boot(options?: ConstructorParameters<typeof ForgeTimers>[0], target?: TestDatabase): Promise<ITestClient & {
     folder: string | undefined;
     cleanup: () => Promise<void>;

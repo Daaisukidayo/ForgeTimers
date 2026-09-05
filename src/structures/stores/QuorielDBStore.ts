@@ -39,7 +39,7 @@ export class QuorielDBStore implements ITimerStore {
     /** QuorielDB only opens types its config knows, so put ours there once */
     private async register() {
         const file = join(process.cwd(), "quoriel", "db", "config.json")
-        const config = JSON.parse(await readFile(file, "utf8"))
+        const config = await readConfig(file)
 
         if (config.types?.[QUORIEL_TYPE]) return false
 
@@ -94,6 +94,15 @@ export class QuorielDBStore implements ITimerStore {
         for (const entry of this.db.rangeDB(QUORIEL_TYPE)) {
             await this.db.removeRecord(QUORIEL_TYPE, entry.key)
         }
+    }
+}
+
+/** QuorielDB logs a config it cannot parse and carries on, so ours is the error that names the file */
+async function readConfig(file: string) {
+    try {
+        return JSON.parse(await readFile(file, "utf8"))
+    } catch (err) {
+        throw new Error(`${file} could not be read: ${err instanceof Error ? err.message : String(err)}`)
     }
 }
 
