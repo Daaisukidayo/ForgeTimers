@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { after, before, beforeEach, describe, it } from "node:test"
-import { boot, connectionFor, DATABASE_ENV, Database, TestDatabase, Timer, TimerKind } from "./harness"
+import { boot, connectionFor, DATABASE_ENV, Database, SqlDatabase, TestDatabase, Timer, TimerKind } from "./harness"
 
 const NINETY_DAYS = 90 * 24 * 60 * 60 * 1000
 
@@ -21,7 +21,7 @@ const sample = () =>
 export function persistenceSuite(target: TestDatabase) {
     if (!connectionFor(target)) {
         describe(`persistence on ${target}`, () => {
-            it(`requires ${DATABASE_ENV[target as Exclude<TestDatabase, "sqlite">]}`, { skip: true }, () => undefined)
+            it(`requires ${DATABASE_ENV[target as SqlDatabase]}`, { skip: true }, () => undefined)
         })
         return
     }

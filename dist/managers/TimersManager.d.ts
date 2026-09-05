@@ -10,16 +10,16 @@ export declare class TimersManager {
      * Schedules a timer and persists it.
      * @param timer The timer to schedule.
      * @param run What it executes when it fires.
-     * @returns
      */
     start(timer: Timer, run: () => Promise<void>): Promise<Timer>;
     /**
      * Cancels a running timer, leaving the database untouched.
      * @param kind The kind of the timer.
      * @param name The name of the timer.
-     * @returns
      */
     clear(kind: TimerKind, name: string): boolean;
+    private _save;
+    private _forget;
     /** Takes the name over and hands back a check for whether it's still ours */
     private _claim;
     /**
@@ -37,14 +37,12 @@ export declare class TimersManager {
     /**
      * The live timer map ForgeScript keeps for a kind.
      * @param kind The kind of the timers.
-     * @returns
      */
     mapOf(kind: TimerKind): Map<string, NodeJS.Timeout> | undefined;
     /**
      * Whether a timer under this name is already running.
      * @param kind The kind of the timer.
      * @param name The name of the timer.
-     * @returns
      */
     isLive(kind: TimerKind, name: string): boolean;
     private configOf;
@@ -58,13 +56,11 @@ export declare class TimersManager {
      * Compiles now, fetches later. Boot stays free of requests, and a distant timer isn't
      * thrown away over an outage happening today.
      * @param timer The timer to build a runner for.
-     * @returns
      */
     private _runnerFor;
     /**
      * Finds the live command again, so a restored run reads the same `$commandName`.
      * @param timer The timer to look up.
-     * @returns
      */
     private _commandFor;
     private _rebuildTarget;

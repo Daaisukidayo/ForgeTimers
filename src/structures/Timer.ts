@@ -1,6 +1,4 @@
-import "reflect-metadata"
 import { Snowflake } from "discord.js"
-import { Column, Entity, ObjectIdColumn, PrimaryColumn } from "typeorm"
 import { IPersistedVars, VARS_SCHEMA_VERSION } from "../functions/snapshotVars"
 
 export enum TimerKind {
@@ -64,14 +62,6 @@ export interface ITimer extends ITimerStartOptions {
     fireAt: number
 }
 
-/** Epoch ms overflows an int32 on mysql and postgres, so these columns are bigint */
-const numericColumn = {
-    to: (value?: number) => value,
-    from: (value?: string | number | null) =>
-        value === null || value === undefined ? value : Number(value),
-}
-
-@Entity()
 export class Timer implements ITimer {
     /** What this build writes */
     public static readonly SCHEMA_VERSION = VARS_SCHEMA_VERSION
@@ -82,95 +72,79 @@ export class Timer implements ITimer {
     /**
      * The id of this timer, in the form `kind:name`.
      */
-    @PrimaryColumn()
     public id: string
 
     /**
      * The name this timer was scheduled under.
      */
-    @Column()
     public name: string
 
     /**
      * The kind of the timer.
      */
-    @Column({ type: "varchar" })
     public kind: TimerKind
 
     /**
      * The ForgeScript code this timer executes.
      */
-    @Column("text")
     public code: string
 
     /**
      * The path of the command this timer was scheduled from.
      */
-    @Column({ type: "text", nullable: true })
     public path?: string | null
 
     /**
      * The name of the command this timer was scheduled from.
      */
-    @Column({ type: "text", nullable: true })
     public commandName?: string | null
 
     /** Variable schema this row was written under. Null predates it and means v0 */
-    @Column({ type: "int", nullable: true })
     public version?: number | null
 
     /**
      * The delay of this timeout, or the tick length of this interval, in ms.
      */
-    @Column({ type: "bigint", transformer: numericColumn })
     public duration: number
 
     /**
      * The timestamp this timer has been created at.
      */
-    @Column({ type: "bigint", transformer: numericColumn })
     public timestamp: number
 
     /**
      * The timestamp this timer is next due to fire at.
      */
-    @Column({ type: "bigint", transformer: numericColumn })
     public fireAt: number
 
     /**
      * The id of the guild this timer has been created on.
      */
-    @Column({ type: "varchar", nullable: true })
     public guildID?: Snowflake | null
 
     /**
      * The id of the channel this timer has been created in, if any.
      */
-    @Column({ type: "varchar", nullable: true })
     public channelID?: Snowflake | null
 
     /**
      * The id of the user that scheduled this timer.
      */
-    @Column({ type: "varchar", nullable: true })
     public hostID?: Snowflake | null
 
     /**
      * The id of the message this timer was scheduled from.
      */
-    @Column({ type: "varchar", nullable: true })
     public messageID?: Snowflake | null
 
     /**
      * The command arguments this timer was scheduled with.
      */
-    @Column("simple-json", { nullable: true })
     public args?: string[]
 
     /**
      * The serializable variables present when this timer was scheduled.
      */
-    @Column("simple-json", { nullable: true })
     public vars?: IPersistedVars
 
     constructor(options?: Partial<ITimerStartOptions>) {
@@ -193,10 +167,17 @@ export class Timer implements ITimer {
     }
 
     /**
+     * Rebuilds a timer from a stored row, for a backend that hands back plain data.
+     * @param data The row to rebuild from.
+     */
+    public static from(data: ITimer) {
+        return Object.assign(Object.create(Timer.prototype), data) as Timer
+    }
+
+    /**
      * Builds the primary key for a timer.
      * @param kind The kind of the timer.
      * @param name The name of the timer.
-     * @returns
      */
     public static idOf(kind: TimerKind, name: string) {
         return `${kind}:${name}`
@@ -205,7 +186,6 @@ export class Timer implements ITimer {
     /**
      * Longest usable name, since the id carries the kind too.
      * @param kind The kind of the timer.
-     * @returns
      */
     public static maxNameLength(kind: TimerKind) {
         return Timer.MAX_ID_LENGTH - Timer.idOf(kind, "").length
@@ -213,7 +193,6 @@ export class Timer implements ITimer {
 
     /**
      * Returns the time left before this timer is due.
-     * @returns
      */
     public timeLeft() {
         return Math.max(this.fireAt - Date.now(), 0)
@@ -221,7 +200,6 @@ export class Timer implements ITimer {
 
     /**
      * Returns how long past due this timer is, or 0 if it isn't yet.
-     * @returns
      */
     public overdueBy() {
         return Math.max(Date.now() - this.fireAt, 0)
@@ -229,7 +207,6 @@ export class Timer implements ITimer {
 
     /**
      * Returns whether this timer was due while the app was down.
-     * @returns
      */
     public isOverdue() {
         return this.fireAt <= Date.now()
@@ -237,7 +214,6 @@ export class Timer implements ITimer {
 
     /**
      * Ticks elapsed since it was last due. Always 0 for timeouts, they fire once.
-     * @returns
      */
     public missedTicks() {
         if (this.kind !== TimerKind.interval || this.duration <= 0) return 0
@@ -246,7 +222,6 @@ export class Timer implements ITimer {
 
     /**
      * Pushes the due time a full duration out, dropping the phase. For an abandoned tick.
-     * @returns
      */
     public scheduleNext() {
         this.fireAt = Date.now() + this.duration
@@ -255,7 +230,6 @@ export class Timer implements ITimer {
 
     /**
      * Steps whole ticks into the future, keeping the phase — a slow run shifts by ticks, not by itself.
-     * @returns
      */
     public advance() {
         if (this.duration <= 0) return this.scheduleNext()
@@ -267,18 +241,15 @@ export class Timer implements ITimer {
 
     /**
      * Clones this timer.
-     * @returns
      */
     public clone() {
         return Object.assign(Object.create(Object.getPrototypeOf(this)), this) as this
     }
 }
 
-@Entity()
 export class MongoTimer extends Timer {
     /**
      * The object id for MongoDB.
      */
-    @ObjectIdColumn()
     public mongoId?: string
 }

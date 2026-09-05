@@ -1,1 +1,0 @@
-{"1.1.0":[{"message":"Added $getTimer, $getAllTimers and $wipeTimers for reading and clearing timers from scripts.Timers now live in ForgeDB database instead of a file. ForgeDB is now required. ForgeScript 2.7.0 version or newer is required","timestamp":"2026-08-26T19:39:15.346Z","author":"daisukidayo"}]}

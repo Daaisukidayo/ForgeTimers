@@ -1,6 +1,5 @@
 import { Compiler, ForgeClient, Interpreter, Sendable } from "@tryforge/forgescript"
-import { GuildMember, User } from "discord.js"
-import { DiscordAPIError } from "discord.js"
+import { DiscordAPIError, GuildMember, User } from "discord.js"
 import { Database, Timer, TimerContext, TimerKind } from "../structures"
 import { ForgeTimers } from ".."
 import { IBaseTimerConfig } from "../types"
@@ -63,7 +62,6 @@ export class TimersManager {
      * Schedules a timer and persists it.
      * @param timer The timer to schedule.
      * @param run What it executes when it fires.
-     * @returns
      */
     public async start(timer: Timer, run: () => Promise<void>) {
         const persisted = await this.timers.ready
@@ -72,7 +70,7 @@ export class TimersManager {
             Logger.warn(`Replacing existing ${timer.kind} "${timer.name}"`)
         }
 
-        if (persisted) await Database.set(timer).catch(Logger.error)
+        if (persisted) await this._save(timer)
 
         // live timer already has its target, so it always runs
         this._arm(timer, async () => {
@@ -87,7 +85,6 @@ export class TimersManager {
      * Cancels a running timer, leaving the database untouched.
      * @param kind The kind of the timer.
      * @param name The name of the timer.
-     * @returns
      */
     public clear(kind: TimerKind, name: string) {
         const map = this.mapOf(kind)
@@ -100,6 +97,14 @@ export class TimersManager {
         map.delete(name)
         this._claim(kind, name)
         return true
+    }
+
+    private _save(timer: Timer) {
+        return Database.set(timer).catch(Logger.error)
+    }
+
+    private _forget(timer: Timer) {
+        return Database.delete(timer.kind, timer.name).catch(Logger.error)
     }
 
     /** Takes the name over and hands back a check for whether it's still ours */
@@ -146,7 +151,6 @@ export class TimersManager {
     /**
      * The live timer map ForgeScript keeps for a kind.
      * @param kind The kind of the timers.
-     * @returns
      */
     public mapOf(kind: TimerKind) {
         switch (kind) {
@@ -164,7 +168,6 @@ export class TimersManager {
      * Whether a timer under this name is already running.
      * @param kind The kind of the timer.
      * @param name The name of the timer.
-     * @returns
      */
     public isLive(kind: TimerKind, name: string) {
         return !!this.mapOf(kind)?.has(name)
@@ -214,7 +217,7 @@ export class TimersManager {
             this.client.timeouts.delete(timer.name)
 
             // don't burn the record on an outage, retry it next boot
-            if (outcome.ran || outcome.gone) await Database.delete(timer.kind, timer.name).catch(Logger.error)
+            if (outcome.ran || outcome.gone) await this._forget(timer)
         })
     }
 
@@ -224,13 +227,11 @@ export class TimersManager {
             if (!owns()) return
 
             // bump first: a slow run mustn't drag the phase, a crash mustn't look pending
-            await Database.set(timer.advance()).catch(Logger.error)
+            await this._save(timer.advance())
 
             if (!owns()) {
                 // cancelled while that write was in flight, so take the row back out
-                if (!this.isLive(timer.kind, timer.name)) {
-                    await Database.delete(timer.kind, timer.name).catch(Logger.error)
-                }
+                if (!this.isLive(timer.kind, timer.name)) await this._forget(timer)
                 return
             }
 
@@ -240,7 +241,7 @@ export class TimersManager {
             if (outcome.gone && owns()) {
                 Logger.warn(`Stopping interval "${timer.name}": its target is gone`)
                 this.clear(timer.kind, timer.name)
-                await Database.delete(timer.kind, timer.name).catch(Logger.error)
+                await this._forget(timer)
             }
         })
     }
@@ -249,7 +250,6 @@ export class TimersManager {
      * Compiles now, fetches later. Boot stays free of requests, and a distant timer isn't
      * thrown away over an outage happening today.
      * @param timer The timer to build a runner for.
-     * @returns
      */
     private _runnerFor(timer: Timer): IRunnerResult {
         let compiled
@@ -317,7 +317,6 @@ export class TimersManager {
     /**
      * Finds the live command again, so a restored run reads the same `$commandName`.
      * @param timer The timer to look up.
-     * @returns
      */
     private _commandFor(timer: Timer) {
         if (!timer.path && !timer.commandName) return null
@@ -373,7 +372,7 @@ export class TimersManager {
             Logger.warn(
                 `Dropping ${timer.kind} "${timer.name}": guild ${timer.guildID} is not visible to this process`
             )
-            await Database.delete(timer.kind, timer.name).catch(Logger.error)
+            await this._forget(timer)
         }
 
         return false
@@ -405,7 +404,7 @@ export class TimersManager {
 
             const config = this.configOf(timer.kind)
             if (config.persist === false) {
-                await Database.delete(timer.kind, timer.name).catch(Logger.error)
+                await this._forget(timer)
                 continue
             }
 
@@ -413,7 +412,7 @@ export class TimersManager {
             if (!runner.ok) {
                 if (runner.gone) {
                     Logger.warn(`Dropping ${timer.kind} "${timer.name}": ${runner.reason}`)
-                    await Database.delete(timer.kind, timer.name).catch(Logger.error)
+                    await this._forget(timer)
                 } else {
                     Logger.warn(
                         `Keeping ${timer.kind} "${timer.name}" for the next boot: ${runner.reason}`
@@ -454,7 +453,7 @@ export class TimersManager {
             Logger.warn(
                 `Discarding timeout "${timer.name}": overdue by ${timing.overdueBy}ms (max ${timing.config.maxOverdue}ms)`
             )
-            await Database.delete(timer.kind, timer.name).catch(Logger.error)
+            await this._forget(timer)
             return
         }
 
@@ -464,13 +463,12 @@ export class TimersManager {
             if (this.isLive(timer.kind, timer.name)) return
 
             const owns = this._claim(timer.kind, timer.name)
-            if (!owns()) return
-            
             const outcome = await run()
-            if (outcome.ran || outcome.gone) await Database.delete(timer.kind, timer.name).catch(Logger.error)
+
+            if (!owns()) return
+            if (outcome.ran || outcome.gone) await this._forget(timer)
         })
     }
-
 
     private async _restoreInterval(
         timer: Timer,
@@ -482,7 +480,7 @@ export class TimersManager {
             Logger.warn(
                 `Interval "${timer.name}": skipping tick overdue by ${timing.overdueBy}ms (max ${timing.config.maxOverdue}ms), resuming schedule`
             )
-            await Database.set(timer.scheduleNext()).catch(Logger.error)
+            await this._save(timer.scheduleNext())
             return this._arm(timer, run)
         }
 
@@ -499,7 +497,7 @@ export class TimersManager {
             // a script may have rescheduled this name while the replay was running
             if (this.isLive(timer.kind, timer.name)) return
 
-            await Database.set(timer.scheduleNext()).catch(Logger.error)
+            await this._save(timer.scheduleNext())
             this._arm(timer, run)
         })
     }

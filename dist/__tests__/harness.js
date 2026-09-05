@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TimerKind = exports.Timer = exports.Database = exports.marks = exports.DATABASE_ENV = void 0;
+exports.TimerKind = exports.Timer = exports.Database = exports.marks = exports.DATABASE_ENV = exports.ConfigSeed = void 0;
 exports.connectionFor = connectionFor;
 exports.waitFor = waitFor;
 exports.boot = boot;
@@ -20,14 +20,16 @@ class ConfigSeed extends forge_db_1.DataBaseManager {
     database = "seed";
     entityManager = { sqlite: [], mongodb: [], mysql: [], postgres: [] };
 }
+exports.ConfigSeed = ConfigSeed;
 exports.DATABASE_ENV = {
     postgres: "FORGETIMERS_TEST_POSTGRES",
     mysql: "FORGETIMERS_TEST_MYSQL",
     mongodb: "FORGETIMERS_TEST_MONGODB",
 };
 function connectionFor(target) {
-    if (target === "sqlite") {
-        return { type: "better-sqlite3", folder: (0, node_fs_1.mkdtempSync)((0, node_path_1.join)((0, node_os_1.tmpdir)(), "forgetimers-test-")) };
+    if (target === "sqlite" || target === "quoriel") {
+        const folder = (0, node_fs_1.mkdtempSync)((0, node_path_1.join)((0, node_os_1.tmpdir)(), "forgetimers-test-"));
+        return { type: target === "quoriel" ? "quoriel" : "better-sqlite3", folder };
     }
     const url = process.env[exports.DATABASE_ENV[target]];
     if (!url)
@@ -84,7 +86,13 @@ async function boot(options = {}, target = "sqlite") {
     if (!connection)
         throw new Error(`${exports.DATABASE_ENV[target]} is not set`);
     const folder = "folder" in connection ? connection.folder : undefined;
-    if (!seeded) {
+    const home = process.cwd();
+    if (target === "quoriel") {
+        // quoriel/db hangs off the working directory and is read once
+        options = { ...options, storage: "quorieldb" };
+        process.chdir(folder);
+    }
+    else if (!seeded) {
         new ConfigSeed(connection);
         seeded = true;
     }
@@ -139,9 +147,8 @@ async function boot(options = {}, target = "sqlite") {
     await structures_1.Database.wipe().catch(() => undefined);
     async function cleanup() {
         await structures_1.Database.wipe().catch(() => undefined);
-        const source = structures_1.Database.db;
-        if (source?.isInitialized)
-            await source.destroy();
+        await structures_1.Database.destroy().catch(() => undefined);
+        process.chdir(home);
         if (!folder)
             return;
         try {

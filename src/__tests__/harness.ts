@@ -1,32 +1,34 @@
 import { DataBaseManager } from "@tryforge/forge.db"
 import { ArgType, Compiler, Context, FunctionManager, ForgeClient, Interpreter, NativeFunction } from "@tryforge/forgescript"
 import { mkdtempSync, rmSync } from "node:fs"
-import { DataSource } from "typeorm"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { ForgeTimers } from ".."
 import { Database, Timer, TimerKind } from "../structures"
 
-class ConfigSeed extends DataBaseManager {
+export class ConfigSeed extends DataBaseManager {
     public database = "seed"
     public entityManager = { sqlite: [], mongodb: [], mysql: [], postgres: [] }
 }
 
-export type TestDatabase = "sqlite" | "postgres" | "mysql" | "mongodb"
+export type TestDatabase = "sqlite" | "postgres" | "mysql" | "mongodb" | "quoriel"
+
+export type SqlDatabase = Exclude<TestDatabase, "sqlite" | "quoriel">
 
 export type TestConnection =
-    | { type: "better-sqlite3"; folder: string }
+    | { type: "better-sqlite3" | "quoriel"; folder: string }
     | { type: "postgres" | "mysql" | "mongodb"; url: string }
 
-export const DATABASE_ENV: Record<Exclude<TestDatabase, "sqlite">, string> = {
+export const DATABASE_ENV: Record<SqlDatabase, string> = {
     postgres: "FORGETIMERS_TEST_POSTGRES",
     mysql: "FORGETIMERS_TEST_MYSQL",
     mongodb: "FORGETIMERS_TEST_MONGODB",
 }
 
 export function connectionFor(target: TestDatabase): TestConnection | null {
-    if (target === "sqlite") {
-        return { type: "better-sqlite3", folder: mkdtempSync(join(tmpdir(), "forgetimers-test-")) }
+    if (target === "sqlite" || target === "quoriel") {
+        const folder = mkdtempSync(join(tmpdir(), "forgetimers-test-"))
+        return { type: target === "quoriel" ? "quoriel" : "better-sqlite3", folder }
     }
 
     const url = process.env[DATABASE_ENV[target]]
@@ -117,10 +119,16 @@ export async function boot(
     target: TestDatabase = "sqlite"
 ) {
     const connection = connectionFor(target)
-    if (!connection) throw new Error(`${DATABASE_ENV[target as Exclude<TestDatabase, "sqlite">]} is not set`)
+    if (!connection) throw new Error(`${DATABASE_ENV[target as SqlDatabase]} is not set`)
 
     const folder = "folder" in connection ? connection.folder : undefined
-    if (!seeded) {
+    const home = process.cwd()
+
+    if (target === "quoriel") {
+        // quoriel/db hangs off the working directory and is read once
+        options = { ...options, storage: "quorieldb" }
+        process.chdir(folder!)
+    } else if (!seeded) {
         new ConfigSeed(connection as never)
         seeded = true
     }
@@ -180,10 +188,9 @@ export async function boot(
 
     async function cleanup() {
         await Database.wipe().catch(() => undefined)
+        await Database.destroy().catch(() => undefined)
 
-        const source = (Database as unknown as { db?: DataSource }).db
-        if (source?.isInitialized) await source.destroy()
-
+        process.chdir(home)
         if (!folder) return
 
         try {

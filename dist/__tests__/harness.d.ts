@@ -1,14 +1,25 @@
+import { DataBaseManager } from "@tryforge/forge.db";
 import { ForgeTimers } from "..";
 import { Database, Timer, TimerKind } from "../structures";
-export type TestDatabase = "sqlite" | "postgres" | "mysql" | "mongodb";
+export declare class ConfigSeed extends DataBaseManager {
+    database: string;
+    entityManager: {
+        sqlite: never[];
+        mongodb: never[];
+        mysql: never[];
+        postgres: never[];
+    };
+}
+export type TestDatabase = "sqlite" | "postgres" | "mysql" | "mongodb" | "quoriel";
+export type SqlDatabase = Exclude<TestDatabase, "sqlite" | "quoriel">;
 export type TestConnection = {
-    type: "better-sqlite3";
+    type: "better-sqlite3" | "quoriel";
     folder: string;
 } | {
     type: "postgres" | "mysql" | "mongodb";
     url: string;
 };
-export declare const DATABASE_ENV: Record<Exclude<TestDatabase, "sqlite">, string>;
+export declare const DATABASE_ENV: Record<SqlDatabase, string>;
 export declare function connectionFor(target: TestDatabase): TestConnection | null;
 export interface IFakeTarget {
     id?: string;

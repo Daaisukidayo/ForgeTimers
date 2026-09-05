@@ -39,7 +39,6 @@ const FAILED: Encoded = { ok: false }
  * Rewrites a value into something JSON can hold without losing its type.
  * @param value The value to encode.
  * @param seen The objects currently being walked, to break cycles.
- * @returns
  */
 function encode(value: unknown, seen: WeakSet<object>, path: string, dropped: string[]): Encoded {
     if (value === null) return { ok: true, value: null }
@@ -128,7 +127,6 @@ function encode(value: unknown, seen: WeakSet<object>, path: string, dropped: st
 /**
  * Rebuilds a value written by {@link encode}.
  * @param value The stored value.
- * @returns
  */
 function decode(value: unknown): unknown {
     if (value === null || typeof value !== "object") return value
@@ -136,21 +134,14 @@ function decode(value: unknown): unknown {
     if (Array.isArray(value)) return value.map(decode)
 
     const obj = value as Record<string, unknown>
-    if (!isTagged(obj)) {
-        const out: Record<string, unknown> = {}
-        for (const [key, item] of Object.entries(obj)) out[key] = decode(item)
-        return out
-    }
+    if (!isTagged(obj)) return decodeEntries(obj)
 
     const inner = obj.value
 
     switch (obj[TAG]) {
-        case "raw": {
+        case "raw":
             // the payload's tag key is user data, not ours
-            const out: Record<string, unknown> = {}
-            for (const [key, item] of Object.entries(inner as Record<string, unknown>)) out[key] = decode(item)
-            return out
-        }
+            return decodeEntries(inner as Record<string, unknown>)
         case "bigint":
             return BigInt(inner as string)
         case "date":
@@ -167,6 +158,9 @@ function decode(value: unknown): unknown {
             return undefined
     }
 }
+
+const decodeEntries = (obj: Record<string, unknown>) =>
+    Object.fromEntries(Object.entries(obj).map(([key, item]) => [key, decode(item)]))
 
 function encodeRecord(source: Record<string, unknown>) {
     const kept: Record<string, unknown> = {}
@@ -194,10 +188,12 @@ export function snapshotVars(
     const keywords = encodeRecord(runtime.keywords ?? {})
     const environment = encodeRecord(runtime.environment ?? {})
 
-    const localFunctions: Record<string, IPersistedLocalFunction> = {}
-    for (const [fnName, data] of Object.entries(runtime.localFunctions ?? {})) {
-        localFunctions[fnName] = { code: data.code.rawValue, args: data.args }
-    }
+    const localFunctions = Object.fromEntries(
+        Object.entries(runtime.localFunctions ?? {}).map(([fnName, data]) => [
+            fnName,
+            { code: data.code.rawValue, args: data.args } satisfies IPersistedLocalFunction,
+        ])
+    )
 
     const dropped = [...keywords.dropped, ...environment.dropped]
     if (dropped.length) {
@@ -215,7 +211,6 @@ export function snapshotVars(
  * Reads back a record written by {@link snapshotVars}.
  * @param source The stored record.
  * @param version The schema the timer was written under.
- * @returns
  */
 export function restoreVars(source: Record<string, unknown> | undefined, version: number) {
     if (!source) return {}

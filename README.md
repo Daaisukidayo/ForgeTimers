@@ -6,7 +6,7 @@ ForgeTimers is an extension that makes `$setTimeout` and `$setInterval` survive 
 
 <a href="https://github.com/Daaisukidayo/ForgeTimers/"><img src="https://img.shields.io/github/package-json/v/Daaisukidayo/ForgeTimers/main?label=forge.timers&color=5c16d4" alt="forge.timers"></a>
 <a href="https://github.com/tryforge/ForgeScript/"><img src="https://img.shields.io/github/package-json/v/tryforge/ForgeScript/main?label=@tryforge/forgescript&color=5c16d4" alt="@tryforge/forgescript"></a>
-<a href="https://discord.gg/yFW5Ju6JP8"><img src="https://img.shields.io/discord/739934735387721768?logo=discord" alt="Discord"></a>
+<a href="https://discord.gg/yFW5Ju6JP8"><img src="https://img.shields.io/discord/997899472610795580?logo=discord" alt="Discord"></a>
 
 </div>
 
@@ -22,12 +22,18 @@ ForgeTimers is an extension that makes `$setTimeout` and `$setInterval` survive 
 <h3 align="center">Installation</h3><hr>
 
 > ⚠️ **Warning**\
-> **ForgeTimers** requires the extension [**ForgeDB**](https://docs.botforge.org/?p=ForgeDB) installed in order to operate, and **ForgeScript 2.7.0** or newer.
+> **ForgeTimers** stores its timers in another extension's database, so it needs one of [**ForgeDB**](https://github.com/tryforge/ForgeDB) or [**QuorielDB**](https://github.com/quoriel/db) installed, plus **ForgeScript 2.7.0** or newer.
 
 1. Run the following command to install the required `npm` package:
 
    ```bash
    npm i github:Daaisukidayo/ForgeTimers @tryforge/forge.db
+   ```
+
+   Or, to keep timers in QuorielDB's LMDB store instead:
+
+   ```bash
+   npm i github:Daaisukidayo/ForgeTimers @quoriel/db
    ```
 
 2. Here's an example of how your main file should look:
@@ -71,6 +77,7 @@ The extension overrides `$setTimeout`, `$setInterval`, `$clearTimeout` and `$cle
 
 At the top level, `ForgeTimers` accepts:
 
+- **`storage`** — which extension keeps the timers: `"forgedb"` (default) or `"quorieldb"`. See [Storage](#storage).
 - **`pruneUnknownGuilds`** — whether timers belonging to a guild this process can't see are deleted on startup. Default `false`. An invisible guild is far more often a Discord outage or another process's shard than a kick, and the deletion can't be undone. Turn it on only on a single unsharded process, where a missing guild really does mean the bot was removed.
 
 Startup only compiles what it restores. Channels, messages and users are fetched when a timer actually fires, so booting with thousands of stored timers costs nothing extra, and a timer due next month is never discarded over an outage happening today. A timeout that could not reach Discord keeps its record and is retried on the next boot.
@@ -97,9 +104,39 @@ A timer doesn't need a channel at all. One scheduled where there is none - a `cl
 
 <h3 align="center">Storage</h3><hr>
 
-Timers are stored through **ForgeDB**, so they end up wherever you already keep your data - sqlite, mongodb, mysql or postgres. There's nothing extra to configure here: set ForgeDB up as usual and timers follow.
+Timers go wherever you already keep your data. Pick the extension with `storage`:
 
-On sqlite that means a `timers.db` file next to ForgeDB's own database.
+```js
+const timers = new ForgeTimers({
+    storage: "quorieldb" // "forgedb" by default
+})
+```
+
+**`"forgedb"`** stores them through **ForgeDB** - sqlite, mongodb, mysql or postgres, whichever you set up. There's nothing extra to configure: set ForgeDB up as usual and timers follow. On sqlite that means a `timers.db` file next to ForgeDB's own database.
+
+**`"quorieldb"`** stores them through **QuorielDB**, in LMDB, under a `timers` record type inside `quoriel/db`. The type is registered in your `quoriel/db/config.json` on first startup, so there's nothing to add by hand, and the timers can be read with QuorielDB's own functions:
+
+```js
+$getRecord[timers;timeout:reminder]
+```
+
+> ⚠️ **Warning**\
+> Only one of the two is used. Whichever you pick must be installed and listed in `extensions` - the extension refuses to load otherwise.
+
+**Switching backends.** Timers already stored do not follow on their own. Point `migrateFrom` at the old backend for one boot:
+
+```js
+const timers = new ForgeTimers({
+    storage: "quorieldb",
+    migrateFrom: "forgedb"
+})
+```
+
+Both extensions have to be in `extensions` for that boot - the old one is what the timers are read through. Once the log says the migration is done, remove `migrateFrom` and the old extension.
+
+The move happens before anything is restored, so deadlines carry over untouched: a timeout due tomorrow is still due tomorrow. Timers whose name is already taken in the new backend are left where they are and named in the log - what is already live there wins.
+
+Each timer is written, read back, and only then dropped from the old backend. Draining it is what makes a rerun harmless: a timer that has since fired cannot come back from a source nobody cleared. Pass `keepSource: true` to copy instead of move - then the old timers stay, and the migration repeats every boot until you remove `migrateFrom`.
 
 Variables are stored alongside the timer. Strings, numbers, booleans, arrays and plain objects survive, and so do dates, maps, sets, regular expressions and bigints. Anything with no meaning after a restart - a function, a class instance, a live Discord structure - is dropped, and the names that were dropped are logged when the timer is scheduled.
 

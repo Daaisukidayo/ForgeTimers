@@ -1,97 +1,116 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Database = void 0;
-const managers_1 = require("../managers");
-const Timer_1 = require("./Timer");
-class Database extends managers_1.TimersDatabaseManager {
-    database = "timers.db";
-    entityManager = {
-        sqlite: [Timer_1.Timer],
-        mongodb: [Timer_1.MongoTimer],
-        mysql: [Timer_1.Timer],
-        postgres: [Timer_1.Timer],
-    };
-    static entities;
-    db;
-    static db;
-    constructor() {
-        super();
-        this.db = this.getDB();
+/**
+ * The database, whichever one was picked. Everything reads and writes timers through here,
+ * so the backend is a single decision made at startup rather than a shape the rest has to know.
+ */
+class Database {
+    static store;
+    /**
+     * Opens a storage without putting it in charge, so two can be read at once.
+     * @param storage Which backend to open.
+     */
+    static async open(storage = "forgedb") {
+        const store = load(storage);
+        await store.init();
+        return store;
     }
-    async init() {
-        Database.db = await this.db;
-        const type = this.type ?? "sqlite";
-        Database.entities = {
-            Timer: this.entityManager[type === "better-sqlite3" ? "sqlite" : type][0],
-        };
+    /**
+     * Opens the chosen storage and makes it the one everything reads. Replaces whatever was open before.
+     * @param storage Which backend to keep timers in.
+     */
+    static async use(storage = "forgedb") {
+        await this.store?.destroy().catch(() => undefined);
+        this.store = await this.open(storage);
+        return this.store;
+    }
+    /** The open store. Reaching it before {@link use} means an ordering bug, not a missing timer */
+    static get current() {
+        if (!this.store)
+            throw new Error("The timer database has not been opened yet.");
+        return this.store;
+    }
+    /**
+     * Closes the storage. For a graceful shutdown.
+     */
+    static async destroy() {
+        await this.store?.destroy();
+        this.store = undefined;
     }
     /**
      * Gets an existing timer.
      * @param kind The kind of the timer to get.
      * @param name The name of the timer to get.
-     * @returns
      */
     static async get(kind, name) {
-        return await this.db.getRepository(this.entities.Timer).findOneBy({ id: Timer_1.Timer.idOf(kind, name) });
+        return await this.current.get(kind, name);
     }
     /**
      * Gets all existing timers.
-     * @returns
      */
     static async getAll() {
-        return await this.db.getRepository(this.entities.Timer).find();
+        return await this.current.getAll();
     }
     /**
      * Gets all existing timers of a kind.
      * @param kind The kind of the timers to get.
-     * @returns
      */
     static async getAllOf(kind) {
-        return await this.db.getRepository(this.entities.Timer).findBy({ kind });
+        return await this.current.getAllOf(kind);
     }
     /**
      * Finds existing timers matching the provided data.
      * @param data The data to use for searching.
      * @param amount The amount of results to return.
-     * @returns
      */
     static async find(data, amount) {
-        return await this.db.getRepository(this.entities.Timer).find({ where: data, take: amount });
+        return await this.current.find(data, amount);
     }
     /**
      * Saves a timer in the database.
-     * @param data The timer data to save.
+     * @param timer The timer to save.
      */
-    static async set(data) {
-        const oldData = await this.get(data.kind, data.name);
-        if (oldData && this.type === "mongodb") {
-            // has to be an object
-            await this.db.getRepository(this.entities.Timer).update({ id: oldData.id }, data);
-        }
-        else {
-            await this.db.getRepository(this.entities.Timer).save(data);
-        }
+    static async set(timer) {
+        await this.current.set(timer);
     }
     /**
      * Deletes an existing timer from the database.
      * @param kind The kind of the timer to delete.
      * @param name The name of the timer to delete.
-     * @returns
      */
     static async delete(kind, name) {
-        return await this.db.getRepository(this.entities.Timer).delete({ id: Timer_1.Timer.idOf(kind, name) });
+        return await this.current.delete(kind, name);
     }
     /**
-     * Wipes the entire database. Deletes rather than truncating, which would need raised
-     * privileges on postgres.
-     * @returns
+     * Wipes every stored timer.
      */
     static async wipe() {
-        const repository = this.db.getRepository(this.entities.Timer);
-        if (this.type === "mongodb")
-            return await repository.deleteMany({});
-        return await repository.deleteAll();
+        await this.current.wipe();
     }
 }
 exports.Database = Database;
+/** Named in the error when a backend's packages turn out not to be installed */
+const INSTALL = {
+    forgedb: "@tryforge/forge.db",
+    quorieldb: "@quoriel/db",
+};
+/**
+ * Required on the way in, so a backend's dependencies only cost whoever picked it.
+ */
+function load(storage) {
+    try {
+        if (storage === "quorieldb") {
+            const { QuorielDBStore } = require("./stores/QuorielDBStore");
+            return new QuorielDBStore();
+        }
+        const { ForgeDBStore } = require("./stores/ForgeDBStore");
+        return new ForgeDBStore();
+    }
+    catch (err) {
+        throw new Error(`storage: "${storage}" could not be opened. If ${INSTALL[storage]} is not installed, ` +
+            `run \`npm i ${INSTALL[storage]}\`.\nThe loader said: ` +
+            (err instanceof Error ? err.message : String(err)));
+    }
+}
 //# sourceMappingURL=Database.js.map

@@ -19,7 +19,6 @@ export declare function snapshotVars(runtime: {
  * Reads back a record written by {@link snapshotVars}.
  * @param source The stored record.
  * @param version The schema the timer was written under.
- * @returns
  */
 export declare function restoreVars(source: Record<string, unknown> | undefined, version: number): Record<string, unknown>;
 /** Rebuilds `localFunctions` by recompiling each stored code. */

@@ -21,7 +21,6 @@ const FAILED = { ok: false };
  * Rewrites a value into something JSON can hold without losing its type.
  * @param value The value to encode.
  * @param seen The objects currently being walked, to break cycles.
- * @returns
  */
 function encode(value, seen, path, dropped) {
     if (value === null)
@@ -105,7 +104,6 @@ function encode(value, seen, path, dropped) {
 /**
  * Rebuilds a value written by {@link encode}.
  * @param value The stored value.
- * @returns
  */
 function decode(value) {
     if (value === null || typeof value !== "object")
@@ -113,21 +111,13 @@ function decode(value) {
     if (Array.isArray(value))
         return value.map(decode);
     const obj = value;
-    if (!isTagged(obj)) {
-        const out = {};
-        for (const [key, item] of Object.entries(obj))
-            out[key] = decode(item);
-        return out;
-    }
+    if (!isTagged(obj))
+        return decodeEntries(obj);
     const inner = obj.value;
     switch (obj[TAG]) {
-        case "raw": {
+        case "raw":
             // the payload's tag key is user data, not ours
-            const out = {};
-            for (const [key, item] of Object.entries(inner))
-                out[key] = decode(item);
-            return out;
-        }
+            return decodeEntries(inner);
         case "bigint":
             return BigInt(inner);
         case "date":
@@ -144,6 +134,7 @@ function decode(value) {
             return undefined;
     }
 }
+const decodeEntries = (obj) => Object.fromEntries(Object.entries(obj).map(([key, item]) => [key, decode(item)]));
 function encodeRecord(source) {
     const kept = {};
     const dropped = [];
@@ -160,10 +151,10 @@ function encodeRecord(source) {
 function snapshotVars(runtime, label) {
     const keywords = encodeRecord(runtime.keywords ?? {});
     const environment = encodeRecord(runtime.environment ?? {});
-    const localFunctions = {};
-    for (const [fnName, data] of Object.entries(runtime.localFunctions ?? {})) {
-        localFunctions[fnName] = { code: data.code.rawValue, args: data.args };
-    }
+    const localFunctions = Object.fromEntries(Object.entries(runtime.localFunctions ?? {}).map(([fnName, data]) => [
+        fnName,
+        { code: data.code.rawValue, args: data.args },
+    ]));
     const dropped = [...keywords.dropped, ...environment.dropped];
     if (dropped.length) {
         logger_1.Logger.warn(`${label} | Not persisting non-serializable variables: ${dropped.join(", ")}`);
@@ -178,7 +169,6 @@ function snapshotVars(runtime, label) {
  * Reads back a record written by {@link snapshotVars}.
  * @param source The stored record.
  * @param version The schema the timer was written under.
- * @returns
  */
 function restoreVars(source, version) {
     if (!source)

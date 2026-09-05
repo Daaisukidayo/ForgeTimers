@@ -1,4 +1,3 @@
-import "reflect-metadata";
 import { Snowflake } from "discord.js";
 import { IPersistedVars } from "../functions/snapshotVars";
 export declare enum TimerKind {
@@ -119,51 +118,47 @@ export declare class Timer implements ITimer {
     vars?: IPersistedVars;
     constructor(options?: Partial<ITimerStartOptions>);
     /**
+     * Rebuilds a timer from a stored row, for a backend that hands back plain data.
+     * @param data The row to rebuild from.
+     */
+    static from(data: ITimer): Timer;
+    /**
      * Builds the primary key for a timer.
      * @param kind The kind of the timer.
      * @param name The name of the timer.
-     * @returns
      */
     static idOf(kind: TimerKind, name: string): string;
     /**
      * Longest usable name, since the id carries the kind too.
      * @param kind The kind of the timer.
-     * @returns
      */
     static maxNameLength(kind: TimerKind): number;
     /**
      * Returns the time left before this timer is due.
-     * @returns
      */
     timeLeft(): number;
     /**
      * Returns how long past due this timer is, or 0 if it isn't yet.
-     * @returns
      */
     overdueBy(): number;
     /**
      * Returns whether this timer was due while the app was down.
-     * @returns
      */
     isOverdue(): boolean;
     /**
      * Ticks elapsed since it was last due. Always 0 for timeouts, they fire once.
-     * @returns
      */
     missedTicks(): number;
     /**
      * Pushes the due time a full duration out, dropping the phase. For an abandoned tick.
-     * @returns
      */
     scheduleNext(): this;
     /**
      * Steps whole ticks into the future, keeping the phase — a slow run shifts by ticks, not by itself.
-     * @returns
      */
     advance(): this;
     /**
      * Clones this timer.
-     * @returns
      */
     clone(): this;
 }

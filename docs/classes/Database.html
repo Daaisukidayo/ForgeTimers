@@ -10,14 +10,12 @@
 <ul class="tsd-breadcrumb" aria-label="Breadcrumb">
 <li><a href="" aria-current="page">Database</a></li></ul>
 <h1>Class Database</h1></div>
-<section class="tsd-panel tsd-hierarchy" data-refl="148">
-<h4>Hierarchy (<a href="../hierarchy.html#Database">View Summary</a>)</h4>
-<ul class="tsd-hierarchy">
-<li class="tsd-hierarchy-item"><a href="TimersDatabaseManager.html" class="tsd-signature-type tsd-kind-class">TimersDatabaseManager</a>
-<ul class="tsd-hierarchy">
-<li class="tsd-hierarchy-item"><span class="tsd-hierarchy-target">Database</span></li></ul></li></ul></section><aside class="tsd-sources">
+<section class="tsd-panel tsd-comment">
+<div class="tsd-comment tsd-typography"><p>The database, whichever one was picked. Everything reads and writes timers through here,
+so the backend is a single decision made at startup rather than a shape the rest has to know.</p>
+</div></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/1259058ddddfe6af1978305efbedf17b9ed28bd2/src/structures/Database.ts#L8">src/structures/Database.ts:8</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/ff7f2ac586af09c6f800cbc839262d951ed93034/src/structures/Database.ts#L11">src/structures/Database.ts:11</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -28,23 +26,16 @@
 <div class="tsd-index-list"><a href="#constructor" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Constructor"><use href="../assets/icons.svg#icon-512"></use></svg><span>constructor</span></a>
 </div></section>
 <section class="tsd-index-section">
-<h3 class="tsd-index-heading tsd-anchor-link" id="properties">Properties<a href="#properties" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-index-list"><a href="#database" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>database</span></a>
-<a href="#entitymanager" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>entity<wbr/>Manager</span></a>
-<a href="#type" class="tsd-index-link tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>type?</span></a>
-<a href="#entities" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>entities</span></a>
-<a href="#type-1" class="tsd-index-link tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>type</span></a>
-</div></section>
-<section class="tsd-index-section">
 <h3 class="tsd-index-heading tsd-anchor-link" id="methods">Methods<a href="#methods" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-index-list"><a href="#getdb" class="tsd-index-link tsd-is-protected tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>DB</span></a>
-<a href="#init" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>init</span></a>
-<a href="#delete" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>delete</span></a>
+<div class="tsd-index-list"><a href="#delete" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>delete</span></a>
+<a href="#destroy" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>destroy</span></a>
 <a href="#find" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>find</span></a>
 <a href="#get" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get</span></a>
 <a href="#getall" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>All</span></a>
 <a href="#getallof" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>All<wbr/>Of</span></a>
+<a href="#open" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>open</span></a>
 <a href="#set" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set</span></a>
+<a href="#use" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>use</span></a>
 <a href="#wipe" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>wipe</span></a>
 </div></section></div></details></section></section>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -56,69 +47,15 @@
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="constructordatabase"><span class="tsd-signature-keyword">new</span> <span class="tsd-kind-constructor-signature">Database</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-class">Database</a><a href="#constructordatabase" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">Database</a></h4><aside class="tsd-sources">
-<p>Overrides <a href="TimersDatabaseManager.html">TimersDatabaseManager</a>.<a href="TimersDatabaseManager.html#constructor">constructor</a></p>
-<ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/1259058ddddfe6af1978305efbedf17b9ed28bd2/src/structures/Database.ts#L25">src/structures/Database.ts:25</a></li></ul></aside></div></li></ul></section></section></details>
-<details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
-<h2 class="tsd-anchor-link" id="properties-1">Properties<a href="#properties-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
-<section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="database"><span>database</span><a href="#database" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">database</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> = &quot;timers.db&quot;</span></div><aside class="tsd-sources">
-<p>Overrides <a href="TimersDatabaseManager.html">TimersDatabaseManager</a>.<a href="TimersDatabaseManager.html#database">database</a></p>
-<ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/1259058ddddfe6af1978305efbedf17b9ed28bd2/src/structures/Database.ts#L9">src/structures/Database.ts:9</a></li></ul></aside></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="entitymanager"><span>entity<wbr/>Manager</span><a href="#entitymanager" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">entityManager</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{</span><br/>    <span class="tsd-kind-property">mongodb</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-keyword">typeof</span> <a href="MongoTimer.html" class="tsd-signature-type tsd-kind-class">MongoTimer</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-kind-property">mysql</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-keyword">typeof</span> <a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-kind-property">postgres</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-keyword">typeof</span> <a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-kind-property">sqlite</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-keyword">typeof</span> <a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol"> = ...</span></div><aside class="tsd-sources">
-<p>Overrides <a href="TimersDatabaseManager.html">TimersDatabaseManager</a>.<a href="TimersDatabaseManager.html#entitymanager">entityManager</a></p>
-<ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/1259058ddddfe6af1978305efbedf17b9ed28bd2/src/structures/Database.ts#L11">src/structures/Database.ts:11</a></li></ul></aside></section>
-<section class="tsd-panel tsd-member tsd-is-inherited tsd-is-external">
-<h3 class="tsd-anchor-link" id="type"><code class="tsd-tag">Optional</code><span>type</span><a href="#type" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">type</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">&quot;mysql&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;postgres&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;mongodb&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;better-sqlite3&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;sqlite&quot;</span></div><aside class="tsd-sources">
-<p>Inherited from <a href="TimersDatabaseManager.html">TimersDatabaseManager</a>.<a href="TimersDatabaseManager.html#type">type</a></p>
-<ul>
-<li>Defined in node_modules/@tryforge/forge.db/dist/util/databaseManager.d.ts:12</li></ul></aside></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="entities"><code class="tsd-tag">Static</code><span>entities</span><a href="#entities" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">entities</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">Timer</span><span class="tsd-signature-symbol">:</span> <a href="../types/AnyTimer.html" class="tsd-signature-type tsd-kind-type-alias">AnyTimer</a> <span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/1259058ddddfe6af1978305efbedf17b9ed28bd2/src/structures/Database.ts#L18">src/structures/Database.ts:18</a></li></ul></aside></section>
-<section class="tsd-panel tsd-member tsd-is-inherited tsd-is-external">
-<h3 class="tsd-anchor-link" id="type-1"><code class="tsd-tag">Static</code><span>type</span><a href="#type-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">type</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;mysql&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;postgres&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;mongodb&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;better-sqlite3&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;sqlite&quot;</span></div><aside class="tsd-sources">
-<p>Inherited from <a href="TimersDatabaseManager.html">TimersDatabaseManager</a>.<a href="TimersDatabaseManager.html#type-1">type</a></p>
-<ul>
-<li>Defined in node_modules/@tryforge/forge.db/dist/util/databaseManager.d.ts:13</li></ul></aside></section></section></details>
+<h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">Database</a></h4></div></li></ul></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
-<section class="tsd-panel tsd-member tsd-is-protected tsd-is-inherited tsd-is-external">
-<h3 class="tsd-anchor-link" id="getdb"><code class="tsd-tag">Protected</code><span>get<wbr/>DB</span><a href="#getdb" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures tsd-is-protected tsd-is-inherited tsd-is-external">
-<li class="tsd-is-inherited tsd-is-external">
-<div class="tsd-signature tsd-anchor-link" id="getdb-1"><span class="tsd-kind-call-signature">getDB</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">DataSource</span><span class="tsd-signature-symbol">&gt;</span><a href="#getdb-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
-<div class="tsd-description">
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">DataSource</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
-<p>Inherited from <a href="TimersDatabaseManager.html">TimersDatabaseManager</a>.<a href="TimersDatabaseManager.html#getdb">getDB</a></p>
-<ul>
-<li>Defined in node_modules/@tryforge/forge.db/dist/util/databaseManager.d.ts:15</li></ul></aside></div></li></ul></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="init"><span>init</span><a href="#init" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
-<li class="">
-<div class="tsd-signature tsd-anchor-link" id="init-1"><span class="tsd-kind-call-signature">init</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><a href="#init-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
-<div class="tsd-description">
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/1259058ddddfe6af1978305efbedf17b9ed28bd2/src/structures/Database.ts#L30">src/structures/Database.ts:30</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="delete"><code class="tsd-tag">Static</code><span>delete</span><a href="#delete" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
-<div class="tsd-signature tsd-anchor-link" id="delete-1"><span class="tsd-kind-call-signature">delete</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">kind</span><span class="tsd-signature-symbol">:</span> <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">DeleteResult</span><span class="tsd-signature-symbol">&gt;</span><a href="#delete-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-signature tsd-anchor-link" id="delete-1"><span class="tsd-kind-call-signature">delete</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">kind</span><span class="tsd-signature-symbol">:</span> <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/IDeleteResult.html" class="tsd-signature-type tsd-kind-interface">IDeleteResult</a><span class="tsd-signature-symbol">&gt;</span><a href="#delete-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <div class="tsd-comment tsd-typography"><p>Deletes an existing timer from the database.</p>
 </div>
@@ -131,21 +68,32 @@
 <li><span><span class="tsd-kind-parameter">name</span>: <span class="tsd-signature-type">string</span></span>
 <div class="tsd-comment tsd-typography"><p>The name of the timer to delete.</p>
 </div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">DeleteResult</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/IDeleteResult.html" class="tsd-signature-type tsd-kind-interface">IDeleteResult</a><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/1259058ddddfe6af1978305efbedf17b9ed28bd2/src/structures/Database.ts#L97">src/structures/Database.ts:97</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/ff7f2ac586af09c6f800cbc839262d951ed93034/src/structures/Database.ts#L96">src/structures/Database.ts:96</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="destroy"><code class="tsd-tag">Static</code><span>destroy</span><a href="#destroy" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="destroy-1"><span class="tsd-kind-call-signature">destroy</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><a href="#destroy-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Closes the storage. For a graceful shutdown.</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/ff7f2ac586af09c6f800cbc839262d951ed93034/src/structures/Database.ts#L45">src/structures/Database.ts:45</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="find"><code class="tsd-tag">Static</code><span>find</span><a href="#find" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
-<div class="tsd-signature tsd-anchor-link" id="find-1"><span class="tsd-kind-call-signature">find</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">data</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">FindOptionsWhere</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">amount</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span><a href="#find-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-signature tsd-anchor-link" id="find-1"><span class="tsd-kind-call-signature">find</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">data</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-keyword">keyof</span> <a href="../interfaces/ITimer.html" class="tsd-signature-type tsd-kind-interface">ITimer</a><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">amount</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span><a href="#find-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <div class="tsd-comment tsd-typography"><p>Finds existing timers matching the provided data.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
-<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">data</span>: <span class="tsd-signature-type">FindOptionsWhere</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">&gt;</span></span>
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">data</span>: <span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-keyword">keyof</span> <a href="../interfaces/ITimer.html" class="tsd-signature-type tsd-kind-interface">ITimer</a><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span></span>
 <div class="tsd-comment tsd-typography"><p>The data to use for searching.</p>
 </div></li>
 <li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">amount</span>: <span class="tsd-signature-type">number</span></span>
@@ -153,7 +101,7 @@
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/1259058ddddfe6af1978305efbedf17b9ed28bd2/src/structures/Database.ts#L72">src/structures/Database.ts:72</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/ff7f2ac586af09c6f800cbc839262d951ed93034/src/structures/Database.ts#L79">src/structures/Database.ts:79</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="get"><code class="tsd-tag">Static</code><span>get</span><a href="#get" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -173,7 +121,7 @@
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/1259058ddddfe6af1978305efbedf17b9ed28bd2/src/structures/Database.ts#L45">src/structures/Database.ts:45</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/ff7f2ac586af09c6f800cbc839262d951ed93034/src/structures/Database.ts#L55">src/structures/Database.ts:55</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getall"><code class="tsd-tag">Static</code><span>get<wbr/>All</span><a href="#getall" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -184,7 +132,7 @@
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/1259058ddddfe6af1978305efbedf17b9ed28bd2/src/structures/Database.ts#L53">src/structures/Database.ts:53</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/ff7f2ac586af09c6f800cbc839262d951ed93034/src/structures/Database.ts#L62">src/structures/Database.ts:62</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getallof"><code class="tsd-tag">Static</code><span>get<wbr/>All<wbr/>Of</span><a href="#getallof" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -201,36 +149,69 @@
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/1259058ddddfe6af1978305efbedf17b9ed28bd2/src/structures/Database.ts#L62">src/structures/Database.ts:62</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/ff7f2ac586af09c6f800cbc839262d951ed93034/src/structures/Database.ts#L70">src/structures/Database.ts:70</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="open"><code class="tsd-tag">Static</code><span>open</span><a href="#open" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="open-1"><span class="tsd-kind-call-signature">open</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">storage</span><span class="tsd-signature-symbol">?:</span> <a href="../types/TimerStorage.html" class="tsd-signature-type tsd-kind-type-alias">TimerStorage</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/ITimerStore.html" class="tsd-signature-type tsd-kind-interface">ITimerStore</a><span class="tsd-signature-symbol">&gt;</span><a href="#open-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Opens a storage without putting it in charge, so two can be read at once.</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">storage</span>: <a href="../types/TimerStorage.html" class="tsd-signature-type tsd-kind-type-alias">TimerStorage</a><span class="tsd-signature-symbol"> = &quot;forgedb&quot;</span></span>
+<div class="tsd-comment tsd-typography"><p>Which backend to open.</p>
+</div></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/ITimerStore.html" class="tsd-signature-type tsd-kind-interface">ITimerStore</a><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/ff7f2ac586af09c6f800cbc839262d951ed93034/src/structures/Database.ts#L18">src/structures/Database.ts:18</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="set"><code class="tsd-tag">Static</code><span>set</span><a href="#set" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
-<div class="tsd-signature tsd-anchor-link" id="set-1"><span class="tsd-kind-call-signature">set</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">data</span><span class="tsd-signature-symbol">:</span> <a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a> <span class="tsd-signature-symbol">|</span> <a href="MongoTimer.html" class="tsd-signature-type tsd-kind-class">MongoTimer</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><a href="#set-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-signature tsd-anchor-link" id="set-1"><span class="tsd-kind-call-signature">set</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">timer</span><span class="tsd-signature-symbol">:</span> <a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><a href="#set-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <div class="tsd-comment tsd-typography"><p>Saves a timer in the database.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">data</span>: <a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a> <span class="tsd-signature-symbol">|</span> <a href="MongoTimer.html" class="tsd-signature-type tsd-kind-class">MongoTimer</a></span>
-<div class="tsd-comment tsd-typography"><p>The timer data to save.</p>
+<li><span><span class="tsd-kind-parameter">timer</span>: <a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a></span>
+<div class="tsd-comment tsd-typography"><p>The timer to save.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/1259058ddddfe6af1978305efbedf17b9ed28bd2/src/structures/Database.ts#L80">src/structures/Database.ts:80</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/ff7f2ac586af09c6f800cbc839262d951ed93034/src/structures/Database.ts#L87">src/structures/Database.ts:87</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="use"><code class="tsd-tag">Static</code><span>use</span><a href="#use" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="use-1"><span class="tsd-kind-call-signature">use</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">storage</span><span class="tsd-signature-symbol">?:</span> <a href="../types/TimerStorage.html" class="tsd-signature-type tsd-kind-type-alias">TimerStorage</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/ITimerStore.html" class="tsd-signature-type tsd-kind-interface">ITimerStore</a><span class="tsd-signature-symbol">&gt;</span><a href="#use-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Opens the chosen storage and makes it the one everything reads. Replaces whatever was open before.</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">storage</span>: <a href="../types/TimerStorage.html" class="tsd-signature-type tsd-kind-type-alias">TimerStorage</a><span class="tsd-signature-symbol"> = &quot;forgedb&quot;</span></span>
+<div class="tsd-comment tsd-typography"><p>Which backend to keep timers in.</p>
+</div></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/ITimerStore.html" class="tsd-signature-type tsd-kind-interface">ITimerStore</a><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/ff7f2ac586af09c6f800cbc839262d951ed93034/src/structures/Database.ts#L29">src/structures/Database.ts:29</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="wipe"><code class="tsd-tag">Static</code><span>wipe</span><a href="#wipe" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
-<div class="tsd-signature tsd-anchor-link" id="wipe-1"><span class="tsd-kind-call-signature">wipe</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">DeleteResult</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">DeleteResult</span><span class="tsd-signature-symbol">&gt;</span><a href="#wipe-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-signature tsd-anchor-link" id="wipe-1"><span class="tsd-kind-call-signature">wipe</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><a href="#wipe-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Wipes the entire database. Deletes rather than truncating, which would need raised
-privileges on postgres.</p>
+<div class="tsd-comment tsd-typography"><p>Wipes every stored timer.</p>
 </div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">DeleteResult</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">DeleteResult</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/1259058ddddfe6af1978305efbedf17b9ed28bd2/src/structures/Database.ts#L106">src/structures/Database.ts:106</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/ff7f2ac586af09c6f800cbc839262d951ed93034/src/structures/Database.ts#L103">src/structures/Database.ts:103</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -248,10 +229,8 @@ privileges on postgres.</p>
 <div class="tsd-accordion-details">
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Constructors</summary>
 <div><a href="#constructor"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Constructor"><use href="../assets/icons.svg#icon-512"></use></svg><span>constructor</span></a></div></details>
-<details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Properties</summary>
-<div><a href="#database"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>database</span></a><a href="#entitymanager"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>entity<wbr/>Manager</span></a><a href="#type" class="tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>type</span></a><a href="#entities"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>entities</span></a><a href="#type-1" class="tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>type</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Methods</summary>
-<div><a href="#getdb" class="tsd-is-protected tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>DB</span></a><a href="#init"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>init</span></a><a href="#delete"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>delete</span></a><a href="#find"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>find</span></a><a href="#get"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get</span></a><a href="#getall"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>All</span></a><a href="#getallof"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>All<wbr/>Of</span></a><a href="#set"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set</span></a><a href="#wipe"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>wipe</span></a></div></details></div></details></div>
+<div><a href="#delete"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>delete</span></a><a href="#destroy"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>destroy</span></a><a href="#find"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>find</span></a><a href="#get"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get</span></a><a href="#getall"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>All</span></a><a href="#getallof"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>All<wbr/>Of</span></a><a href="#open"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>open</span></a><a href="#set"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set</span></a><a href="#use"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>use</span></a><a href="#wipe"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>wipe</span></a></div></details></div></details></div>
 <div class="site-menu">
 <nav class="tsd-navigation"><a href="../modules.html">forge.timers</a>
 <ul class="tsd-small-nested-navigation" id="tsd-nav-container">
