@@ -49,6 +49,9 @@ export interface ITestClient {
     ext: ForgeTimers
 
     channels: Map<string, unknown>
+    users: Map<string, unknown>
+    members: Map<string, unknown>
+
     fetches: { channels: number }
     commands: unknown[]
 
@@ -99,20 +102,14 @@ function registerMark() {
     )
 }
 
-function withoutLingeringWatchdog<T>(fn: () => T): T {
-    const real = globalThis.setTimeout
-    globalThis.setTimeout = ((handler: never, ms?: number, ...rest: never[]) => {
-        const handle = real(handler, ms as never, ...rest)
-        if ((ms ?? 0) >= 10_000) handle.unref?.()
-        return handle
-    }) as typeof globalThis.setTimeout
+const FORGE_DB_WATCHDOG = 10_000
 
-    try {
-        return fn()
-    } finally {
-        globalThis.setTimeout = real
-    }
-}
+const realSetTimeout = globalThis.setTimeout
+globalThis.setTimeout = ((handler: never, ms?: number, ...rest: never[]) => {
+    const handle = realSetTimeout(handler, ms as never, ...rest)
+    if (ms === FORGE_DB_WATCHDOG) handle.unref?.()
+    return handle
+}) as typeof globalThis.setTimeout
 
 export async function boot(
     options: ConstructorParameters<typeof ForgeTimers>[0] = {},
@@ -135,6 +132,8 @@ export async function boot(
 
     const ext = new ForgeTimers(options)
     const channels = new Map<string, unknown>()
+    const users = new Map<string, unknown>()
+    const members = new Map<string, unknown>()
     const guilds = new Set<string>()
     const handlers: Array<() => unknown> = []
 
@@ -143,6 +142,8 @@ export async function boot(
     const harness: ITestClient = {
         ext,
         channels,
+        users,
+        members,
         fetches,
         commands: [],
         guilds,
@@ -165,8 +166,17 @@ export async function boot(
         timeouts: new Map<string, NodeJS.Timeout>(),
         intervals: new Map<string, NodeJS.Timeout>(),
         shard: null,
-        guilds: { cache: { has: (id: string) => guilds.has(id), get: (id: string) => undefined } },
-        users: { fetch: async () => null },
+        guilds: {
+            cache: {
+                has: (id: string) => guilds.has(id),
+                // a guild this process cannot see has no members to hand back either
+                get: (id: string) =>
+                    guilds.has(id)
+                        ? { id, members: { fetch: async (userID: string) => members.get(userID) ?? null } }
+                        : undefined,
+            },
+        },
+        users: { fetch: async (id: string) => users.get(id) ?? null },
         channels: {
             fetch: async (id: string) => {
                 fetches.channels++
@@ -179,7 +189,9 @@ export async function boot(
         once: (_event: string, handler: () => unknown) => handlers.push(handler),
     }
 
-    withoutLingeringWatchdog(() => ext.init(harness.client as unknown as ForgeClient))
+    ext.init(harness.client as unknown as ForgeClient)
+
+    // after init, or the extension's own natives lose to the stock ones
     FunctionManager.loadNative()
     registerMark()
 

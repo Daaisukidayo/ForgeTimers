@@ -28,9 +28,6 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
 
-      - name: Reach git dependencies over https
-        run: git config --global url."https://github.com/".insteadOf ssh://git@github.com/
-
       - run: npm ci
 
       - run: npm run build
@@ -93,9 +90,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-
-      - name: Reach git dependencies over https
-        run: git config --global url."https://github.com/".insteadOf ssh://git@github.com/
 
       - run: npm ci
 

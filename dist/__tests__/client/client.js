@@ -70,7 +70,8 @@ client.commands.add({
     aliases: ["e"],
     type: discord_js_1.Events.MessageCreate,
     code: `
-    $eval[$message]
+    $let[text;$eval[$message;false]]
+    $if[$charCount[$get[text]]>1950;$attachment[$get[text];result.json;true];$codeBlock[$get[text];JSON]]
     `
 });
 client.commands.add({
@@ -88,7 +89,7 @@ if (smoke) {
         type: discord_js_1.Events.ClientReady,
         code: plan
             ? `$smokeReport[booted]`
-            : `$setTimeout[$smokeReport[timeout];${smoke_1.TIMEOUT_DELAY};${smoke_1.TIMEOUT_NAME}]` +
+            : `$setTimeout[${smoke_1.TIMEOUT_CODE};${smoke_1.TIMEOUT_DELAY};${smoke_1.TIMEOUT_NAME}]` +
                 `$setInterval[$smokeReport[interval];${smoke_1.INTERVAL_TICK};${smoke_1.INTERVAL_NAME}]` +
                 `$smokeReport[seeded]`,
     });

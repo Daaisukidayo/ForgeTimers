@@ -38,6 +38,8 @@ export interface ITestClient {
     client: any;
     ext: ForgeTimers;
     channels: Map<string, unknown>;
+    users: Map<string, unknown>;
+    members: Map<string, unknown>;
     fetches: {
         channels: number;
     };

@@ -10,6 +10,7 @@ import {
     INTERVAL_NAME,
     readPlan,
     runSmoke,
+    TIMEOUT_CODE,
     TIMEOUT_DELAY,
     TIMEOUT_NAME,
 } from "./smoke"
@@ -88,7 +89,8 @@ client.commands.add({
     aliases: ["e"],
     type: Events.MessageCreate,
     code: `
-    $eval[$message]
+    $let[text;$eval[$message;false]]
+    $if[$charCount[$get[text]]>1950;$attachment[$get[text];result.json;true];$codeBlock[$get[text];JSON]]
     `
 })
 
@@ -110,7 +112,7 @@ if (smoke) {
         type: Events.ClientReady,
         code: plan
             ? `$smokeReport[booted]`
-            : `$setTimeout[$smokeReport[timeout];${TIMEOUT_DELAY};${TIMEOUT_NAME}]` +
+            : `$setTimeout[${TIMEOUT_CODE};${TIMEOUT_DELAY};${TIMEOUT_NAME}]` +
               `$setInterval[$smokeReport[interval];${INTERVAL_TICK};${INTERVAL_NAME}]` +
               `$smokeReport[seeded]`,
     })

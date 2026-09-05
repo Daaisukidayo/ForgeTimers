@@ -21,6 +21,9 @@ let harness;
     harness.guilds.clear();
     harness.commands = [];
     harness.fetches.channels = 0;
+    harness.client.shard = null;
+    harness.users.clear();
+    harness.members.clear();
     configure({}, {});
 });
 (0, node_test_1.after)(async () => {
@@ -263,6 +266,83 @@ const apiError = (status, code, message) => new discord_js_1.DiscordAPIError({ m
             channelID: "chan-1", guildID: "guild-mine" }), Date.now() + 60_000);
         await harness.ready();
         strict_1.default.equal(harness.client.timeouts.has("n"), true);
+    });
+});
+(0, node_test_1.describe)("a timer belonging to no guild", () => {
+    const guildless = (name = "n") => (0, harness_1.persist)(new harness_1.Timer({ name, kind: harness_1.TimerKind.timeout, code: `$testMark[${name}]`, duration: 1000 }), Date.now() + 60_000);
+    (0, node_test_1.it)("is restored on an unsharded process", async () => {
+        await guildless();
+        await harness.ready();
+        strict_1.default.equal(harness.client.timeouts.has("n"), true);
+    });
+    (0, node_test_1.it)("is restored on shard 0", async () => {
+        harness.client.shard = { ids: [0] };
+        await guildless();
+        await harness.ready();
+        strict_1.default.equal(harness.client.timeouts.has("n"), true);
+    });
+    (0, node_test_1.it)("is left alone on every other shard", async () => {
+        // otherwise each shard would run it, and the bot would answer as many times
+        harness.client.shard = { ids: [1] };
+        await guildless();
+        await harness.ready();
+        strict_1.default.equal(harness.client.timeouts.has("n"), false, "another shard already has this one");
+        strict_1.default.ok(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), "and it is not that shard's to delete");
+    });
+    (0, node_test_1.it)("is restored once when shard 0 shares a process", async () => {
+        harness.client.shard = { ids: [0, 1, 2] };
+        await guildless();
+        await harness.ready();
+        strict_1.default.equal(harness.client.timeouts.has("n"), true);
+    });
+});
+(0, node_test_1.describe)("the message a timer was scheduled from", () => {
+    const withMessage = (messageID) => (0, harness_1.persist)(new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.timeout, code: "$testMark[$authorID]", duration: 1000,
+        channelID: "chan-msg", messageID, hostID: "user-1" }), Date.now() - 1000);
+    (0, node_test_1.beforeEach)(() => {
+        harness.channels.set("chan-msg", {
+            id: "chan-msg",
+            messages: { fetch: async (id) => (id === "msg-1" ? { id, author: { id: "author-1" } } : null) },
+        });
+    });
+    (0, node_test_1.it)("is fetched again and becomes the target", async () => {
+        await withMessage("msg-1");
+        await harness.ready();
+        await (0, harness_1.waitFor)(() => harness_1.marks.length > 0);
+        strict_1.default.deepEqual(harness_1.marks, ["author-1"], "the run should see the original author");
+    });
+    (0, node_test_1.it)("falls back to the channel once the message is gone", async () => {
+        harness.users.set("user-1", { id: "user-1" });
+        await withMessage("msg-gone");
+        await harness.ready();
+        await (0, harness_1.waitFor)(() => harness_1.marks.length > 0);
+        strict_1.default.deepEqual(harness_1.marks, ["user-1"], "a deleted message must not cost the timer its run");
+    });
+});
+(0, node_test_1.describe)("the user who scheduled a timer", () => {
+    const hosted = (guildID = null) => (0, harness_1.persist)(new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.timeout, code: "$testMark[$authorID]", duration: 1000,
+        channelID: "chan-1", hostID: "user-1", guildID }), Date.now() - 1000);
+    (0, node_test_1.it)("stands in as the author when the target has none", async () => {
+        harness.users.set("user-1", { id: "user-1" });
+        await hosted();
+        await harness.ready();
+        await (0, harness_1.waitFor)(() => harness_1.marks.length > 0);
+        strict_1.default.deepEqual(harness_1.marks, ["user-1"]);
+    });
+    (0, node_test_1.it)("is looked up as a member when the timer belongs to a guild", async () => {
+        harness.guilds.add("guild-1");
+        harness.users.set("user-1", { id: "user-1" });
+        harness.members.set("user-1", { id: "user-1", nickname: "host" });
+        await hosted("guild-1");
+        await harness.ready();
+        await (0, harness_1.waitFor)(() => harness_1.marks.length > 0);
+        strict_1.default.deepEqual(harness_1.marks, ["user-1"]);
+    });
+    (0, node_test_1.it)("leaves the run without an author when the user is gone", async () => {
+        await hosted();
+        await harness.ready();
+        await (0, harness_1.waitFor)(() => harness_1.marks.length > 0, 2000);
+        strict_1.default.deepEqual(harness_1.marks, [""], "a deleted user must not stop the timer running");
     });
 });
 //# sourceMappingURL=restore.test.js.map

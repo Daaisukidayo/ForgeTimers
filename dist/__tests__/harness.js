@@ -66,21 +66,14 @@ function registerMark() {
         },
     }));
 }
-function withoutLingeringWatchdog(fn) {
-    const real = globalThis.setTimeout;
-    globalThis.setTimeout = ((handler, ms, ...rest) => {
-        const handle = real(handler, ms, ...rest);
-        if ((ms ?? 0) >= 10_000)
-            handle.unref?.();
-        return handle;
-    });
-    try {
-        return fn();
-    }
-    finally {
-        globalThis.setTimeout = real;
-    }
-}
+const FORGE_DB_WATCHDOG = 10_000;
+const realSetTimeout = globalThis.setTimeout;
+globalThis.setTimeout = ((handler, ms, ...rest) => {
+    const handle = realSetTimeout(handler, ms, ...rest);
+    if (ms === FORGE_DB_WATCHDOG)
+        handle.unref?.();
+    return handle;
+});
 async function boot(options = {}, target = "sqlite") {
     const connection = connectionFor(target);
     if (!connection)
@@ -98,12 +91,16 @@ async function boot(options = {}, target = "sqlite") {
     }
     const ext = new __1.ForgeTimers(options);
     const channels = new Map();
+    const users = new Map();
+    const members = new Map();
     const guilds = new Set();
     const handlers = [];
     const fetches = { channels: 0 };
     const harness = {
         ext,
         channels,
+        users,
+        members,
         fetches,
         commands: [],
         guilds,
@@ -126,8 +123,16 @@ async function boot(options = {}, target = "sqlite") {
         timeouts: new Map(),
         intervals: new Map(),
         shard: null,
-        guilds: { cache: { has: (id) => guilds.has(id), get: (id) => undefined } },
-        users: { fetch: async () => null },
+        guilds: {
+            cache: {
+                has: (id) => guilds.has(id),
+                // a guild this process cannot see has no members to hand back either
+                get: (id) => guilds.has(id)
+                    ? { id, members: { fetch: async (userID) => members.get(userID) ?? null } }
+                    : undefined,
+            },
+        },
+        users: { fetch: async (id) => users.get(id) ?? null },
         channels: {
             fetch: async (id) => {
                 fetches.channels++;
@@ -140,7 +145,8 @@ async function boot(options = {}, target = "sqlite") {
         getExtension: () => ext,
         once: (_event, handler) => handlers.push(handler),
     };
-    withoutLingeringWatchdog(() => ext.init(harness.client));
+    ext.init(harness.client);
+    // after init, or the extension's own natives lose to the stock ones
     forgescript_1.FunctionManager.loadNative();
     registerMark();
     await ext.ready;

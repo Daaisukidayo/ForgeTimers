@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { Database, TimerKind } from "../../structures"
+require("dotenv").config()
 
 export const SEEDED = "SMOKE:SEEDED"
 export const PASS = "SMOKE:PASS"
@@ -8,6 +9,7 @@ export const FAIL = "SMOKE:FAIL"
 
 export const TIMEOUT_NAME = "smoke-timeout"
 export const INTERVAL_NAME = "smoke-interval"
+export const CHANNEL = process.env.SMOKE_CHANNEL
 
 export const TIMEOUT_DELAY = "60s"
 export const INTERVAL_TICK = "20s"
@@ -35,6 +37,10 @@ export function clearPlan() {
     rmSync(MARKER, { force: true })
 }
 
+export const TIMEOUT_CODE = CHANNEL
+    ? `$let[sent;$sendMessage[${CHANNEL};ForgeTimers restart check;true]]$smokeReport[timeout:$get[sent]]`
+    : `$smokeReport[timeout]`
+
 export const reports: Array<{ label: string; at: number }> = []
 
 export function report(label: string) {
@@ -43,7 +49,9 @@ export function report(label: string) {
 
 const bootedAt = Date.now()
 
-const seen = (label: string, after = 0) => reports.find((r) => r.label === label && r.at >= after)
+// the timeout reports "timeout" alone, or "timeout:<message id>" when it sent something
+const seen = (label: string, after = 0) =>
+    reports.find((r) => (r.label === label || r.label.startsWith(`${label}:`)) && r.at >= after)
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, Math.max(ms, 0)))
 
@@ -86,11 +94,15 @@ async function verify(plan: ISmokePlan) {
     const ticked = seen("interval", bootedAt)
     const row = await Database.get(TimerKind.timeout, TIMEOUT_NAME)
 
+    // a snowflake back from $sendMessage is discord saying it accepted the message
+    const sent = fired?.label.split(":")[1]
+
     const checks = [
         ["the timeout ran after the restart", !!fired],
         [`it ran on its original deadline (drift ${drift ?? "n/a"}ms)`, drift !== null && Math.abs(drift) <= TOLERANCE],
         ["the interval kept ticking", !!ticked],
         ["the spent timeout was deleted", row === null],
+        ...(CHANNEL ? ([[`its message reached discord (${sent ?? "nothing came back"})`, /^\d{17,20}$/.test(sent ?? "")]] as const) : []),
     ] as const
 
     for (const [what, ok] of checks) console.log(`${ok ? "ok  " : "FAIL"} ${what}`)

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.reports = exports.TOLERANCE = exports.INTERVAL_TICK = exports.TIMEOUT_DELAY = exports.INTERVAL_NAME = exports.TIMEOUT_NAME = exports.FAIL = exports.PASS = exports.SEEDED = void 0;
+exports.reports = exports.TIMEOUT_CODE = exports.TOLERANCE = exports.INTERVAL_TICK = exports.TIMEOUT_DELAY = exports.CHANNEL = exports.INTERVAL_NAME = exports.TIMEOUT_NAME = exports.FAIL = exports.PASS = exports.SEEDED = void 0;
 exports.readPlan = readPlan;
 exports.clearPlan = clearPlan;
 exports.report = report;
@@ -8,11 +8,13 @@ exports.runSmoke = runSmoke;
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
 const structures_1 = require("../../structures");
+require("dotenv").config();
 exports.SEEDED = "SMOKE:SEEDED";
 exports.PASS = "SMOKE:PASS";
 exports.FAIL = "SMOKE:FAIL";
 exports.TIMEOUT_NAME = "smoke-timeout";
 exports.INTERVAL_NAME = "smoke-interval";
+exports.CHANNEL = process.env.SMOKE_CHANNEL;
 exports.TIMEOUT_DELAY = "60s";
 exports.INTERVAL_TICK = "20s";
 exports.TOLERANCE = 3000;
@@ -30,12 +32,16 @@ function readPlan() {
 function clearPlan() {
     (0, node_fs_1.rmSync)(MARKER, { force: true });
 }
+exports.TIMEOUT_CODE = exports.CHANNEL
+    ? `$let[sent;$sendMessage[${exports.CHANNEL};ForgeTimers restart check;true]]$smokeReport[timeout:$get[sent]]`
+    : `$smokeReport[timeout]`;
 exports.reports = [];
 function report(label) {
     exports.reports.push({ label, at: Date.now() });
 }
 const bootedAt = Date.now();
-const seen = (label, after = 0) => exports.reports.find((r) => r.label === label && r.at >= after);
+// the timeout reports "timeout" alone, or "timeout:<message id>" when it sent something
+const seen = (label, after = 0) => exports.reports.find((r) => (r.label === label || r.label.startsWith(`${label}:`)) && r.at >= after);
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(ms, 0)));
 async function runSmoke(plan) {
     try {
@@ -69,11 +75,14 @@ async function verify(plan) {
     const drift = fired ? fired.at - plan.timeoutDueAt : null;
     const ticked = seen("interval", bootedAt);
     const row = await structures_1.Database.get(structures_1.TimerKind.timeout, exports.TIMEOUT_NAME);
+    // a snowflake back from $sendMessage is discord saying it accepted the message
+    const sent = fired?.label.split(":")[1];
     const checks = [
         ["the timeout ran after the restart", !!fired],
         [`it ran on its original deadline (drift ${drift ?? "n/a"}ms)`, drift !== null && Math.abs(drift) <= exports.TOLERANCE],
         ["the interval kept ticking", !!ticked],
         ["the spent timeout was deleted", row === null],
+        ...(exports.CHANNEL ? [[`its message reached discord (${sent ?? "nothing came back"})`, /^\d{17,20}$/.test(sent ?? "")]] : []),
     ];
     for (const [what, ok] of checks)
         console.log(`${ok ? "ok  " : "FAIL"} ${what}`);
