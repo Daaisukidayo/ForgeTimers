@@ -24,8 +24,7 @@ let harness;
     harness.disarm();
     await harness.cleanup();
 });
-const configFile = () => (0, node_path_1.join)(process.cwd(), "quoriel", "db", "config.json");
-const config = () => JSON.parse((0, node_fs_1.readFileSync)(configFile(), "utf8"));
+const store = () => (0, node_path_1.join)(process.cwd(), "database");
 (0, node_test_1.describe)("choosing a backend", () => {
     (0, node_test_1.it)("defaults to ForgeDB", () => {
         strict_1.default.deepEqual(new __1.ForgeTimers().requireExtensions, ["forge.db"]);
@@ -38,35 +37,25 @@ const config = () => JSON.parse((0, node_fs_1.readFileSync)(configFile(), "utf8"
     });
 });
 (0, node_test_1.describe)("the record type", () => {
-    (0, node_test_1.it)("registers itself in the config", () => {
-        strict_1.default.deepEqual(config().types[structures_1.QUORIEL_TYPE], { type: null, guild: false });
+    (0, node_test_1.it)("keeps its records in QuorielDB's own store", () => {
+        strict_1.default.ok((0, node_fs_1.existsSync)((0, node_path_1.join)(store(), "types", structures_1.QUORIEL_TYPE)), "the timers went somewhere else");
     });
-    (0, node_test_1.it)("leaves QuorielDB's own types alone", () => {
-        strict_1.default.ok(config().types.user, "the stock types were overwritten");
-        strict_1.default.ok(config().types.member);
+    (0, node_test_1.it)("is one QuorielDB's own functions can read", () => {
+        const { types } = require("@quoriel/db");
+        strict_1.default.equal(structures_1.QUORIEL_TYPE, "timers");
+        strict_1.default.deepEqual(types.get(structures_1.QUORIEL_TYPE), { type: null, guild: false });
     });
-    (0, node_test_1.it)("does not register itself twice", async () => {
-        const before = JSON.stringify(config());
+    (0, node_test_1.it)("leaves the config file alone", async () => {
+        const file = (0, node_path_1.join)(store(), "config.json");
+        const original = JSON.stringify({ types: { user: { type: "user", guild: false } } }, null, 4);
+        (0, node_fs_1.writeFileSync)(file, original, "utf8");
         await harness_1.Database.use("quorieldb");
-        strict_1.default.equal(JSON.stringify(config()), before);
+        strict_1.default.equal((0, node_fs_1.readFileSync)(file, "utf8"), original, "the config was rewritten");
     });
-    (0, node_test_1.it)("registers itself again in a config that lost it", async () => {
-        const without = config();
-        delete without.types[structures_1.QUORIEL_TYPE];
-        (0, node_fs_1.writeFileSync)(configFile(), JSON.stringify(without, null, 4), "utf8");
+    (0, node_test_1.it)("keeps the timers when the store is opened again", async () => {
+        await harness_1.Database.set(new harness_1.Timer({ name: "kept", kind: harness_1.TimerKind.timeout, code: "$testMark[x]", duration: 3_600_000 }));
         await harness_1.Database.use("quorieldb");
-        strict_1.default.deepEqual(config().types[structures_1.QUORIEL_TYPE], { type: null, guild: false });
-    });
-    (0, node_test_1.it)("names the file when the config cannot be read", async () => {
-        const original = (0, node_fs_1.readFileSync)(configFile(), "utf8");
-        (0, node_fs_1.writeFileSync)(configFile(), "{ half a config", "utf8");
-        try {
-            await strict_1.default.rejects(harness_1.Database.open("quorieldb"), /config\.json could not be read/);
-        }
-        finally {
-            (0, node_fs_1.writeFileSync)(configFile(), original, "utf8");
-            await harness_1.Database.use("quorieldb");
-        }
+        strict_1.default.ok(await harness_1.Database.get(harness_1.TimerKind.timeout, "kept"));
     });
 });
 (0, node_test_1.describe)("timers on lmdb", () => {

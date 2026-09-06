@@ -53,7 +53,7 @@
     "node": ">=20.0.0"
   },
   "peerDependencies": {
-    "@quoriel/db": ">=2.1.2 <3",
+    "@quoriel/db": ">=3",
     "@tryforge/forge.db": ">=2.1.1",
     "@tryforge/forgescript": ">=2.7.0",
     "typeorm": ">=0.3.26"
@@ -70,7 +70,7 @@
     }
   },
   "devDependencies": {
-    "@quoriel/db": "^2.1.2",
+    "@quoriel/db": "^3.0.0",
     "@tryforge/forge.db": "^2.1.1",
     "@tryforge/forgescript": "^2.7.0",
     "@types/node": "^26.2.0",

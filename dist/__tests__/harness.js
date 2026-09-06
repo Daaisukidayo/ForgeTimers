@@ -147,7 +147,7 @@ async function boot(options = {}, target = "sqlite") {
     const folder = "folder" in connection ? connection.folder : undefined;
     const home = process.cwd();
     if (target === "quoriel") {
-        // quoriel/db hangs off the working directory and is read once
+        // quoriel hangs its store off the working directory
         options = { ...options, storage: "quorieldb" };
         process.chdir(folder);
     }

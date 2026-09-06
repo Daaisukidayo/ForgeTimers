@@ -81,7 +81,7 @@ Only <strong>named</strong> timers are persisted. <code>$setTimeout[...;1h]</cod
 </code><button type="button">Copy</button></pre>
 
 <p><strong><code>&quot;forgedb&quot;</code></strong> stores them through <strong>ForgeDB</strong> - sqlite, mongodb, mysql or postgres, whichever you set up. There's nothing extra to configure: set ForgeDB up as usual and timers follow. On sqlite that means a <code>timers.db</code> file next to ForgeDB's own database.</p>
-<p><strong><code>&quot;quorieldb&quot;</code></strong> stores them through <strong>QuorielDB</strong>, in LMDB, under a <code>timers</code> record type inside <code>quoriel/db</code>. The type is registered in your <code>quoriel/db/config.json</code> on first startup, so there's nothing to add by hand, and the timers can be read with QuorielDB's own functions:</p>
+<p><strong><code>&quot;quorieldb&quot;</code></strong> stores them through <strong>QuorielDB</strong>, in LMDB, under a <code>timers</code> record type inside QuorielDB's store folder - <code>database</code> unless you gave QuorielDB another <code>path</code>. The type is registered on startup and your <code>config.json</code> is left alone, so there's nothing to add by hand, and the timers can be read with QuorielDB's own functions:</p>
 <pre><code class="js"><span class="hl-5">$getRecord</span><span class="hl-1">[</span><span class="hl-5">timers</span><span class="hl-1">;</span><span class="hl-5">timeout</span><span class="hl-1">:</span><span class="hl-5">reminder</span><span class="hl-1">]</span>
 </code><button type="button">Copy</button></pre>
 

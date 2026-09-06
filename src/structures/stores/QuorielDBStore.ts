@@ -1,15 +1,15 @@
-import { readFile, rename, writeFile } from "node:fs/promises"
-import { join } from "node:path"
-import { Logger } from "../../functions/logger"
 import { ITimer, Timer, TimerKind } from "../Timer"
 import { IDeleteResult, ITimerFindOptions, ITimerStore } from "./ITimerStore"
 
 /** The QuorielDB record type timers live under */
 export const QUORIEL_TYPE = "timers"
 
+/** No entity to derive a key from, so the id is the key */
+const SCHEMA = { type: null, guild: false }
+
 interface IQuorielDB {
-    reloadDB(): Promise<void>
-    openDB(types: string[]): void
+    registerDB(name: string, schema: typeof SCHEMA): unknown
+    activeDB(): string[]
     closeDB(types: string[]): Promise<void>
     rangeDB(type: string): Array<{ key: string; value: unknown }>
     getRecord(type: string, key: string): Record<string, unknown>
@@ -25,33 +25,15 @@ export class QuorielDBStore implements ITimerStore {
     public async init() {
         this.db = load()
 
-        // creates quoriel/db and its config
-        await this.db.reloadDB()
-        if (await this.register()) await this.db.reloadDB()
-
-        this.db.openDB([QUORIEL_TYPE])
+        // registering opens the store, and keeps the type out of the user's config file
+        if (!this.db.registerDB(QUORIEL_TYPE, SCHEMA)) {
+            throw new Error(`QuorielDB refused the "${QUORIEL_TYPE}" record type.`)
+        }
     }
 
     public async destroy() {
-        await this.db?.closeDB([QUORIEL_TYPE])
-    }
-
-    /** QuorielDB only opens types its config knows, so put ours there once */
-    private async register() {
-        const file = join(process.cwd(), "quoriel", "db", "config.json")
-        const config = await readConfig(file)
-
-        if (config.types?.[QUORIEL_TYPE]) return false
-
-        // no entity to derive a key from, the id is the key
-        config.types = { ...config.types, [QUORIEL_TYPE]: { type: null, guild: false } }
-
-        // rename rather than write in place
-        await writeFile(`${file}.tmp`, JSON.stringify(config, null, 4), "utf8")
-        await rename(`${file}.tmp`, file)
-
-        Logger.info(`Registered the "${QUORIEL_TYPE}" record type in quoriel/db/config.json`)
-        return true
+        // a second store may have closed it already, and closing it twice throws
+        if (this.db?.activeDB().includes(QUORIEL_TYPE)) await this.db.closeDB([QUORIEL_TYPE])
     }
 
     public async get(kind: TimerKind, name: string) {
@@ -94,15 +76,6 @@ export class QuorielDBStore implements ITimerStore {
         for (const entry of this.db.rangeDB(QUORIEL_TYPE)) {
             await this.db.removeRecord(QUORIEL_TYPE, entry.key)
         }
-    }
-}
-
-/** QuorielDB logs a config it cannot parse and carries on, so ours is the error that names the file */
-async function readConfig(file: string) {
-    try {
-        return JSON.parse(await readFile(file, "utf8"))
-    } catch (err) {
-        throw new Error(`${file} could not be read: ${err instanceof Error ? err.message : String(err)}`)
     }
 }
 

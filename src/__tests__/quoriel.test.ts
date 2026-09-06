@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { after, before, beforeEach, describe, it } from "node:test"
 import { boot, Database, marks, persist, run, Timer, TimerKind, waitFor } from "./harness"
@@ -24,8 +24,7 @@ after(async () => {
     await harness.cleanup()
 })
 
-const configFile = () => join(process.cwd(), "quoriel", "db", "config.json")
-const config = () => JSON.parse(readFileSync(configFile(), "utf8"))
+const store = () => join(process.cwd(), "database")
 
 describe("choosing a backend", () => {
     it("defaults to ForgeDB", () => {
@@ -42,42 +41,32 @@ describe("choosing a backend", () => {
 })
 
 describe("the record type", () => {
-    it("registers itself in the config", () => {
-        assert.deepEqual(config().types[QUORIEL_TYPE], { type: null, guild: false })
+    it("keeps its records in QuorielDB's own store", () => {
+        assert.ok(existsSync(join(store(), "types", QUORIEL_TYPE)), "the timers went somewhere else")
     })
 
-    it("leaves QuorielDB's own types alone", () => {
-        assert.ok(config().types.user, "the stock types were overwritten")
-        assert.ok(config().types.member)
+    it("is one QuorielDB's own functions can read", () => {
+        const { types } = require("@quoriel/db") as { types: Map<string, unknown> }
+
+        assert.equal(QUORIEL_TYPE, "timers")
+        assert.deepEqual(types.get(QUORIEL_TYPE), { type: null, guild: false })
     })
 
-    it("does not register itself twice", async () => {
-        const before = JSON.stringify(config())
-        await Database.use("quorieldb")
-
-        assert.equal(JSON.stringify(config()), before)
-    })
-
-    it("registers itself again in a config that lost it", async () => {
-        const without = config()
-        delete without.types[QUORIEL_TYPE]
-        writeFileSync(configFile(), JSON.stringify(without, null, 4), "utf8")
+    it("leaves the config file alone", async () => {
+        const file = join(store(), "config.json")
+        const original = JSON.stringify({ types: { user: { type: "user", guild: false } } }, null, 4)
+        writeFileSync(file, original, "utf8")
 
         await Database.use("quorieldb")
 
-        assert.deepEqual(config().types[QUORIEL_TYPE], { type: null, guild: false })
+        assert.equal(readFileSync(file, "utf8"), original, "the config was rewritten")
     })
 
-    it("names the file when the config cannot be read", async () => {
-        const original = readFileSync(configFile(), "utf8")
-        writeFileSync(configFile(), "{ half a config", "utf8")
+    it("keeps the timers when the store is opened again", async () => {
+        await Database.set(new Timer({ name: "kept", kind: TimerKind.timeout, code: "$testMark[x]", duration: 3_600_000 }))
+        await Database.use("quorieldb")
 
-        try {
-            await assert.rejects(Database.open("quorieldb"), /config\.json could not be read/)
-        } finally {
-            writeFileSync(configFile(), original, "utf8")
-            await Database.use("quorieldb")
-        }
+        assert.ok(await Database.get(TimerKind.timeout, "kept"))
     })
 })
 

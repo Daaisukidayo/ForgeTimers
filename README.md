@@ -114,7 +114,7 @@ const timers = new ForgeTimers({
 
 **`"forgedb"`** stores them through **ForgeDB** - sqlite, mongodb, mysql or postgres, whichever you set up. There's nothing extra to configure: set ForgeDB up as usual and timers follow. On sqlite that means a `timers.db` file next to ForgeDB's own database.
 
-**`"quorieldb"`** stores them through **QuorielDB**, in LMDB, under a `timers` record type inside `quoriel/db`. The type is registered in your `quoriel/db/config.json` on first startup, so there's nothing to add by hand, and the timers can be read with QuorielDB's own functions:
+**`"quorieldb"`** stores them through **QuorielDB**, in LMDB, under a `timers` record type inside QuorielDB's store folder - `database` unless you gave QuorielDB another `path`. The type is registered on startup and your `config.json` is left alone, so there's nothing to add by hand, and the timers can be read with QuorielDB's own functions:
 
 ```js
 $getRecord[timers;timeout:reminder]

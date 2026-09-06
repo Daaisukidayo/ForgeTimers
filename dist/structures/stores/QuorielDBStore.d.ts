@@ -7,8 +7,6 @@ export declare class QuorielDBStore implements ITimerStore {
     private db;
     init(): Promise<void>;
     destroy(): Promise<void>;
-    /** QuorielDB only opens types its config knows, so put ours there once */
-    private register;
     get(kind: TimerKind, name: string): Promise<Timer | null>;
     getAll(): Promise<Timer[]>;
     getAllOf(kind: TimerKind): Promise<Timer[]>;

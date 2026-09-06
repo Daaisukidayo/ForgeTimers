@@ -1,39 +1,25 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuorielDBStore = exports.QUORIEL_TYPE = void 0;
-const promises_1 = require("node:fs/promises");
-const node_path_1 = require("node:path");
-const logger_1 = require("../../functions/logger");
 const Timer_1 = require("../Timer");
 /** The QuorielDB record type timers live under */
 exports.QUORIEL_TYPE = "timers";
+/** No entity to derive a key from, so the id is the key */
+const SCHEMA = { type: null, guild: false };
 /** Keeps timers in QuorielDB's LMDB store, under its own record type */
 class QuorielDBStore {
     db;
     async init() {
         this.db = load();
-        // creates quoriel/db and its config
-        await this.db.reloadDB();
-        if (await this.register())
-            await this.db.reloadDB();
-        this.db.openDB([exports.QUORIEL_TYPE]);
+        // registering opens the store, and keeps the type out of the user's config file
+        if (!this.db.registerDB(exports.QUORIEL_TYPE, SCHEMA)) {
+            throw new Error(`QuorielDB refused the "${exports.QUORIEL_TYPE}" record type.`);
+        }
     }
     async destroy() {
-        await this.db?.closeDB([exports.QUORIEL_TYPE]);
-    }
-    /** QuorielDB only opens types its config knows, so put ours there once */
-    async register() {
-        const file = (0, node_path_1.join)(process.cwd(), "quoriel", "db", "config.json");
-        const config = await readConfig(file);
-        if (config.types?.[exports.QUORIEL_TYPE])
-            return false;
-        // no entity to derive a key from, the id is the key
-        config.types = { ...config.types, [exports.QUORIEL_TYPE]: { type: null, guild: false } };
-        // rename rather than write in place
-        await (0, promises_1.writeFile)(`${file}.tmp`, JSON.stringify(config, null, 4), "utf8");
-        await (0, promises_1.rename)(`${file}.tmp`, file);
-        logger_1.Logger.info(`Registered the "${exports.QUORIEL_TYPE}" record type in quoriel/db/config.json`);
-        return true;
+        // a second store may have closed it already, and closing it twice throws
+        if (this.db?.activeDB().includes(exports.QUORIEL_TYPE))
+            await this.db.closeDB([exports.QUORIEL_TYPE]);
     }
     async get(kind, name) {
         // a missing record reads back as {}, so the id is what says it was really there
@@ -69,15 +55,6 @@ class QuorielDBStore {
     }
 }
 exports.QuorielDBStore = QuorielDBStore;
-/** QuorielDB logs a config it cannot parse and carries on, so ours is the error that names the file */
-async function readConfig(file) {
-    try {
-        return JSON.parse(await (0, promises_1.readFile)(file, "utf8"));
-    }
-    catch (err) {
-        throw new Error(`${file} could not be read: ${err instanceof Error ? err.message : String(err)}`);
-    }
-}
 /** Kept out of the import graph so ForgeDB users never need @quoriel/db installed */
 function load() {
     try {
