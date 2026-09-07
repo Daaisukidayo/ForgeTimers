@@ -103,7 +103,11 @@ async function verify(plan) {
         [`the timeout that came due while it was down ran (${lateBy ?? "n/a"}ms late)`, !!late],
         [`its variables came back with it (${carried ?? "nothing"})`, carried === exports.CARRIED],
         ["it was deleted too", overdueRow === null],
-        ...(exports.CHANNEL ? [[`its message reached discord (${sent ?? "nothing came back"})`, /^\d{17,20}$/.test(sent ?? "")]] : []),
+        ...(exports.CHANNEL
+            ? [
+                [`its message reached discord (${sent ?? "nothing came back"})`, /^\d{17,20}$/.test(sent ?? "")],
+            ]
+            : []),
     ];
     for (const [what, ok] of checks)
         console.log(`${ok ? "ok  " : "FAIL"} ${what}`);

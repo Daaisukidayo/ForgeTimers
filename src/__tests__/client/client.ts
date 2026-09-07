@@ -27,7 +27,7 @@ const timer = new ForgeTimers({
         // replaying missed ticks would blur what the check is measuring
         restoredTicksLimit: smoke ? 0 : -1,
         // maxOverdue: 30_000
-    }
+    },
 })
 
 function quorielDB(): ForgeExtension {
@@ -40,40 +40,26 @@ const databaseFor = (which: TimerStorage) =>
 
 // the backend being migrated out of has to be loaded too, or its store cannot be read
 const databases =
-    migrateFrom && migrateFrom !== storage
-        ? [databaseFor(storage), databaseFor(migrateFrom)]
-        : [databaseFor(storage)]
+    migrateFrom && migrateFrom !== storage ? [databaseFor(storage), databaseFor(migrateFrom)] : [databaseFor(storage)]
 
 const client = new ForgeClient({
     logLevel: LogPriority.High,
-    intents: [
-        "Guilds",
-        "MessageContent",
-        "GuildMessages",
-        "DirectMessages",
-    ],
-    events: [
-        "clientReady",
-        "messageCreate",
-    ],
-    extensions: [
-        ...databases,
-        timer
-    ],
+    intents: ["Guilds", "MessageContent", "GuildMessages", "DirectMessages"],
+    events: ["clientReady", "messageCreate"],
+    extensions: [...databases, timer],
     mobile: true,
     prefixes: ["!", "<@$botID>"],
-    token: process.env.TOKEN
+    token: process.env.TOKEN,
 })
 
 for (const database of databases) if (database instanceof ForgeDB) database.variables({})
-
 
 client.commands.add({
     type: Events.ClientReady,
     code: `
     $logger[Info;Ready on client $username[$botID]]
     $setStatus[online;Custom;Testing ForgeTimers]
-    `
+    `,
 })
 
 client.commands.add({
@@ -83,7 +69,7 @@ client.commands.add({
     code: `
     $let[text;$eval[$message;false]]
     $if[$charCount[$get[text]]>1950;$attachment[$get[text];result.json;true];$codeBlock[$get[text];JSON]]
-    `
+    `,
 })
 
 client.commands.add({

@@ -40,13 +40,7 @@ interface IPhase {
  * @param timeout How long to give it.
  * @param killOnMatch Whether a match should stop the bot rather than wait for it to exit.
  */
-function phase(
-    env: Record<string, string>,
-    label: string,
-    sentinels: string[],
-    timeout: number,
-    killOnMatch: boolean
-) {
+function phase(env: Record<string, string>, label: string, sentinels: string[], timeout: number, killOnMatch: boolean) {
     return new Promise<IPhase>((resolve) => {
         console.log(`\n=== ${label} ===`)
 

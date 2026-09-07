@@ -10,7 +10,10 @@ class Dummy {
 }
 
 const snapshot = (environment: Record<string, unknown>) =>
-    restoreVars(snapshotVars({ environment, keywords: {}, localFunctions: {} }, "test").environment, VARS_SCHEMA_VERSION)
+    restoreVars(
+        snapshotVars({ environment, keywords: {}, localFunctions: {} }, "test").environment,
+        VARS_SCHEMA_VERSION
+    )
 
 describe("snapshotVars", () => {
     it("keeps the json-safe values", () => {
@@ -37,7 +40,10 @@ describe("snapshotVars", () => {
         const date = new Date("2026-08-27T12:00:00.000Z")
         const kept = snapshot({
             date,
-            map: new Map<unknown, unknown>([["k", "v"], [1, { n: 2 }]]),
+            map: new Map<unknown, unknown>([
+                ["k", "v"],
+                [1, { n: 2 }],
+            ]),
             set: new Set([1, "two"]),
             regexp: /abc/gi,
             bigint: 123n,
@@ -119,10 +125,7 @@ describe("snapshotVars", () => {
     })
 
     it("carries keywords and environment separately", () => {
-        const out = snapshotVars(
-            { keywords: { k: "kept" }, environment: { e: "kept" }, localFunctions: {} },
-            "test"
-        )
+        const out = snapshotVars({ keywords: { k: "kept" }, environment: { e: "kept" }, localFunctions: {} }, "test")
         assert.deepEqual(out.keywords, { k: "kept" })
         assert.deepEqual(out.environment, { e: "kept" })
     })

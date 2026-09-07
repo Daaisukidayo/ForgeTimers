@@ -50,7 +50,9 @@ function encode(value, seen, path, dropped) {
     seen.add(obj);
     try {
         if (obj instanceof Date) {
-            return Number.isFinite(obj.getTime()) ? { ok: true, value: { [TAG]: "date", value: obj.toISOString() } } : FAILED;
+            return Number.isFinite(obj.getTime())
+                ? { ok: true, value: { [TAG]: "date", value: obj.toISOString() } }
+                : FAILED;
         }
         if (obj instanceof RegExp) {
             return { ok: true, value: { [TAG]: "regexp", value: { source: obj.source, flags: obj.flags } } };

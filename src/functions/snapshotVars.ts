@@ -69,7 +69,9 @@ function encode(value: unknown, seen: WeakSet<object>, path: string, dropped: st
 
     try {
         if (obj instanceof Date) {
-            return Number.isFinite(obj.getTime()) ? { ok: true, value: { [TAG]: "date", value: obj.toISOString() } } : FAILED
+            return Number.isFinite(obj.getTime())
+                ? { ok: true, value: { [TAG]: "date", value: obj.toISOString() } }
+                : FAILED
         }
 
         if (obj instanceof RegExp) {

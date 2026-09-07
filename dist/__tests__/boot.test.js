@@ -29,27 +29,53 @@ async function contentsOf(storage) {
     await store.destroy();
     return all.map((timer) => timer.id);
 }
-// first, or forge.db is already loaded and hiding it proves nothing
+/** Runs `fn` against an extension whose backend could not be required at all */
+async function withoutForgeDB(fn) {
+    const resolve = require("module")._resolveFilename;
+    require("module")._resolveFilename = function (request, ...rest) {
+        if (request === "@tryforge/forge.db") {
+            throw Object.assign(new Error(`Cannot find module '${request}'`), { code: "MODULE_NOT_FOUND" });
+        }
+        return resolve.call(this, request, ...rest);
+    };
+    const harness = (0, harness_1.attach)(new __1.ForgeTimers());
+    try {
+        strict_1.default.equal(await harness.ext.ready, false, "a missing backend must not reject the boot");
+        await fn(harness);
+    }
+    finally {
+        require("module")._resolveFilename = resolve;
+        harness.disarm();
+    }
+}
 (0, node_test_1.describe)("a backend that will not open", () => {
     (0, node_test_1.it)("leaves the bot running, with timers that do not survive a restart", async () => {
-        const resolve = require("module")._resolveFilename;
-        require("module")._resolveFilename = function (request, ...rest) {
-            if (request === "@tryforge/forge.db") {
-                throw Object.assign(new Error(`Cannot find module '${request}'`), { code: "MODULE_NOT_FOUND" });
-            }
-            return resolve.call(this, request, ...rest);
-        };
-        const harness = (0, harness_1.attach)(new __1.ForgeTimers());
-        try {
-            strict_1.default.equal(await harness.ext.ready, false, "a missing backend must not reject the boot");
+        await withoutForgeDB(async (harness) => {
             harness_1.marks.length = 0;
             await (0, harness_1.run)(harness, "$setTimeout[$testMark[unpersisted];50;quick]");
             strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.includes("unpersisted")), "the timer never ran");
-        }
-        finally {
-            require("module")._resolveFilename = resolve;
-            harness.disarm();
-        }
+        });
+    });
+    (0, node_test_1.it)("reads back nothing instead of erroring out of the script", async () => {
+        await withoutForgeDB(async (harness) => {
+            await (0, harness_1.run)(harness, "$setTimeout[$testMark[unread];1h;quick]");
+            strict_1.default.equal(await (0, harness_1.run)(harness, "$getTimer[timeout;quick]"), "");
+            strict_1.default.equal(await (0, harness_1.run)(harness, "$getTimer[timeout;quick;timeLeft]"), "");
+            strict_1.default.equal(await (0, harness_1.run)(harness, "$getAllTimers"), "[]");
+            strict_1.default.equal(await (0, harness_1.run)(harness, "$getAllTimers[timeout]"), "[]");
+        });
+    });
+    (0, node_test_1.it)("still cancels the live timers a script asks it to", async () => {
+        await withoutForgeDB(async (harness) => {
+            harness_1.marks.length = 0;
+            await (0, harness_1.run)(harness, "$setTimeout[$testMark[cancelled];50;quick]");
+            strict_1.default.equal(await (0, harness_1.run)(harness, "$wipeTimers"), "1");
+            strict_1.default.equal(harness.client.timeouts.size, 0);
+            await (0, harness_1.run)(harness, "$setTimeout[$testMark[cancelled];50;quick]");
+            await (0, harness_1.run)(harness, "$clearTimeout[quick]");
+            strict_1.default.equal(harness.client.timeouts.size, 0);
+            strict_1.default.ok(!(await (0, harness_1.waitFor)(() => harness_1.marks.includes("cancelled"), 300)), "a cancelled timer still ran");
+        });
     });
 });
 (0, node_test_1.describe)("migrating on startup", () => {

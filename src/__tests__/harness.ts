@@ -1,5 +1,13 @@
 import { DataBaseManager } from "@tryforge/forge.db"
-import { ArgType, Compiler, Context, FunctionManager, ForgeClient, Interpreter, NativeFunction } from "@tryforge/forgescript"
+import {
+    ArgType,
+    Compiler,
+    Context,
+    FunctionManager,
+    ForgeClient,
+    Interpreter,
+    NativeFunction,
+} from "@tryforge/forgescript"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -16,8 +24,7 @@ export type TestDatabase = "sqlite" | "postgres" | "mysql" | "mongodb" | "quorie
 export type SqlDatabase = Exclude<TestDatabase, "sqlite" | "quoriel">
 
 export type TestConnection =
-    | { type: "better-sqlite3" | "quoriel"; folder: string }
-    | { type: "postgres" | "mysql" | "mongodb"; url: string }
+    { type: "better-sqlite3" | "quoriel"; folder: string } | { type: "postgres" | "mysql" | "mongodb"; url: string }
 
 export const DATABASE_ENV: Record<SqlDatabase, string> = {
     postgres: "FORGETIMERS_TEST_POSTGRES",

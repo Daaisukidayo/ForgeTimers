@@ -12,11 +12,14 @@ export function setLongTimeout(delay: number, fn: () => void, onArm?: (handle: N
     const deadline = Date.now() + delay
 
     const arm = (ms: number): NodeJS.Timeout => {
-        const handle = setTimeout(() => {
-            const left = deadline - Date.now()
-            if (left > 1) return arm(left)
-            fn()
-        }, Math.min(ms, MAX_DELAY))
+        const handle = setTimeout(
+            () => {
+                const left = deadline - Date.now()
+                if (left > 1) return arm(left)
+                fn()
+            },
+            Math.min(ms, MAX_DELAY)
+        )
 
         onArm?.(handle)
         return handle

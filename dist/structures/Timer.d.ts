@@ -27,7 +27,7 @@ export interface ITimerStartOptions {
     guildID?: Snowflake | null;
     /**
      * Null when scheduled outside a channel.
-    */
+     */
     channelID?: Snowflake | null;
     hostID?: Snowflake | null;
     messageID?: Snowflake | null;

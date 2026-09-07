@@ -110,7 +110,7 @@ function load(storage) {
     catch (err) {
         throw new Error(`storage: "${storage}" could not be opened. If ${INSTALL[storage]} is not installed, ` +
             `run \`npm i ${INSTALL[storage]}\`.\nThe loader said: ` +
-            (err instanceof Error ? err.message : String(err)));
+            (err instanceof Error ? err.message : String(err)), { cause: err });
     }
 }
 //# sourceMappingURL=Database.js.map

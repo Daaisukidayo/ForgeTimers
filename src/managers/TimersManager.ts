@@ -131,18 +131,19 @@ export class TimersManager {
     }
 
     /**
-     * Cancels every stored timer and empties the table.
+     * Cancels every running timer and empties the table.
      * @returns The number of running timers that were cancelled.
      */
     public async wipe() {
-        if (!(await this.timers.ready)) return 0
-
-        const stored = await Database.getAll().catch(Logger.error)
         let cleared = 0
 
-        for (const timer of stored ?? []) {
-            if (this.clear(timer.kind, timer.name)) cleared++
+        for (const kind of [TimerKind.timeout, TimerKind.interval]) {
+            for (const name of [...(this.mapOf(kind)?.keys() ?? [])]) {
+                if (this.clear(kind, name)) cleared++
+            }
         }
+
+        if (!(await this.timers.ready)) return cleared
 
         await Database.wipe().catch(Logger.error)
         return cleared
@@ -282,9 +283,8 @@ export class TimersManager {
 
                 const obj = target.obj
                 const hasAuthor = "author" in obj || "user" in obj
-                const host = timer.hostID && !hasAuthor
-                    ? await this.client.users.fetch(timer.hostID).catch(() => null)
-                    : null
+                const host =
+                    timer.hostID && !hasAuthor ? await this.client.users.fetch(timer.hostID).catch(() => null) : null
 
                 const guild = timer.guildID ? this.client.guilds.cache.get(timer.guildID) : undefined
                 const hostMember = host && guild ? await guild.members.fetch(host.id).catch(() => null) : null
@@ -369,9 +369,7 @@ export class TimersManager {
         if (this.client.guilds.cache.has(timer.guildID)) return true
 
         if (!this.client.shard && this.timers.options.pruneUnknownGuilds) {
-            Logger.warn(
-                `Dropping ${timer.kind} "${timer.name}": guild ${timer.guildID} is not visible to this process`
-            )
+            Logger.warn(`Dropping ${timer.kind} "${timer.name}": guild ${timer.guildID} is not visible to this process`)
             await this._forget(timer)
         }
 
@@ -414,9 +412,7 @@ export class TimersManager {
                     Logger.warn(`Dropping ${timer.kind} "${timer.name}": ${runner.reason}`)
                     await this._forget(timer)
                 } else {
-                    Logger.warn(
-                        `Keeping ${timer.kind} "${timer.name}" for the next boot: ${runner.reason}`
-                    )
+                    Logger.warn(`Keeping ${timer.kind} "${timer.name}" for the next boot: ${runner.reason}`)
                 }
                 continue
             }

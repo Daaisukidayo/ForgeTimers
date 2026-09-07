@@ -93,18 +93,19 @@ class TimersManager {
         return [cleared, !!result && (result.affected ?? 0) > 0];
     }
     /**
-     * Cancels every stored timer and empties the table.
+     * Cancels every running timer and empties the table.
      * @returns The number of running timers that were cancelled.
      */
     async wipe() {
-        if (!(await this.timers.ready))
-            return 0;
-        const stored = await structures_1.Database.getAll().catch(logger_1.Logger.error);
         let cleared = 0;
-        for (const timer of stored ?? []) {
-            if (this.clear(timer.kind, timer.name))
-                cleared++;
+        for (const kind of [structures_1.TimerKind.timeout, structures_1.TimerKind.interval]) {
+            for (const name of [...(this.mapOf(kind)?.keys() ?? [])]) {
+                if (this.clear(kind, name))
+                    cleared++;
+            }
         }
+        if (!(await this.timers.ready))
+            return cleared;
         await structures_1.Database.wipe().catch(logger_1.Logger.error);
         return cleared;
     }
@@ -222,9 +223,7 @@ class TimersManager {
                 }
                 const obj = target.obj;
                 const hasAuthor = "author" in obj || "user" in obj;
-                const host = timer.hostID && !hasAuthor
-                    ? await this.client.users.fetch(timer.hostID).catch(() => null)
-                    : null;
+                const host = timer.hostID && !hasAuthor ? await this.client.users.fetch(timer.hostID).catch(() => null) : null;
                 const guild = timer.guildID ? this.client.guilds.cache.get(timer.guildID) : undefined;
                 const hostMember = host && guild ? await guild.members.fetch(host.id).catch(() => null) : null;
                 resolved = { obj, host, hostMember };

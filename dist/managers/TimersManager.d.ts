@@ -30,7 +30,7 @@ export declare class TimersManager {
      */
     stop(kind: TimerKind, name: string): Promise<[boolean, boolean]>;
     /**
-     * Cancels every stored timer and empties the table.
+     * Cancels every running timer and empties the table.
      * @returns The number of running timers that were cancelled.
      */
     wipe(): Promise<number>;

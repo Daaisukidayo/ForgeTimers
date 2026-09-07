@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { after, before, describe, it } from "node:test"
-import { attach, ConfigSeed, Database, marks, run, Timer, TimerKind, waitFor } from "./harness"
+import { attach, ConfigSeed, Database, ITestClient, marks, run, Timer, TimerKind, waitFor } from "./harness"
 import { ForgeTimers, TimerStorage } from ".."
 
 const home = process.cwd()
@@ -30,30 +30,62 @@ async function contentsOf(storage: TimerStorage) {
     return all.map((timer) => timer.id)
 }
 
-// first, or forge.db is already loaded and hiding it proves nothing
+/** Runs `fn` against an extension whose backend could not be required at all */
+async function withoutForgeDB(fn: (harness: ITestClient) => Promise<void>) {
+    const resolve = require("module")._resolveFilename
+
+    require("module")._resolveFilename = function (request: string, ...rest: unknown[]) {
+        if (request === "@tryforge/forge.db") {
+            throw Object.assign(new Error(`Cannot find module '${request}'`), { code: "MODULE_NOT_FOUND" })
+        }
+        return resolve.call(this, request, ...rest)
+    }
+
+    const harness = attach(new ForgeTimers())
+
+    try {
+        assert.equal(await harness.ext.ready, false, "a missing backend must not reject the boot")
+        await fn(harness)
+    } finally {
+        require("module")._resolveFilename = resolve
+        harness.disarm()
+    }
+}
+
 describe("a backend that will not open", () => {
     it("leaves the bot running, with timers that do not survive a restart", async () => {
-        const resolve = require("module")._resolveFilename
-
-        require("module")._resolveFilename = function (request: string, ...rest: unknown[]) {
-            if (request === "@tryforge/forge.db") {
-                throw Object.assign(new Error(`Cannot find module '${request}'`), { code: "MODULE_NOT_FOUND" })
-            }
-            return resolve.call(this, request, ...rest)
-        }
-
-        const harness = attach(new ForgeTimers())
-
-        try {
-            assert.equal(await harness.ext.ready, false, "a missing backend must not reject the boot")
-
+        await withoutForgeDB(async (harness) => {
             marks.length = 0
             await run(harness, "$setTimeout[$testMark[unpersisted];50;quick]")
             assert.ok(await waitFor(() => marks.includes("unpersisted")), "the timer never ran")
-        } finally {
-            require("module")._resolveFilename = resolve
-            harness.disarm()
-        }
+        })
+    })
+
+    it("reads back nothing instead of erroring out of the script", async () => {
+        await withoutForgeDB(async (harness) => {
+            await run(harness, "$setTimeout[$testMark[unread];1h;quick]")
+
+            assert.equal(await run(harness, "$getTimer[timeout;quick]"), "")
+            assert.equal(await run(harness, "$getTimer[timeout;quick;timeLeft]"), "")
+            assert.equal(await run(harness, "$getAllTimers"), "[]")
+            assert.equal(await run(harness, "$getAllTimers[timeout]"), "[]")
+        })
+    })
+
+    it("still cancels the live timers a script asks it to", async () => {
+        await withoutForgeDB(async (harness) => {
+            marks.length = 0
+            await run(harness, "$setTimeout[$testMark[cancelled];50;quick]")
+
+            assert.equal(await run(harness, "$wipeTimers"), "1")
+            assert.equal(harness.client.timeouts.size, 0)
+
+            await run(harness, "$setTimeout[$testMark[cancelled];50;quick]")
+            await run(harness, "$clearTimeout[quick]")
+
+            assert.equal(harness.client.timeouts.size, 0)
+            assert.ok(!(await waitFor(() => marks.includes("cancelled"), 300)), "a cancelled timer still ran")
+        })
     })
 })
 

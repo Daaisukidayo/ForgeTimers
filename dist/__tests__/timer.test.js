@@ -91,7 +91,9 @@ const make = (duration, kind = structures_1.TimerKind.interval) => new structure
         let ticks = 0;
         let live;
         let arms = 0;
-        (0, schedule_1.setLongInterval)(90 * 24 * 60 * 60 * 1000, () => { ticks++; }, (h) => {
+        (0, schedule_1.setLongInterval)(90 * 24 * 60 * 60 * 1000, () => {
+            ticks++;
+        }, (h) => {
             live = h;
             arms++;
         });
@@ -110,7 +112,9 @@ const make = (duration, kind = structures_1.TimerKind.interval) => new structure
     (0, node_test_1.it)("ticks a short interval repeatedly", { timeout: 10_000 }, async () => {
         let ticks = 0;
         let live;
-        (0, schedule_1.setLongInterval)(50, () => { ticks++; }, (h) => (live = h));
+        (0, schedule_1.setLongInterval)(50, () => {
+            ticks++;
+        }, (h) => (live = h));
         const reached = await (0, harness_1.waitFor)(() => ticks >= 3);
         clearInterval(live);
         strict_1.default.ok(reached, `only ${ticks} ticks`);

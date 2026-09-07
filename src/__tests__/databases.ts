@@ -94,9 +94,15 @@ export function persistenceSuite(target: TestDatabase) {
         })
 
         it("filters by kind and by arbitrary fields", async () => {
-            await Database.set(new Timer({ name: "a", kind: TimerKind.timeout, duration: 1, channelID: "c", guildID: "g1" }))
-            await Database.set(new Timer({ name: "b", kind: TimerKind.interval, duration: 1, channelID: "c", guildID: "g1" }))
-            await Database.set(new Timer({ name: "c", kind: TimerKind.interval, duration: 1, channelID: "c", guildID: "g2" }))
+            await Database.set(
+                new Timer({ name: "a", kind: TimerKind.timeout, duration: 1, channelID: "c", guildID: "g1" })
+            )
+            await Database.set(
+                new Timer({ name: "b", kind: TimerKind.interval, duration: 1, channelID: "c", guildID: "g1" })
+            )
+            await Database.set(
+                new Timer({ name: "c", kind: TimerKind.interval, duration: 1, channelID: "c", guildID: "g2" })
+            )
 
             assert.equal((await Database.getAllOf(TimerKind.interval)).length, 2)
             assert.equal((await Database.getAllOf(TimerKind.timeout)).length, 1)

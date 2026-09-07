@@ -7,7 +7,7 @@ export interface IDeleteResult {
 }
 /**
  * Everything ForgeTimers needs from a database. One implementation per backend, picked by the `storage` option.
-*/
+ */
 export interface ITimerStore {
     init(): Promise<void>;
     destroy(): Promise<void>;

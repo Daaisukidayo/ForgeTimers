@@ -4,8 +4,7 @@ import { Timer, TimerKind } from "../structures"
 import { MAX_DELAY, setLongInterval, setLongTimeout } from "../functions/schedule"
 import { waitFor } from "./harness"
 
-const make = (duration: number, kind = TimerKind.interval) =>
-    new Timer({ name: "t", kind, duration, channelID: "c" })
+const make = (duration: number, kind = TimerKind.interval) => new Timer({ name: "t", kind, duration, channelID: "c" })
 
 describe("Timer arithmetic", () => {
     it("starts due one duration out", () => {
@@ -86,10 +85,14 @@ describe("long delays", () => {
         let fired = false
         let live: NodeJS.Timeout | undefined
         let arms = 0
-        setLongTimeout(90 * 24 * 60 * 60 * 1000, () => (fired = true), (h) => {
-            live = h
-            arms++
-        })
+        setLongTimeout(
+            90 * 24 * 60 * 60 * 1000,
+            () => (fired = true),
+            (h) => {
+                live = h
+                arms++
+            }
+        )
 
         await new Promise((r) => setTimeout(r, 150))
         clearTimeout(live!)
@@ -103,10 +106,16 @@ describe("long delays", () => {
         let ticks = 0
         let live: NodeJS.Timeout | undefined
         let arms = 0
-        setLongInterval(90 * 24 * 60 * 60 * 1000, () => { ticks++ }, (h) => {
-            live = h
-            arms++
-        })
+        setLongInterval(
+            90 * 24 * 60 * 60 * 1000,
+            () => {
+                ticks++
+            },
+            (h) => {
+                live = h
+                arms++
+            }
+        )
 
         await new Promise((r) => setTimeout(r, 150))
         clearInterval(live!)
@@ -128,7 +137,13 @@ describe("long delays", () => {
         let ticks = 0
 
         let live: NodeJS.Timeout | undefined
-        setLongInterval(50, () => { ticks++ }, (h) => (live = h))
+        setLongInterval(
+            50,
+            () => {
+                ticks++
+            },
+            (h) => (live = h)
+        )
 
         const reached = await waitFor(() => ticks >= 3)
         clearInterval(live!)
@@ -139,7 +154,11 @@ describe("long delays", () => {
     it("hands every re-armed chunk to onArm so it stays cancellable", async () => {
         const handles: NodeJS.Timeout[] = []
 
-        setLongTimeout(MAX_DELAY + 50, () => undefined, (h) => handles.push(h))
+        setLongTimeout(
+            MAX_DELAY + 50,
+            () => undefined,
+            (h) => handles.push(h)
+        )
         assert.equal(handles.length, 1, "the first chunk is reported straight away")
         clearTimeout(handles[0])
     })

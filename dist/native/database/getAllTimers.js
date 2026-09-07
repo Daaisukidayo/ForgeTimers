@@ -19,6 +19,8 @@ exports.default = new forgescript_1.NativeFunction({
     ],
     output: forgescript_1.ArgType.Json,
     async execute(ctx, [kind]) {
+        if (!(await ctx.client.getExtension(__1.ForgeTimers, true).ready))
+            return this.successJSON([]);
         return this.successJSON(kind ? await __1.Database.getAllOf(kind) : await __1.Database.getAll());
     }
 });

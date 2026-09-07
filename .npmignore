@@ -1,10 +1,16 @@
-dist/__tests__
-dist/commit.*
-dist/docgen.*
-dist/functions/prompt.*
+/src
+/docs
+/metadata
+/.github
 
-node_modules
-src
-tsconfig*.json
-database
-docs
+/database
+/.env
+
+/tsconfig*.json
+/eslint.config.js
+/.prettierrc
+/.prettierignore
+/.gitattributes
+
+/dist/__tests__
+/dist/@build

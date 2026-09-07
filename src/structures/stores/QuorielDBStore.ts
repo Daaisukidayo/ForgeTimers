@@ -84,8 +84,6 @@ function load(): IQuorielDB {
     try {
         return require("@quoriel/db") as IQuorielDB
     } catch {
-        throw new Error(
-            'storage: "quorieldb" needs the QuorielDB extension. Install it with `npm i @quoriel/db lmdb`.'
-        )
+        throw new Error('storage: "quorieldb" needs the QuorielDB extension. Install it with `npm i @quoriel/db lmdb`.')
     }
 }

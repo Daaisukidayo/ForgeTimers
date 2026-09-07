@@ -3,7 +3,7 @@ import { IPersistedVars, VARS_SCHEMA_VERSION } from "../functions/snapshotVars"
 
 export enum TimerKind {
     timeout = "timeout",
-    interval = "interval"
+    interval = "interval",
 }
 
 export interface ITimerStartOptions {
@@ -32,9 +32,9 @@ export interface ITimerStartOptions {
 
     guildID?: Snowflake | null
 
-    /** 
-     * Null when scheduled outside a channel. 
-    */
+    /**
+     * Null when scheduled outside a channel.
+     */
     channelID?: Snowflake | null
     hostID?: Snowflake | null
     messageID?: Snowflake | null

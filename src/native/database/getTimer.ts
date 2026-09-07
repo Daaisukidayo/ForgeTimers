@@ -1,6 +1,6 @@
 import { ArgType, NativeFunction } from "@tryforge/forgescript"
 import { TimerProperties, TimerProperty } from "../../properties/timer"
-import { Database, TimerKind } from "../.."
+import { Database, ForgeTimers, TimerKind } from "../.."
 
 export default new NativeFunction({
     name: "$getTimer",
@@ -37,6 +37,8 @@ export default new NativeFunction({
         ArgType.Unknown
     ],
     async execute(ctx, [kind, name, prop]) {
+        if (!(await ctx.client.getExtension(ForgeTimers, true).ready)) return this.success()
+
         const timer = await Database.get(kind, name)
         if (!timer) return this.success()
 

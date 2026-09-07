@@ -1,21 +1,20 @@
-import { execSync } from "child_process"
+import { execFileSync, execSync } from "child_process"
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs"
-import prompt from "./functions/prompt"
+import prompt from "./prompt"
 import { join } from "path"
-import { platform } from "os"
 
 const path = "./metadata"
 if (!existsSync(path)) mkdirSync(path)
 
-const version = require("../package.json").version
+const version = require("../../package.json").version
 
 async function main() {
     let skip = false
 
-    const msg = (await prompt("Please write the commit message: ")).replace(
-        /(--?(\w+))/gim, (match) => {
+    const msg = (await prompt("Please write the commit message: "))
+        .replace(/(--?(\w+))/gim, (match) => {
             const name = /(\w+)/.exec(match)![1].toLowerCase()
-        
+
             switch (name) {
                 case "hide": {
                     skip = true
@@ -28,8 +27,8 @@ async function main() {
             }
 
             return ""
-        } 
-    ).trim()
+        })
+        .trim()
 
     const fileName = join(path, "changelogs.json")
     const json: Record<string, object[]> = existsSync(fileName) ? JSON.parse(readFileSync(fileName, "utf-8")) : {}
@@ -39,19 +38,17 @@ async function main() {
         json[version].unshift({
             message: msg,
             timestamp: new Date(),
-            author
+            author,
         })
         writeFileSync(fileName, JSON.stringify(json), "utf-8")
     }
 
-    const branch = await prompt("Write the branch name to push to (defaults to dev): ") || "dev"
-    let escapedMsg = msg
-    if (platform() === "darwin") escapedMsg = escapedMsg.replace(/\$/g, "\\$")
+    const branch = (await prompt("Write the branch name to push to (defaults to dev): ")) || "dev"
 
-    execSync("git branch -M " + branch + " && git add . && git commit -m \"" + escapedMsg + "\" && git push -u origin " + branch, {
-        stdio: "inherit"
-    })
+    execFileSync("git", ["branch", "-M", branch], { stdio: "inherit" })
+    execFileSync("git", ["add", "."], { stdio: "inherit" })
+    execFileSync("git", ["commit", "-m", msg], { stdio: "inherit" })
+    execFileSync("git", ["push", "-u", "origin", branch], { stdio: "inherit" })
 }
 
-// Nothing
 main()

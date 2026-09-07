@@ -35,7 +35,10 @@ const snapshot = (environment) => (0, snapshotVars_1.restoreVars)((0, snapshotVa
         const date = new Date("2026-08-27T12:00:00.000Z");
         const kept = snapshot({
             date,
-            map: new Map([["k", "v"], [1, { n: 2 }]]),
+            map: new Map([
+                ["k", "v"],
+                [1, { n: 2 }],
+            ]),
             set: new Set([1, "two"]),
             regexp: /abc/gi,
             bigint: 123n,

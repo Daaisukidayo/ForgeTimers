@@ -38,6 +38,8 @@ exports.default = new forgescript_1.NativeFunction({
         forgescript_1.ArgType.Unknown
     ],
     async execute(ctx, [kind, name, prop]) {
+        if (!(await ctx.client.getExtension(__1.ForgeTimers, true).ready))
+            return this.success();
         const timer = await __1.Database.get(kind, name);
         if (!timer)
             return this.success();

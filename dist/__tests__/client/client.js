@@ -24,7 +24,7 @@ const timer = new index_1.ForgeTimers({
         // replaying missed ticks would blur what the check is measuring
         restoredTicksLimit: smoke ? 0 : -1,
         // maxOverdue: 30_000
-    }
+    },
 });
 function quorielDB() {
     const { QuorielDB } = require("@quoriel/db");
@@ -32,28 +32,15 @@ function quorielDB() {
 }
 const databaseFor = (which) => which === "quorieldb" ? quorielDB() : new forge_db_1.ForgeDB({ type: "better-sqlite3" });
 // the backend being migrated out of has to be loaded too, or its store cannot be read
-const databases = migrateFrom && migrateFrom !== storage
-    ? [databaseFor(storage), databaseFor(migrateFrom)]
-    : [databaseFor(storage)];
+const databases = migrateFrom && migrateFrom !== storage ? [databaseFor(storage), databaseFor(migrateFrom)] : [databaseFor(storage)];
 const client = new forgescript_1.ForgeClient({
     logLevel: forgescript_1.LogPriority.High,
-    intents: [
-        "Guilds",
-        "MessageContent",
-        "GuildMessages",
-        "DirectMessages",
-    ],
-    events: [
-        "clientReady",
-        "messageCreate",
-    ],
-    extensions: [
-        ...databases,
-        timer
-    ],
+    intents: ["Guilds", "MessageContent", "GuildMessages", "DirectMessages"],
+    events: ["clientReady", "messageCreate"],
+    extensions: [...databases, timer],
     mobile: true,
     prefixes: ["!", "<@$botID>"],
-    token: process.env.TOKEN
+    token: process.env.TOKEN,
 });
 for (const database of databases)
     if (database instanceof forge_db_1.ForgeDB)
@@ -63,7 +50,7 @@ client.commands.add({
     code: `
     $logger[Info;Ready on client $username[$botID]]
     $setStatus[online;Custom;Testing ForgeTimers]
-    `
+    `,
 });
 client.commands.add({
     name: "eval",
@@ -72,7 +59,7 @@ client.commands.add({
     code: `
     $let[text;$eval[$message;false]]
     $if[$charCount[$get[text]]>1950;$attachment[$get[text];result.json;true];$codeBlock[$get[text];JSON]]
-    `
+    `,
 });
 client.commands.add({
     name: "js",

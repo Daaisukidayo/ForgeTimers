@@ -36,10 +36,7 @@ function configure(timeoutConfig: ITimeoutConfig, intervalConfig: IIntervalConfi
 }
 
 const stored = (kind: TimerKind, duration: number, dueIn: number, name = "n") =>
-    persist(
-        new Timer({ name, kind, code: `$testMark[${name}]`, duration, channelID: "chan-1" }),
-        Date.now() + dueIn
-    )
+    persist(new Timer({ name, kind, code: `$testMark[${name}]`, duration, channelID: "chan-1" }), Date.now() + dueIn)
 
 const apiError = (status: number, code: number, message: string) =>
     new DiscordAPIError({ message, code } as never, code, status, "GET", "/channels/x", {})
@@ -268,8 +265,15 @@ describe("the command a timer came from", () => {
         harness.commands = [{ name: "remind", data: { name: "remind", path: "/commands/remind.js" } }]
 
         await persist(
-            new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[$commandName]", duration: 1000,
-                channelID: "chan-1", path: "/commands/remind.js", commandName: "remind" }),
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[$commandName]",
+                duration: 1000,
+                channelID: "chan-1",
+                path: "/commands/remind.js",
+                commandName: "remind",
+            }),
             Date.now() - 1000
         )
         await harness.ready()
@@ -281,8 +285,15 @@ describe("the command a timer came from", () => {
         harness.commands = [{ name: "remind", data: { name: "remind", path: "/commands/moved.js" } }]
 
         await persist(
-            new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[$commandName]", duration: 1000,
-                channelID: "chan-1", path: "/commands/remind.js", commandName: "remind" }),
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[$commandName]",
+                duration: 1000,
+                channelID: "chan-1",
+                path: "/commands/remind.js",
+                commandName: "remind",
+            }),
             Date.now() - 1000
         )
         await harness.ready()
@@ -294,8 +305,15 @@ describe("the command a timer came from", () => {
         harness.commands = []
 
         await persist(
-            new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[gone:$commandName]", duration: 1000,
-                channelID: "chan-1", path: "/commands/removed.js", commandName: "removed" }),
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[gone:$commandName]",
+                duration: 1000,
+                channelID: "chan-1",
+                path: "/commands/removed.js",
+                commandName: "removed",
+            }),
             Date.now() - 1000
         )
         await harness.ready()
@@ -318,8 +336,13 @@ describe("the stored schema", () => {
 
     it("reads a row from before the schema as plain json", async () => {
         const legacy = { $forge: "date", value: "not a date" }
-        const timer = new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[$env[cfg]]",
-            duration: 1000, channelID: "chan-1" })
+        const timer = new Timer({
+            name: "n",
+            kind: TimerKind.timeout,
+            code: "$testMark[$env[cfg]]",
+            duration: 1000,
+            channelID: "chan-1",
+        })
         timer.version = null
         timer.vars = { keywords: {}, environment: { cfg: legacy }, localFunctions: {} }
         await persist(timer, Date.now() - 1000)
@@ -335,9 +358,14 @@ describe("the stored schema", () => {
 
     it("carries a date through the database and back", async () => {
         const when = new Date("2026-08-27T12:00:00.000Z")
-        const timer = new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[$env[when]]",
-            duration: 1000, channelID: "chan-1",
-            vars: snapshotVars({ keywords: {}, environment: { when }, localFunctions: {} }, "test") })
+        const timer = new Timer({
+            name: "n",
+            kind: TimerKind.timeout,
+            code: "$testMark[$env[when]]",
+            duration: 1000,
+            channelID: "chan-1",
+            vars: snapshotVars({ keywords: {}, environment: { when }, localFunctions: {} }, "test"),
+        })
         await persist(timer, Date.now() - 1000)
 
         await harness.ready()
@@ -348,13 +376,41 @@ describe("the stored schema", () => {
             "a Date renders quoted, a plain iso string renders bare and a raw envelope renders as an object"
         )
     })
+
+    // nothing can write this kind today: the row stands in for one a later build adds
+    it("leaves a kind this build has no map for alone", async () => {
+        const future = new Timer({
+            name: "later",
+            kind: "cron" as never,
+            code: "$testMark[later]",
+            duration: 1000,
+            channelID: "chan-1",
+        })
+        await persist(future, Date.now() - 1000)
+        await stored(TimerKind.timeout, 1000, -1000)
+
+        await harness.ready()
+
+        assert.ok(await waitFor(() => marks.includes("n")), "one unreadable row stopped the rest of the boot")
+        assert.deepEqual(marks, ["n"], "a kind with no map behind it must not be run")
+
+        assert.equal(harness.client.timeouts.has("later"), false)
+        assert.equal(harness.client.intervals.has("later"), false)
+        assert.ok(await Database.get("cron" as never, "later"), "the row was thrown away rather than left alone")
+    })
 })
 
 describe("ownership across processes", () => {
     it("leaves a timer whose guild this process cannot see", async () => {
         await persist(
-            new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[n]", duration: 1000,
-                channelID: "chan-1", guildID: "guild-elsewhere" }),
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[n]",
+                duration: 1000,
+                channelID: "chan-1",
+                guildID: "guild-elsewhere",
+            }),
             Date.now() + 60_000
         )
         await harness.ready()
@@ -365,8 +421,14 @@ describe("ownership across processes", () => {
 
     it("prunes it only when asked to", async () => {
         await persist(
-            new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[n]", duration: 1000,
-                channelID: "chan-1", guildID: "guild-elsewhere" }),
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[n]",
+                duration: 1000,
+                channelID: "chan-1",
+                guildID: "guild-elsewhere",
+            }),
             Date.now() + 60_000
         )
         Object.assign(harness.ext.options, { pruneUnknownGuilds: true })
@@ -378,8 +440,14 @@ describe("ownership across processes", () => {
     it("restores a timer whose guild this process can see", async () => {
         harness.guilds.add("guild-mine")
         await persist(
-            new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[n]", duration: 1000,
-                channelID: "chan-1", guildID: "guild-mine" }),
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[n]",
+                duration: 1000,
+                channelID: "chan-1",
+                guildID: "guild-mine",
+            }),
             Date.now() + 60_000
         )
         await harness.ready()
@@ -432,8 +500,15 @@ describe("a timer belonging to no guild", () => {
 describe("the message a timer was scheduled from", () => {
     const withMessage = (messageID: string) =>
         persist(
-            new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[$authorID]", duration: 1000,
-                channelID: "chan-msg", messageID, hostID: "user-1" }),
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[$authorID]",
+                duration: 1000,
+                channelID: "chan-msg",
+                messageID,
+                hostID: "user-1",
+            }),
             Date.now() - 1000
         )
 
@@ -465,8 +540,15 @@ describe("the message a timer was scheduled from", () => {
 describe("the user who scheduled a timer", () => {
     const hosted = (guildID: string | null = null) =>
         persist(
-            new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[$authorID]", duration: 1000,
-                channelID: "chan-1", hostID: "user-1", guildID }),
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[$authorID]",
+                duration: 1000,
+                channelID: "chan-1",
+                hostID: "user-1",
+                guildID,
+            }),
             Date.now() - 1000
         )
 

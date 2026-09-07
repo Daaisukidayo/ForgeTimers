@@ -82,7 +82,9 @@ export async function migrateTimers(
         }
 
         if (skipped.length) {
-            Logger.warn(`Left ${skipped.length} timer(s) in "${from}": their names are taken in "${to}" (${skipped.join(", ")})`)
+            Logger.warn(
+                `Left ${skipped.length} timer(s) in "${from}": their names are taken in "${to}" (${skipped.join(", ")})`
+            )
         }
 
         const drained = !keepSource && !skipped.length

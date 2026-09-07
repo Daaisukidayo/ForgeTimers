@@ -12,7 +12,7 @@ export interface IForgeTimersOptions {
     intervalConfig?: IIntervalConfig
 
     /**
-     * Delete timers whose guild this process can't see on startup. Off by default. 
+     * Delete timers whose guild this process can't see on startup. Off by default.
      * That's usually an outage or a sibling shard. Only safe unsharded.
      */
     pruneUnknownGuilds?: boolean

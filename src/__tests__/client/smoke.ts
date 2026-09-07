@@ -133,7 +133,11 @@ async function verify(plan: ISmokePlan) {
         [`the timeout that came due while it was down ran (${lateBy ?? "n/a"}ms late)`, !!late],
         [`its variables came back with it (${carried ?? "nothing"})`, carried === CARRIED],
         ["it was deleted too", overdueRow === null],
-        ...(CHANNEL ? ([[`its message reached discord (${sent ?? "nothing came back"})`, /^\d{17,20}$/.test(sent ?? "")]] as const) : []),
+        ...(CHANNEL
+            ? ([
+                  [`its message reached discord (${sent ?? "nothing came back"})`, /^\d{17,20}$/.test(sent ?? "")],
+              ] as const)
+            : []),
     ] as const
 
     for (const [what, ok] of checks) console.log(`${ok ? "ok  " : "FAIL"} ${what}`)

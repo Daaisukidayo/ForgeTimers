@@ -63,7 +63,9 @@ describe("the record type", () => {
     })
 
     it("keeps the timers when the store is opened again", async () => {
-        await Database.set(new Timer({ name: "kept", kind: TimerKind.timeout, code: "$testMark[x]", duration: 3_600_000 }))
+        await Database.set(
+            new Timer({ name: "kept", kind: TimerKind.timeout, code: "$testMark[x]", duration: 3_600_000 })
+        )
         await Database.use("quorieldb")
 
         assert.ok(await Database.get(TimerKind.timeout, "kept"))

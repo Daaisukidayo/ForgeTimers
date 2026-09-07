@@ -196,22 +196,43 @@ const apiError = (status, code, message) => new discord_js_1.DiscordAPIError({ m
 (0, node_test_1.describe)("the command a timer came from", () => {
     (0, node_test_1.it)("is handed back to the restored run", async () => {
         harness.commands = [{ name: "remind", data: { name: "remind", path: "/commands/remind.js" } }];
-        await (0, harness_1.persist)(new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.timeout, code: "$testMark[$commandName]", duration: 1000,
-            channelID: "chan-1", path: "/commands/remind.js", commandName: "remind" }), Date.now() - 1000);
+        await (0, harness_1.persist)(new harness_1.Timer({
+            name: "n",
+            kind: harness_1.TimerKind.timeout,
+            code: "$testMark[$commandName]",
+            duration: 1000,
+            channelID: "chan-1",
+            path: "/commands/remind.js",
+            commandName: "remind",
+        }), Date.now() - 1000);
         await harness.ready();
         strict_1.default.deepEqual(harness_1.marks, ["remind"], "$commandName must read the same command it did when scheduled");
     });
     (0, node_test_1.it)("is matched by name when the file has moved", async () => {
         harness.commands = [{ name: "remind", data: { name: "remind", path: "/commands/moved.js" } }];
-        await (0, harness_1.persist)(new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.timeout, code: "$testMark[$commandName]", duration: 1000,
-            channelID: "chan-1", path: "/commands/remind.js", commandName: "remind" }), Date.now() - 1000);
+        await (0, harness_1.persist)(new harness_1.Timer({
+            name: "n",
+            kind: harness_1.TimerKind.timeout,
+            code: "$testMark[$commandName]",
+            duration: 1000,
+            channelID: "chan-1",
+            path: "/commands/remind.js",
+            commandName: "remind",
+        }), Date.now() - 1000);
         await harness.ready();
         strict_1.default.deepEqual(harness_1.marks, ["remind"]);
     });
     (0, node_test_1.it)("is left null when the command is gone", async () => {
         harness.commands = [];
-        await (0, harness_1.persist)(new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.timeout, code: "$testMark[gone:$commandName]", duration: 1000,
-            channelID: "chan-1", path: "/commands/removed.js", commandName: "removed" }), Date.now() - 1000);
+        await (0, harness_1.persist)(new harness_1.Timer({
+            name: "n",
+            kind: harness_1.TimerKind.timeout,
+            code: "$testMark[gone:$commandName]",
+            duration: 1000,
+            channelID: "chan-1",
+            path: "/commands/removed.js",
+            commandName: "removed",
+        }), Date.now() - 1000);
         await harness.ready();
         strict_1.default.deepEqual(harness_1.marks, ["gone:"], "a missing command must not stop the timer from running");
     });
@@ -227,8 +248,13 @@ const apiError = (status, code, message) => new discord_js_1.DiscordAPIError({ m
     });
     (0, node_test_1.it)("reads a row from before the schema as plain json", async () => {
         const legacy = { $forge: "date", value: "not a date" };
-        const timer = new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.timeout, code: "$testMark[$env[cfg]]",
-            duration: 1000, channelID: "chan-1" });
+        const timer = new harness_1.Timer({
+            name: "n",
+            kind: harness_1.TimerKind.timeout,
+            code: "$testMark[$env[cfg]]",
+            duration: 1000,
+            channelID: "chan-1",
+        });
         timer.version = null;
         timer.vars = { keywords: {}, environment: { cfg: legacy }, localFunctions: {} };
         await (0, harness_1.persist)(timer, Date.now() - 1000);
@@ -237,33 +263,74 @@ const apiError = (status, code, message) => new discord_js_1.DiscordAPIError({ m
     });
     (0, node_test_1.it)("carries a date through the database and back", async () => {
         const when = new Date("2026-08-27T12:00:00.000Z");
-        const timer = new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.timeout, code: "$testMark[$env[when]]",
-            duration: 1000, channelID: "chan-1",
-            vars: (0, snapshotVars_1.snapshotVars)({ keywords: {}, environment: { when }, localFunctions: {} }, "test") });
+        const timer = new harness_1.Timer({
+            name: "n",
+            kind: harness_1.TimerKind.timeout,
+            code: "$testMark[$env[when]]",
+            duration: 1000,
+            channelID: "chan-1",
+            vars: (0, snapshotVars_1.snapshotVars)({ keywords: {}, environment: { when }, localFunctions: {} }, "test"),
+        });
         await (0, harness_1.persist)(timer, Date.now() - 1000);
         await harness.ready();
         strict_1.default.deepEqual(harness_1.marks, [JSON.stringify(when)], "a Date renders quoted, a plain iso string renders bare and a raw envelope renders as an object");
     });
+    // nothing can write this kind today: the row stands in for one a later build adds
+    (0, node_test_1.it)("leaves a kind this build has no map for alone", async () => {
+        const future = new harness_1.Timer({
+            name: "later",
+            kind: "cron",
+            code: "$testMark[later]",
+            duration: 1000,
+            channelID: "chan-1",
+        });
+        await (0, harness_1.persist)(future, Date.now() - 1000);
+        await stored(harness_1.TimerKind.timeout, 1000, -1000);
+        await harness.ready();
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.includes("n")), "one unreadable row stopped the rest of the boot");
+        strict_1.default.deepEqual(harness_1.marks, ["n"], "a kind with no map behind it must not be run");
+        strict_1.default.equal(harness.client.timeouts.has("later"), false);
+        strict_1.default.equal(harness.client.intervals.has("later"), false);
+        strict_1.default.ok(await harness_1.Database.get("cron", "later"), "the row was thrown away rather than left alone");
+    });
 });
 (0, node_test_1.describe)("ownership across processes", () => {
     (0, node_test_1.it)("leaves a timer whose guild this process cannot see", async () => {
-        await (0, harness_1.persist)(new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.timeout, code: "$testMark[n]", duration: 1000,
-            channelID: "chan-1", guildID: "guild-elsewhere" }), Date.now() + 60_000);
+        await (0, harness_1.persist)(new harness_1.Timer({
+            name: "n",
+            kind: harness_1.TimerKind.timeout,
+            code: "$testMark[n]",
+            duration: 1000,
+            channelID: "chan-1",
+            guildID: "guild-elsewhere",
+        }), Date.now() + 60_000);
         await harness.ready();
         strict_1.default.ok(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), "another shard's timer is not ours to delete");
         strict_1.default.equal(harness.client.timeouts.has("n"), false, "nor ours to run");
     });
     (0, node_test_1.it)("prunes it only when asked to", async () => {
-        await (0, harness_1.persist)(new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.timeout, code: "$testMark[n]", duration: 1000,
-            channelID: "chan-1", guildID: "guild-elsewhere" }), Date.now() + 60_000);
+        await (0, harness_1.persist)(new harness_1.Timer({
+            name: "n",
+            kind: harness_1.TimerKind.timeout,
+            code: "$testMark[n]",
+            duration: 1000,
+            channelID: "chan-1",
+            guildID: "guild-elsewhere",
+        }), Date.now() + 60_000);
         Object.assign(harness.ext.options, { pruneUnknownGuilds: true });
         await harness.ready();
         strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), null);
     });
     (0, node_test_1.it)("restores a timer whose guild this process can see", async () => {
         harness.guilds.add("guild-mine");
-        await (0, harness_1.persist)(new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.timeout, code: "$testMark[n]", duration: 1000,
-            channelID: "chan-1", guildID: "guild-mine" }), Date.now() + 60_000);
+        await (0, harness_1.persist)(new harness_1.Timer({
+            name: "n",
+            kind: harness_1.TimerKind.timeout,
+            code: "$testMark[n]",
+            duration: 1000,
+            channelID: "chan-1",
+            guildID: "guild-mine",
+        }), Date.now() + 60_000);
         await harness.ready();
         strict_1.default.equal(harness.client.timeouts.has("n"), true);
     });
@@ -297,8 +364,15 @@ const apiError = (status, code, message) => new discord_js_1.DiscordAPIError({ m
     });
 });
 (0, node_test_1.describe)("the message a timer was scheduled from", () => {
-    const withMessage = (messageID) => (0, harness_1.persist)(new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.timeout, code: "$testMark[$authorID]", duration: 1000,
-        channelID: "chan-msg", messageID, hostID: "user-1" }), Date.now() - 1000);
+    const withMessage = (messageID) => (0, harness_1.persist)(new harness_1.Timer({
+        name: "n",
+        kind: harness_1.TimerKind.timeout,
+        code: "$testMark[$authorID]",
+        duration: 1000,
+        channelID: "chan-msg",
+        messageID,
+        hostID: "user-1",
+    }), Date.now() - 1000);
     (0, node_test_1.beforeEach)(() => {
         harness.channels.set("chan-msg", {
             id: "chan-msg",
@@ -320,8 +394,15 @@ const apiError = (status, code, message) => new discord_js_1.DiscordAPIError({ m
     });
 });
 (0, node_test_1.describe)("the user who scheduled a timer", () => {
-    const hosted = (guildID = null) => (0, harness_1.persist)(new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.timeout, code: "$testMark[$authorID]", duration: 1000,
-        channelID: "chan-1", hostID: "user-1", guildID }), Date.now() - 1000);
+    const hosted = (guildID = null) => (0, harness_1.persist)(new harness_1.Timer({
+        name: "n",
+        kind: harness_1.TimerKind.timeout,
+        code: "$testMark[$authorID]",
+        duration: 1000,
+        channelID: "chan-1",
+        hostID: "user-1",
+        guildID,
+    }), Date.now() - 1000);
     (0, node_test_1.it)("stands in as the author when the target has none", async () => {
         harness.users.set("user-1", { id: "user-1" });
         await hosted();
