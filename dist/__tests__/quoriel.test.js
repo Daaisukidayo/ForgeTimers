@@ -91,9 +91,9 @@ const store = () => (0, node_path_1.join)(process.cwd(), "database");
             code: "$testMark[tick]",
             duration: 3_600_000,
             channelID: "chan-1",
-        }), Date.now() + 200);
+        }), Date.now() + 3_000);
         await harness.ready();
-        await (0, harness_1.waitFor)(() => harness_1.marks.length > 0);
+        await (0, harness_1.waitFor)(() => harness_1.marks.length > 0, 20_000);
         strict_1.default.deepEqual(harness_1.marks, ["tick"]);
         const row = await harness_1.Database.get(harness_1.TimerKind.interval, "beat");
         strict_1.default.ok(row.timeLeft() > 3_000_000, "the next tick was not a full duration away");

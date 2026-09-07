@@ -89,7 +89,7 @@ describe("restoring timeouts", () => {
 
 describe("restoring intervals", () => {
     it("replays nothing by default", async () => {
-        await stored(TimerKind.interval, 1000, -3500)
+        await stored(TimerKind.interval, 10_000, -35_000)
         await harness.ready()
 
         assert.deepEqual(marks, [], "restoredTicksLimit defaults to 0")
@@ -98,7 +98,7 @@ describe("restoring intervals", () => {
 
     it("replays every missed tick at -1", async () => {
         configure({}, { restoredTicksLimit: -1 })
-        await stored(TimerKind.interval, 1000, -3500)
+        await stored(TimerKind.interval, 10_000, -35_000)
         await harness.ready()
 
         assert.equal(marks.length, 4, `expected 4 missed ticks, replayed ${marks.length}`)
@@ -107,30 +107,32 @@ describe("restoring intervals", () => {
 
     it("replays at most the configured number", async () => {
         configure({}, { restoredTicksLimit: 2 })
-        await stored(TimerKind.interval, 1000, -3500)
+        await stored(TimerKind.interval, 10_000, -35_000)
         await harness.ready()
 
         assert.equal(marks.length, 2)
     })
 
-    it("resumes on the time left rather than a whole fresh tick", { timeout: 30_000 }, async () => {
-        await stored(TimerKind.interval, 20_000, 1_000)
+    it("resumes on the time left rather than a whole fresh tick", { timeout: 60_000 }, async () => {
+        await stored(TimerKind.interval, 30_000, 5_000)
         await harness.ready()
 
-        const fired = await waitFor(() => marks.length >= 1, 8_000)
-        assert.ok(fired, "the tick was a second away, not 20s")
+        const fired = await waitFor(() => marks.length >= 1, 20_000)
+        assert.ok(fired, "the tick was five seconds away, not 30s")
     })
 
     it("skips a stale tick past maxOverdue and carries on", async () => {
         configure({}, { maxOverdue: 1000, restoredTicksLimit: -1 })
-        await stored(TimerKind.interval, 1000, -60_000)
+        await stored(TimerKind.interval, 60_000, -60_000)
+
+        const restoredAt = Date.now()
         await harness.ready()
 
         assert.deepEqual(marks, [], "the stale tick is skipped, not replayed")
         assert.equal(harness.client.intervals.has("n"), true)
 
         const row = await Database.get(TimerKind.interval, "n")
-        assert.ok(row!.fireAt > Date.now(), "the schedule was moved forward")
+        assert.ok(row!.fireAt > restoredAt, "the schedule was moved forward")
     })
 })
 

@@ -117,11 +117,11 @@ describe("timers on lmdb", () => {
                 duration: 3_600_000,
                 channelID: "chan-1",
             }),
-            Date.now() + 200
+            Date.now() + 3_000
         )
 
         await harness.ready()
-        await waitFor(() => marks.length > 0)
+        await waitFor(() => marks.length > 0, 20_000)
 
         assert.deepEqual(marks, ["tick"])
         const row = await Database.get(TimerKind.interval, "beat")

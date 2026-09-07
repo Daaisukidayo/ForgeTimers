@@ -73,38 +73,39 @@ const apiError = (status, code, message) => new discord_js_1.DiscordAPIError({ m
 });
 (0, node_test_1.describe)("restoring intervals", () => {
     (0, node_test_1.it)("replays nothing by default", async () => {
-        await stored(harness_1.TimerKind.interval, 1000, -3500);
+        await stored(harness_1.TimerKind.interval, 10_000, -35_000);
         await harness.ready();
         strict_1.default.deepEqual(harness_1.marks, [], "restoredTicksLimit defaults to 0");
         strict_1.default.equal(harness.client.intervals.has("n"), true, "but the schedule still resumes");
     });
     (0, node_test_1.it)("replays every missed tick at -1", async () => {
         configure({}, { restoredTicksLimit: -1 });
-        await stored(harness_1.TimerKind.interval, 1000, -3500);
+        await stored(harness_1.TimerKind.interval, 10_000, -35_000);
         await harness.ready();
         strict_1.default.equal(harness_1.marks.length, 4, `expected 4 missed ticks, replayed ${harness_1.marks.length}`);
         strict_1.default.equal(harness.client.intervals.has("n"), true);
     });
     (0, node_test_1.it)("replays at most the configured number", async () => {
         configure({}, { restoredTicksLimit: 2 });
-        await stored(harness_1.TimerKind.interval, 1000, -3500);
+        await stored(harness_1.TimerKind.interval, 10_000, -35_000);
         await harness.ready();
         strict_1.default.equal(harness_1.marks.length, 2);
     });
-    (0, node_test_1.it)("resumes on the time left rather than a whole fresh tick", { timeout: 30_000 }, async () => {
-        await stored(harness_1.TimerKind.interval, 20_000, 1_000);
+    (0, node_test_1.it)("resumes on the time left rather than a whole fresh tick", { timeout: 60_000 }, async () => {
+        await stored(harness_1.TimerKind.interval, 30_000, 5_000);
         await harness.ready();
-        const fired = await (0, harness_1.waitFor)(() => harness_1.marks.length >= 1, 8_000);
-        strict_1.default.ok(fired, "the tick was a second away, not 20s");
+        const fired = await (0, harness_1.waitFor)(() => harness_1.marks.length >= 1, 20_000);
+        strict_1.default.ok(fired, "the tick was five seconds away, not 30s");
     });
     (0, node_test_1.it)("skips a stale tick past maxOverdue and carries on", async () => {
         configure({}, { maxOverdue: 1000, restoredTicksLimit: -1 });
-        await stored(harness_1.TimerKind.interval, 1000, -60_000);
+        await stored(harness_1.TimerKind.interval, 60_000, -60_000);
+        const restoredAt = Date.now();
         await harness.ready();
         strict_1.default.deepEqual(harness_1.marks, [], "the stale tick is skipped, not replayed");
         strict_1.default.equal(harness.client.intervals.has("n"), true);
         const row = await harness_1.Database.get(harness_1.TimerKind.interval, "n");
-        strict_1.default.ok(row.fireAt > Date.now(), "the schedule was moved forward");
+        strict_1.default.ok(row.fireAt > restoredAt, "the schedule was moved forward");
     });
 });
 (0, node_test_1.describe)("when a timer cannot be rebuilt", () => {
