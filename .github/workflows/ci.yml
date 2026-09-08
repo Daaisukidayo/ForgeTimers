@@ -28,14 +28,47 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
 
-      - name: Reach git dependencies over https
-        run: git config --global url."https://github.com/".insteadOf ssh://git@github.com/
-
       - run: npm ci
 
       - run: npm run build
 
       - run: npm test
+
+  lint:
+    name: eslint · prettier
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx eslint ./src
+
+      - run: npx prettier --check ./src/**/*
+
+  package:
+    name: package contents
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: node .github/scripts/checkpack.js
 
   databases:
     name: postgres · mysql · mongodb
@@ -93,9 +126,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-
-      - name: Reach git dependencies over https
-        run: git config --global url."https://github.com/".insteadOf ssh://git@github.com/
 
       - run: npm ci
 

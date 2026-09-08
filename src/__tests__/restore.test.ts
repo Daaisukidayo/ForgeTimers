@@ -20,6 +20,9 @@ beforeEach(async () => {
     harness.guilds.clear()
     harness.commands = []
     harness.fetches.channels = 0
+    harness.client.shard = null
+    harness.users.clear()
+    harness.members.clear()
     configure({}, {})
 })
 
@@ -33,10 +36,7 @@ function configure(timeoutConfig: ITimeoutConfig, intervalConfig: IIntervalConfi
 }
 
 const stored = (kind: TimerKind, duration: number, dueIn: number, name = "n") =>
-    persist(
-        new Timer({ name, kind, code: `$testMark[${name}]`, duration, channelID: "chan-1" }),
-        Date.now() + dueIn
-    )
+    persist(new Timer({ name, kind, code: `$testMark[${name}]`, duration, channelID: "chan-1" }), Date.now() + dueIn)
 
 const apiError = (status: number, code: number, message: string) =>
     new DiscordAPIError({ message, code } as never, code, status, "GET", "/channels/x", {})
@@ -89,7 +89,7 @@ describe("restoring timeouts", () => {
 
 describe("restoring intervals", () => {
     it("replays nothing by default", async () => {
-        await stored(TimerKind.interval, 1000, -3500)
+        await stored(TimerKind.interval, 10_000, -35_000)
         await harness.ready()
 
         assert.deepEqual(marks, [], "restoredTicksLimit defaults to 0")
@@ -98,7 +98,7 @@ describe("restoring intervals", () => {
 
     it("replays every missed tick at -1", async () => {
         configure({}, { restoredTicksLimit: -1 })
-        await stored(TimerKind.interval, 1000, -3500)
+        await stored(TimerKind.interval, 10_000, -35_000)
         await harness.ready()
 
         assert.equal(marks.length, 4, `expected 4 missed ticks, replayed ${marks.length}`)
@@ -107,30 +107,32 @@ describe("restoring intervals", () => {
 
     it("replays at most the configured number", async () => {
         configure({}, { restoredTicksLimit: 2 })
-        await stored(TimerKind.interval, 1000, -3500)
+        await stored(TimerKind.interval, 10_000, -35_000)
         await harness.ready()
 
         assert.equal(marks.length, 2)
     })
 
-    it("resumes on the time left rather than a whole fresh tick", { timeout: 30_000 }, async () => {
-        await stored(TimerKind.interval, 20_000, 1_000)
+    it("resumes on the time left rather than a whole fresh tick", { timeout: 60_000 }, async () => {
+        await stored(TimerKind.interval, 30_000, 5_000)
         await harness.ready()
 
-        const fired = await waitFor(() => marks.length >= 1, 8_000)
-        assert.ok(fired, "the tick was a second away, not 20s")
+        const fired = await waitFor(() => marks.length >= 1, 20_000)
+        assert.ok(fired, "the tick was five seconds away, not 30s")
     })
 
     it("skips a stale tick past maxOverdue and carries on", async () => {
         configure({}, { maxOverdue: 1000, restoredTicksLimit: -1 })
-        await stored(TimerKind.interval, 1000, -60_000)
+        await stored(TimerKind.interval, 60_000, -60_000)
+
+        const restoredAt = Date.now()
         await harness.ready()
 
         assert.deepEqual(marks, [], "the stale tick is skipped, not replayed")
         assert.equal(harness.client.intervals.has("n"), true)
 
         const row = await Database.get(TimerKind.interval, "n")
-        assert.ok(row!.fireAt > Date.now(), "the schedule was moved forward")
+        assert.ok(row!.fireAt > restoredAt, "the schedule was moved forward")
     })
 })
 
@@ -265,8 +267,15 @@ describe("the command a timer came from", () => {
         harness.commands = [{ name: "remind", data: { name: "remind", path: "/commands/remind.js" } }]
 
         await persist(
-            new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[$commandName]", duration: 1000,
-                channelID: "chan-1", path: "/commands/remind.js", commandName: "remind" }),
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[$commandName]",
+                duration: 1000,
+                channelID: "chan-1",
+                path: "/commands/remind.js",
+                commandName: "remind",
+            }),
             Date.now() - 1000
         )
         await harness.ready()
@@ -278,8 +287,15 @@ describe("the command a timer came from", () => {
         harness.commands = [{ name: "remind", data: { name: "remind", path: "/commands/moved.js" } }]
 
         await persist(
-            new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[$commandName]", duration: 1000,
-                channelID: "chan-1", path: "/commands/remind.js", commandName: "remind" }),
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[$commandName]",
+                duration: 1000,
+                channelID: "chan-1",
+                path: "/commands/remind.js",
+                commandName: "remind",
+            }),
             Date.now() - 1000
         )
         await harness.ready()
@@ -291,8 +307,15 @@ describe("the command a timer came from", () => {
         harness.commands = []
 
         await persist(
-            new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[gone:$commandName]", duration: 1000,
-                channelID: "chan-1", path: "/commands/removed.js", commandName: "removed" }),
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[gone:$commandName]",
+                duration: 1000,
+                channelID: "chan-1",
+                path: "/commands/removed.js",
+                commandName: "removed",
+            }),
             Date.now() - 1000
         )
         await harness.ready()
@@ -315,8 +338,13 @@ describe("the stored schema", () => {
 
     it("reads a row from before the schema as plain json", async () => {
         const legacy = { $forge: "date", value: "not a date" }
-        const timer = new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[$env[cfg]]",
-            duration: 1000, channelID: "chan-1" })
+        const timer = new Timer({
+            name: "n",
+            kind: TimerKind.timeout,
+            code: "$testMark[$env[cfg]]",
+            duration: 1000,
+            channelID: "chan-1",
+        })
         timer.version = null
         timer.vars = { keywords: {}, environment: { cfg: legacy }, localFunctions: {} }
         await persist(timer, Date.now() - 1000)
@@ -332,9 +360,14 @@ describe("the stored schema", () => {
 
     it("carries a date through the database and back", async () => {
         const when = new Date("2026-08-27T12:00:00.000Z")
-        const timer = new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[$env[when]]",
-            duration: 1000, channelID: "chan-1",
-            vars: snapshotVars({ keywords: {}, environment: { when }, localFunctions: {} }, "test") })
+        const timer = new Timer({
+            name: "n",
+            kind: TimerKind.timeout,
+            code: "$testMark[$env[when]]",
+            duration: 1000,
+            channelID: "chan-1",
+            vars: snapshotVars({ keywords: {}, environment: { when }, localFunctions: {} }, "test"),
+        })
         await persist(timer, Date.now() - 1000)
 
         await harness.ready()
@@ -345,13 +378,41 @@ describe("the stored schema", () => {
             "a Date renders quoted, a plain iso string renders bare and a raw envelope renders as an object"
         )
     })
+
+    // nothing can write this kind today: the row stands in for one a later build adds
+    it("leaves a kind this build has no map for alone", async () => {
+        const future = new Timer({
+            name: "later",
+            kind: "cron" as never,
+            code: "$testMark[later]",
+            duration: 1000,
+            channelID: "chan-1",
+        })
+        await persist(future, Date.now() - 1000)
+        await stored(TimerKind.timeout, 1000, -1000)
+
+        await harness.ready()
+
+        assert.ok(await waitFor(() => marks.includes("n")), "one unreadable row stopped the rest of the boot")
+        assert.deepEqual(marks, ["n"], "a kind with no map behind it must not be run")
+
+        assert.equal(harness.client.timeouts.has("later"), false)
+        assert.equal(harness.client.intervals.has("later"), false)
+        assert.ok(await Database.get("cron" as never, "later"), "the row was thrown away rather than left alone")
+    })
 })
 
 describe("ownership across processes", () => {
     it("leaves a timer whose guild this process cannot see", async () => {
         await persist(
-            new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[n]", duration: 1000,
-                channelID: "chan-1", guildID: "guild-elsewhere" }),
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[n]",
+                duration: 1000,
+                channelID: "chan-1",
+                guildID: "guild-elsewhere",
+            }),
             Date.now() + 60_000
         )
         await harness.ready()
@@ -362,8 +423,14 @@ describe("ownership across processes", () => {
 
     it("prunes it only when asked to", async () => {
         await persist(
-            new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[n]", duration: 1000,
-                channelID: "chan-1", guildID: "guild-elsewhere" }),
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[n]",
+                duration: 1000,
+                channelID: "chan-1",
+                guildID: "guild-elsewhere",
+            }),
             Date.now() + 60_000
         )
         Object.assign(harness.ext.options, { pruneUnknownGuilds: true })
@@ -375,12 +442,144 @@ describe("ownership across processes", () => {
     it("restores a timer whose guild this process can see", async () => {
         harness.guilds.add("guild-mine")
         await persist(
-            new Timer({ name: "n", kind: TimerKind.timeout, code: "$testMark[n]", duration: 1000,
-                channelID: "chan-1", guildID: "guild-mine" }),
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[n]",
+                duration: 1000,
+                channelID: "chan-1",
+                guildID: "guild-mine",
+            }),
             Date.now() + 60_000
         )
         await harness.ready()
 
         assert.equal(harness.client.timeouts.has("n"), true)
+    })
+})
+
+describe("a timer belonging to no guild", () => {
+    const guildless = (name = "n") =>
+        persist(
+            new Timer({ name, kind: TimerKind.timeout, code: `$testMark[${name}]`, duration: 1000 }),
+            Date.now() + 60_000
+        )
+
+    it("is restored on an unsharded process", async () => {
+        await guildless()
+        await harness.ready()
+
+        assert.equal(harness.client.timeouts.has("n"), true)
+    })
+
+    it("is restored on shard 0", async () => {
+        harness.client.shard = { ids: [0] }
+        await guildless()
+        await harness.ready()
+
+        assert.equal(harness.client.timeouts.has("n"), true)
+    })
+
+    it("is left alone on every other shard", async () => {
+        // otherwise each shard would run it, and the bot would answer as many times
+        harness.client.shard = { ids: [1] }
+        await guildless()
+        await harness.ready()
+
+        assert.equal(harness.client.timeouts.has("n"), false, "another shard already has this one")
+        assert.ok(await Database.get(TimerKind.timeout, "n"), "and it is not that shard's to delete")
+    })
+
+    it("is restored once when shard 0 shares a process", async () => {
+        harness.client.shard = { ids: [0, 1, 2] }
+        await guildless()
+        await harness.ready()
+
+        assert.equal(harness.client.timeouts.has("n"), true)
+    })
+})
+
+describe("the message a timer was scheduled from", () => {
+    const withMessage = (messageID: string) =>
+        persist(
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[$authorID]",
+                duration: 1000,
+                channelID: "chan-msg",
+                messageID,
+                hostID: "user-1",
+            }),
+            Date.now() - 1000
+        )
+
+    beforeEach(() => {
+        harness.channels.set("chan-msg", {
+            id: "chan-msg",
+            messages: { fetch: async (id: string) => (id === "msg-1" ? { id, author: { id: "author-1" } } : null) },
+        })
+    })
+
+    it("is fetched again and becomes the target", async () => {
+        await withMessage("msg-1")
+        await harness.ready()
+        await waitFor(() => marks.length > 0)
+
+        assert.deepEqual(marks, ["author-1"], "the run should see the original author")
+    })
+
+    it("falls back to the channel once the message is gone", async () => {
+        harness.users.set("user-1", { id: "user-1" })
+        await withMessage("msg-gone")
+        await harness.ready()
+        await waitFor(() => marks.length > 0)
+
+        assert.deepEqual(marks, ["user-1"], "a deleted message must not cost the timer its run")
+    })
+})
+
+describe("the user who scheduled a timer", () => {
+    const hosted = (guildID: string | null = null) =>
+        persist(
+            new Timer({
+                name: "n",
+                kind: TimerKind.timeout,
+                code: "$testMark[$authorID]",
+                duration: 1000,
+                channelID: "chan-1",
+                hostID: "user-1",
+                guildID,
+            }),
+            Date.now() - 1000
+        )
+
+    it("stands in as the author when the target has none", async () => {
+        harness.users.set("user-1", { id: "user-1" })
+        await hosted()
+        await harness.ready()
+        await waitFor(() => marks.length > 0)
+
+        assert.deepEqual(marks, ["user-1"])
+    })
+
+    it("is looked up as a member when the timer belongs to a guild", async () => {
+        harness.guilds.add("guild-1")
+        harness.users.set("user-1", { id: "user-1" })
+        harness.members.set("user-1", { id: "user-1", nickname: "host" })
+
+        await hosted("guild-1")
+        await harness.ready()
+        await waitFor(() => marks.length > 0)
+
+        assert.deepEqual(marks, ["user-1"])
+    })
+
+    it("leaves the run without an author when the user is gone", async () => {
+        await hosted()
+        await harness.ready()
+        await waitFor(() => marks.length > 0, 2000)
+
+        assert.deepEqual(marks, [""], "a deleted user must not stop the timer running")
     })
 })

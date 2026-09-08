@@ -1,32 +1,41 @@
 import { DataBaseManager } from "@tryforge/forge.db"
-import { ArgType, Compiler, Context, FunctionManager, ForgeClient, Interpreter, NativeFunction } from "@tryforge/forgescript"
+import {
+    ArgType,
+    Compiler,
+    Context,
+    FunctionManager,
+    ForgeClient,
+    Interpreter,
+    NativeFunction,
+} from "@tryforge/forgescript"
 import { mkdtempSync, rmSync } from "node:fs"
-import { DataSource } from "typeorm"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { ForgeTimers } from ".."
 import { Database, Timer, TimerKind } from "../structures"
 
-class ConfigSeed extends DataBaseManager {
+export class ConfigSeed extends DataBaseManager {
     public database = "seed"
     public entityManager = { sqlite: [], mongodb: [], mysql: [], postgres: [] }
 }
 
-export type TestDatabase = "sqlite" | "postgres" | "mysql" | "mongodb"
+export type TestDatabase = "sqlite" | "postgres" | "mysql" | "mongodb" | "quoriel"
+
+export type SqlDatabase = Exclude<TestDatabase, "sqlite" | "quoriel">
 
 export type TestConnection =
-    | { type: "better-sqlite3"; folder: string }
-    | { type: "postgres" | "mysql" | "mongodb"; url: string }
+    { type: "better-sqlite3" | "quoriel"; folder: string } | { type: "postgres" | "mysql" | "mongodb"; url: string }
 
-export const DATABASE_ENV: Record<Exclude<TestDatabase, "sqlite">, string> = {
+export const DATABASE_ENV: Record<SqlDatabase, string> = {
     postgres: "FORGETIMERS_TEST_POSTGRES",
     mysql: "FORGETIMERS_TEST_MYSQL",
     mongodb: "FORGETIMERS_TEST_MONGODB",
 }
 
 export function connectionFor(target: TestDatabase): TestConnection | null {
-    if (target === "sqlite") {
-        return { type: "better-sqlite3", folder: mkdtempSync(join(tmpdir(), "forgetimers-test-")) }
+    if (target === "sqlite" || target === "quoriel") {
+        const folder = mkdtempSync(join(tmpdir(), "forgetimers-test-"))
+        return { type: target === "quoriel" ? "quoriel" : "better-sqlite3", folder }
     }
 
     const url = process.env[DATABASE_ENV[target]]
@@ -47,6 +56,9 @@ export interface ITestClient {
     ext: ForgeTimers
 
     channels: Map<string, unknown>
+    users: Map<string, unknown>
+    members: Map<string, unknown>
+
     fetches: { channels: number }
     commands: unknown[]
 
@@ -97,36 +109,21 @@ function registerMark() {
     )
 }
 
-function withoutLingeringWatchdog<T>(fn: () => T): T {
-    const real = globalThis.setTimeout
-    globalThis.setTimeout = ((handler: never, ms?: number, ...rest: never[]) => {
-        const handle = real(handler, ms as never, ...rest)
-        if ((ms ?? 0) >= 10_000) handle.unref?.()
-        return handle
-    }) as typeof globalThis.setTimeout
+/** forge.db arms this on every connection and never clears it, so the process idles it out */
+const FORGE_DB_WATCHDOG = 10_000
 
-    try {
-        return fn()
-    } finally {
-        globalThis.setTimeout = real
-    }
-}
+const realSetTimeout = globalThis.setTimeout
+globalThis.setTimeout = ((handler: never, ms?: number, ...rest: never[]) => {
+    const handle = realSetTimeout(handler, ms as never, ...rest)
+    if (ms === FORGE_DB_WATCHDOG) handle.unref?.()
+    return handle
+}) as typeof globalThis.setTimeout
 
-export async function boot(
-    options: ConstructorParameters<typeof ForgeTimers>[0] = {},
-    target: TestDatabase = "sqlite"
-) {
-    const connection = connectionFor(target)
-    if (!connection) throw new Error(`${DATABASE_ENV[target as Exclude<TestDatabase, "sqlite">]} is not set`)
-
-    const folder = "folder" in connection ? connection.folder : undefined
-    if (!seeded) {
-        new ConfigSeed(connection as never)
-        seeded = true
-    }
-
-    const ext = new ForgeTimers(options)
+/** Wraps an extension in a client it can believe in, without any of the setup boot() does */
+export function attach(ext: ForgeTimers): ITestClient {
     const channels = new Map<string, unknown>()
+    const users = new Map<string, unknown>()
+    const members = new Map<string, unknown>()
     const guilds = new Set<string>()
     const handlers: Array<() => unknown> = []
 
@@ -135,6 +132,8 @@ export async function boot(
     const harness: ITestClient = {
         ext,
         channels,
+        users,
+        members,
         fetches,
         commands: [],
         guilds,
@@ -151,14 +150,23 @@ export async function boot(
     }
 
     harness.client = {
-
-        options: {},
+        // a migration checks here for the extension it reads the old timers out of
+        options: { extensions: [{ name: "forge.db" }, { name: "QuorielDB" }] },
         canRespondToBots: () => true,
         timeouts: new Map<string, NodeJS.Timeout>(),
         intervals: new Map<string, NodeJS.Timeout>(),
         shard: null,
-        guilds: { cache: { has: (id: string) => guilds.has(id), get: (id: string) => undefined } },
-        users: { fetch: async () => null },
+        guilds: {
+            cache: {
+                has: (id: string) => guilds.has(id),
+                // a guild this process cannot see has no members to hand back either
+                get: (id: string) =>
+                    guilds.has(id)
+                        ? { id, members: { fetch: async (userID: string) => members.get(userID) ?? null } }
+                        : undefined,
+            },
+        },
+        users: { fetch: async (id: string) => users.get(id) ?? null },
         channels: {
             fetch: async (id: string) => {
                 fetches.channels++
@@ -171,19 +179,44 @@ export async function boot(
         once: (_event: string, handler: () => unknown) => handlers.push(handler),
     }
 
-    withoutLingeringWatchdog(() => ext.init(harness.client as unknown as ForgeClient))
+    ext.init(harness.client as unknown as ForgeClient)
+
+    // after init, or the extension's own natives lose to the stock ones
     FunctionManager.loadNative()
     registerMark()
 
-    await ext.ready
+    return harness
+}
+
+export async function boot(
+    options: ConstructorParameters<typeof ForgeTimers>[0] = {},
+    target: TestDatabase = "sqlite"
+) {
+    const connection = connectionFor(target)
+    if (!connection) throw new Error(`${DATABASE_ENV[target as SqlDatabase]} is not set`)
+
+    const folder = "folder" in connection ? connection.folder : undefined
+    const home = process.cwd()
+
+    if (target === "quoriel") {
+        // quoriel hangs its store off the working directory
+        options = { ...options, storage: "quorieldb" }
+        process.chdir(folder!)
+    } else if (!seeded) {
+        new ConfigSeed(connection as never)
+        seeded = true
+    }
+
+    const harness = attach(new ForgeTimers(options))
+
+    await harness.ext.ready
     await Database.wipe().catch(() => undefined)
 
     async function cleanup() {
         await Database.wipe().catch(() => undefined)
+        await Database.destroy().catch(() => undefined)
 
-        const source = (Database as unknown as { db?: DataSource }).db
-        if (source?.isInitialized) await source.destroy()
-
+        process.chdir(home)
         if (!folder) return
 
         try {

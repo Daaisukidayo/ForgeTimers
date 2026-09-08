@@ -119,7 +119,13 @@ describe("replacing a timer while it runs", () => {
         })
         await waitFor(() => running)
 
-        const second = new Timer({ name: "job", kind: TimerKind.timeout, code: "b", duration: 3_600_000, channelID: "chan-1" })
+        const second = new Timer({
+            name: "job",
+            kind: TimerKind.timeout,
+            code: "b",
+            duration: 3_600_000,
+            channelID: "chan-1",
+        })
         await manager.start(second, async () => undefined)
         const handle = harness.client.timeouts.get("job")
         await waitFor(() => !running)

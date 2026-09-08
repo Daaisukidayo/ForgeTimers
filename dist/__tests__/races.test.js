@@ -98,7 +98,13 @@ async function withSlowWrites(delay, fn) {
             running = false;
         });
         await (0, harness_1.waitFor)(() => running);
-        const second = new harness_1.Timer({ name: "job", kind: harness_1.TimerKind.timeout, code: "b", duration: 3_600_000, channelID: "chan-1" });
+        const second = new harness_1.Timer({
+            name: "job",
+            kind: harness_1.TimerKind.timeout,
+            code: "b",
+            duration: 3_600_000,
+            channelID: "chan-1",
+        });
         await manager.start(second, async () => undefined);
         const handle = harness.client.timeouts.get("job");
         await (0, harness_1.waitFor)(() => !running);

@@ -17,4 +17,5 @@ Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./Database"), exports);
 __exportStar(require("./Timer"), exports);
 __exportStar(require("./Context"), exports);
+__exportStar(require("./stores"), exports);
 //# sourceMappingURL=index.js.map

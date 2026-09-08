@@ -13,7 +13,7 @@ export enum TimerProperty {
     channelID = "channelID",
     hostID = "hostID",
     messageID = "messageID",
-    args = "args"
+    args = "args",
 }
 
 export const TimerProperties: Record<TimerProperty, (timer: Timer) => unknown> = {

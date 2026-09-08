@@ -1,21 +1,29 @@
 {
   "name": "forge.timers",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Persists $setTimeout/$setInterval timers to disk and restores them on restart.",
   "main": "dist/index.js",
+  "files": [
+    "dist",
+    "!dist/__tests__",
+    "!dist/@build"
+  ],
   "types": "dist/index.d.ts",
-  "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "tsc && node --test \"dist/__tests__/*.test.js\"",
-    "docgen": "tsc && typedoc src/index.ts && node dist/docgen",
-    "commit": "npm run docgen && node dist/commit",
-    "prepublishOnly": "rimraf dist && npm run build"
+    "test:bot": "tsc && node dist/__tests__/client/client.js",
+    "test:smoke": "tsc && node dist/__tests__/client/smokeRun.js",
+    "eslint": "eslint ./src --fix",
+    "prettier": "prettier --write ./src/**/*",
+    "tidy": "npm run eslint && npm run prettier && tsc",
+    "docgen": "tsc && typedoc src/index.ts && node dist/@build/docgen",
+    "commit": "npm run docgen && node dist/@build/commit",
+    "prepublishOnly": "rimraf dist && npm run build && node .github/scripts/checkpack.js"
   },
   "keywords": [
     "forgescript",
     "forge.timers",
-    "forgetimers",
     "discord",
     "discord.js",
     "timers",
@@ -40,30 +48,51 @@
     "type": "git",
     "url": "git+https://github.com/Daaisukidayo/ForgeTimers.git"
   },
+  "bugs": {
+    "url": "https://github.com/Daaisukidayo/ForgeTimers/issues"
+  },
   "license": "GPL-3.0-only",
   "type": "commonjs",
   "engines": {
     "node": ">=20.0.0"
   },
   "peerDependencies": {
+    "@quoriel/db": ">=3",
     "@tryforge/forge.db": ">=2.1.1",
     "@tryforge/forgescript": ">=2.7.0",
     "typeorm": ">=0.3.26"
   },
+  "peerDependenciesMeta": {
+    "@quoriel/db": {
+      "optional": true
+    },
+    "@tryforge/forge.db": {
+      "optional": true
+    },
+    "typeorm": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@quoriel/db": "^3.0.0",
     "@tryforge/forge.db": "^2.1.1",
-    "@tryforge/forgescript": "github:tryforge/ForgeScript#dev",
+    "@tryforge/forgescript": "^2.7.0",
     "@types/node": "^26.2.0",
+    "@typescript-eslint/eslint-plugin": "^8.69.0",
+    "@typescript-eslint/parser": "^8.69.0",
     "better-sqlite3": "^12.11.1",
+    "dotenv": "^17.4.2",
+    "eslint": "^10.10.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.12.0",
     "mongodb": "^6.21.0",
     "mysql2": "^3.24.2",
     "pg": "^8.23.0",
+    "prettier": "^3.9.6",
     "rimraf": "^6.1.3",
     "typedoc": "^0.28.20",
-    "typescript": "^6.0.3",
-    "typeorm": "^0.3.27"
-  },
-  "dependencies": {
-    "reflect-metadata": "^0.2.2"
+    "typeorm": "^0.3.27",
+    "typescript": "^6.0.3"
   }
 }

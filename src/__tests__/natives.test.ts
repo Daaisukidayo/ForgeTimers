@@ -42,7 +42,6 @@ describe("$setTimeout", () => {
     })
 
     it("leaves an unnamed timeout out of the database", async () => {
-
         await run(harness, "$setTimeout[x;1s]")
         assert.equal((await Database.getAll()).length, 0)
     })

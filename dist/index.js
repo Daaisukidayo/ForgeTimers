@@ -21,6 +21,7 @@ exports.ForgeTimers = void 0;
 const forgescript_1 = require("@tryforge/forgescript");
 const managers_1 = require("./managers");
 const structures_1 = require("./structures");
+const migrate_1 = require("./functions/migrate");
 const logger_1 = require("./functions/logger");
 const package_json_1 = require("../package.json");
 const path_1 = __importDefault(require("path"));
@@ -29,23 +30,31 @@ class ForgeTimers extends forgescript_1.ForgeExtension {
     name = "ForgeTimers";
     description = package_json_1.description;
     version = package_json_1.version;
-    requireExtensions = ["forge.db"];
     timersManager;
     ready;
     constructor(options = {}) {
         super();
         this.options = options;
+        this.requireExtensions = [options.storage === "quorieldb" ? "QuorielDB" : "forge.db"];
     }
     init(client) {
         this.load(path_1.default.resolve(__dirname, "native"));
-        this.ready = new structures_1.Database()
-            .init()
-            .then(() => true)
-            .catch((err) => {
+        this.ready = this._open(client);
+        this.timersManager = new managers_1.TimersManager(client);
+    }
+    async _open(client) {
+        const storage = this.options.storage ?? "forgedb";
+        try {
+            await structures_1.Database.use(storage);
+        }
+        catch (err) {
             logger_1.Logger.error(err);
             return false;
-        });
-        this.timersManager = new managers_1.TimersManager(client);
+        }
+        const { migrateFrom, keepSource } = this.options;
+        if (migrateFrom)
+            await (0, migrate_1.migrateTimers)(client, migrateFrom, storage, keepSource);
+        return true;
     }
 }
 exports.ForgeTimers = ForgeTimers;
@@ -53,4 +62,5 @@ __exportStar(require("./managers"), exports);
 __exportStar(require("./structures"), exports);
 __exportStar(require("./types"), exports);
 __exportStar(require("./functions/snapshotVars"), exports);
+__exportStar(require("./functions/migrate"), exports);
 //# sourceMappingURL=index.js.map

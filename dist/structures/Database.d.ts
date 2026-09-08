@@ -1,65 +1,64 @@
-import { TimersDatabaseManager } from "../managers";
-import { FindOptionsWhere } from "typeorm";
-import { MongoTimer, Timer, TimerKind } from "./Timer";
-export type AnyTimer = typeof Timer | typeof MongoTimer;
-export type ITimerFindOptions = FindOptionsWhere<Timer>;
-export declare class Database extends TimersDatabaseManager {
-    database: string;
-    entityManager: {
-        sqlite: (typeof Timer)[];
-        mongodb: (typeof MongoTimer)[];
-        mysql: (typeof Timer)[];
-        postgres: (typeof Timer)[];
-    };
-    static entities: {
-        Timer: AnyTimer;
-    };
-    private db;
-    private static db;
-    constructor();
-    init(): Promise<void>;
+import { Timer, TimerKind } from "./Timer";
+import { ITimerFindOptions, ITimerStore } from "./stores";
+/** Which extension holds the timers */
+export type TimerStorage = "forgedb" | "quorieldb";
+/**
+ * The database, whichever one was picked. Everything reads and writes timers through here,
+ * so the backend is a single decision made at startup rather than a shape the rest has to know.
+ */
+export declare class Database {
+    private static store?;
+    /**
+     * Opens a storage without putting it in charge, so two can be read at once.
+     * @param storage Which backend to open.
+     */
+    static open(storage?: TimerStorage): Promise<ITimerStore>;
+    /**
+     * Opens the chosen storage and makes it the one everything reads. Replaces whatever was open before.
+     * @param storage Which backend to keep timers in.
+     */
+    static use(storage?: TimerStorage): Promise<ITimerStore>;
+    /** The open store. Reaching it before {@link use} means an ordering bug, not a missing timer */
+    private static get current();
+    /**
+     * Closes the storage. For a graceful shutdown.
+     */
+    static destroy(): Promise<void>;
     /**
      * Gets an existing timer.
      * @param kind The kind of the timer to get.
      * @param name The name of the timer to get.
-     * @returns
      */
     static get(kind: TimerKind, name: string): Promise<Timer | null>;
     /**
      * Gets all existing timers.
-     * @returns
      */
     static getAll(): Promise<Timer[]>;
     /**
      * Gets all existing timers of a kind.
      * @param kind The kind of the timers to get.
-     * @returns
      */
     static getAllOf(kind: TimerKind): Promise<Timer[]>;
     /**
      * Finds existing timers matching the provided data.
      * @param data The data to use for searching.
      * @param amount The amount of results to return.
-     * @returns
      */
     static find(data?: ITimerFindOptions, amount?: number): Promise<Timer[]>;
     /**
      * Saves a timer in the database.
-     * @param data The timer data to save.
+     * @param timer The timer to save.
      */
-    static set(data: Timer | MongoTimer): Promise<void>;
+    static set(timer: Timer): Promise<void>;
     /**
      * Deletes an existing timer from the database.
      * @param kind The kind of the timer to delete.
      * @param name The name of the timer to delete.
-     * @returns
      */
-    static delete(kind: TimerKind, name: string): Promise<import("typeorm").DeleteResult>;
+    static delete(kind: TimerKind, name: string): Promise<import("./stores").IDeleteResult>;
     /**
-     * Wipes the entire database. Deletes rather than truncating, which would need raised
-     * privileges on postgres.
-     * @returns
+     * Wipes every stored timer.
      */
-    static wipe(): Promise<import("typeorm").DeleteResult | import("typeorm/driver/mongodb/typings.js").DeleteResult>;
+    static wipe(): Promise<void>;
 }
 //# sourceMappingURL=Database.d.ts.map
