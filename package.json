@@ -3,6 +3,11 @@
   "version": "1.2.0",
   "description": "Persists $setTimeout/$setInterval timers to disk and restores them on restart.",
   "main": "dist/index.js",
+  "files": [
+    "dist",
+    "!dist/__tests__",
+    "!dist/@build"
+  ],
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -11,9 +16,10 @@
     "test:smoke": "tsc && node dist/__tests__/client/smokeRun.js",
     "eslint": "eslint ./src --fix",
     "prettier": "prettier --write ./src/**/*",
+    "tidy": "npm run eslint && npm run prettier && tsc",
     "docgen": "tsc && typedoc src/index.ts && node dist/@build/docgen",
     "commit": "npm run docgen && node dist/@build/commit",
-    "prepublishOnly": "rimraf dist && npm run build"
+    "prepublishOnly": "rimraf dist && npm run build && node .github/scripts/checkpack.js"
   },
   "keywords": [
     "forgescript",
@@ -41,6 +47,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Daaisukidayo/ForgeTimers.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Daaisukidayo/ForgeTimers/issues"
   },
   "license": "GPL-3.0-only",
   "type": "commonjs",

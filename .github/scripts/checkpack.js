@@ -9,18 +9,13 @@ const [{ files }] = JSON.parse(execSync("npm pack --dry-run --json", { cwd: root
 
 const shipped = files.map((file) => file.path)
 
-const problems = []
+const ROOT_FILES = ["README.md", "LICENSE", "package.json"]
 
-const tests = shipped.filter((path) => path.includes("__tests__") || /\.test\.(js|d\.ts)$/.test(path))
-if (tests.length) problems.push(`the package ships ${tests.length} test file(s): ${tests.slice(0, 5).join(", ")}`)
+const belongs = (path) =>
+    ROOT_FILES.includes(path) ||
+    (path.startsWith("dist/") && !path.startsWith("dist/__tests__/") && !path.startsWith("dist/@build/"))
 
-const dev = shipped.filter((path) => path.startsWith("dist/@build/"))
-if (dev.length) problems.push(`the package ships dev scripts: ${dev.join(", ")}`)
-
-for (const entry of [main, types]) {
-    if (!shipped.includes(entry)) problems.push(`the package does not ship ${entry}, which package.json points at`)
-}
-
+/** Every .ts under a source folder, as paths relative to it */
 function sourcesOf(folder) {
     const found = []
 
@@ -34,6 +29,15 @@ function sourcesOf(folder) {
     return found
 }
 
+const problems = []
+
+const stray = shipped.filter((path) => !belongs(path))
+if (stray.length) problems.push(`the package ships ${stray.length} file(s) it should not: ${stray.slice(0, 8).join(", ")}`)
+
+for (const entry of [main, types]) {
+    if (!shipped.includes(entry)) problems.push(`the package does not ship ${entry}, which package.json points at`)
+}
+
 const missing = sourcesOf("src/native")
     .map((path) => posix.join("dist/native", path.replace(/\.ts$/, ".js")))
     .filter((path) => !shipped.includes(path))
@@ -45,4 +49,4 @@ if (problems.length) {
     process.exit(1)
 }
 
-console.log(`ok  ${shipped.length} files, every native function, no tests and no dev scripts`)
+console.log(`ok  ${shipped.length} files, nothing stray, every native function`)
