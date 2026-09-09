@@ -57,6 +57,14 @@ export const SEED_CODE =
     `$setInterval[$smokeReport[interval];${INTERVAL_TICK};${INTERVAL_NAME}]` +
     `$smokeReport[seeded]`
 
+/** Every event reports under the name of the timer it is about */
+export const eventCode = (event: string) => `$smokeReport[event-${event}:$env[name]]`
+
+/** An event command runs with no target of its own, so this checks one can still reach discord */
+export const EVENT_MESSAGE_CODE =
+    `$if[$env[name]==${TIMEOUT_NAME};` +
+    `$let[sent;$sendMessage[${CHANNEL};ForgeTimers event check;true]]$smokeReport[event-message:$get[sent]]]`
+
 export const reports: Array<{ label: string; at: number }> = []
 
 export function report(label: string) {
@@ -92,6 +100,9 @@ async function seed() {
     const overdue = await Database.get(TimerKind.timeout, OVERDUE_NAME)
     if (!overdue) throw new Error(`${OVERDUE_NAME} was scheduled but never persisted`)
 
+    const announced = await until(() => seen(`event-timerStart:${TIMEOUT_NAME}`), 5_000)
+    if (!announced) throw new Error(`${TIMEOUT_NAME} was scheduled, but timerStart never reached its command`)
+
     writeFileSync(
         MARKER,
         JSON.stringify(
@@ -122,8 +133,12 @@ async function verify(plan: ISmokePlan) {
     const carried = late?.label.split(":")[1]
     const overdueRow = await Database.get(TimerKind.timeout, OVERDUE_NAME)
 
+    const restoreEvent = seen(`event-timerRestore:${TIMEOUT_NAME}`, bootedAt)
+    const fireEvent = seen(`event-timerFire:${TIMEOUT_NAME}`, bootedAt)
+
     // a snowflake back from $sendMessage is discord saying it accepted the message
     const sent = fired?.label.split(":")[1]
+    const eventSent = seen("event-message", bootedAt)?.label.split(":")[1]
 
     const checks = [
         ["the timeout ran after the restart", !!fired],
@@ -133,9 +148,15 @@ async function verify(plan: ISmokePlan) {
         [`the timeout that came due while it was down ran (${lateBy ?? "n/a"}ms late)`, !!late],
         [`its variables came back with it (${carried ?? "nothing"})`, carried === CARRIED],
         ["it was deleted too", overdueRow === null],
+        ["the restart reported the timer it picked up", !!restoreEvent],
+        ["the run was reported as well", !!fireEvent],
         ...(CHANNEL
             ? ([
                   [`its message reached discord (${sent ?? "nothing came back"})`, /^\d{17,20}$/.test(sent ?? "")],
+                  [
+                      `the event command reached discord too (${eventSent ?? "nothing came back"})`,
+                      /^\d{17,20}$/.test(eventSent ?? ""),
+                  ],
               ] as const)
             : []),
     ] as const

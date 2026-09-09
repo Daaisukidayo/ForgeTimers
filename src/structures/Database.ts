@@ -1,8 +1,6 @@
 import { Timer, TimerKind } from "./Timer"
 import { ITimerFindOptions, ITimerStore } from "./stores"
-
-/** Which extension holds the timers */
-export type TimerStorage = "forgedb" | "quorieldb"
+import { TimerStorage } from "../types"
 
 /**
  * The database, whichever one was picked. Everything reads and writes timers through here,

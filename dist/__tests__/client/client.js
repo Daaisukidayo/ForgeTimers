@@ -4,6 +4,7 @@ const forgescript_1 = require("@tryforge/forgescript");
 const dotenv_1 = require("dotenv");
 const discord_js_1 = require("discord.js");
 const index_1 = require("../../index");
+const types_1 = require("../../types");
 const node_path_1 = require("node:path");
 const forge_db_1 = require("@tryforge/forge.db");
 const smoke_1 = require("./smoke");
@@ -14,9 +15,12 @@ const smoke = process.env.SMOKE === "1";
 const storage = process.env.SMOKE_STORAGE ?? "forgedb";
 /** Set when this boot is the one that moves timers over */
 const migrateFrom = process.env.SMOKE_MIGRATE_FROM;
+/** The events the restart check watches. The playground keeps them off, as a bot would by default */
+const WATCHED = [types_1.TimerEvent.timerStart, types_1.TimerEvent.timerFire, types_1.TimerEvent.timerRestore];
 const timer = new index_1.ForgeTimers({
     storage,
     migrateFrom,
+    events: smoke ? WATCHED : undefined,
     timeoutConfig: {
     // maxOverdue: 5_000
     },
@@ -76,6 +80,11 @@ if (smoke) {
         type: discord_js_1.Events.ClientReady,
         code: plan ? `$smokeReport[booted]` : smoke_1.SEED_CODE,
     });
+    for (const event of WATCHED)
+        timer.commands.add({ type: event, code: (0, smoke_1.eventCode)(event) });
+    // one message from an event command is enough to know they can reach discord at all
+    if (smoke_1.CHANNEL)
+        timer.commands.add({ type: types_1.TimerEvent.timerFire, code: smoke_1.EVENT_MESSAGE_CODE });
     client.once(discord_js_1.Events.ClientReady, () => void (0, smoke_1.runSmoke)(plan));
 }
 client.login();

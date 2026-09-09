@@ -20,6 +20,8 @@ export declare class TimersManager {
     clear(kind: TimerKind, name: string): boolean;
     private _save;
     private _forget;
+    private _report;
+    private _reportCancel;
     /** Takes the name over and hands back a check for whether it's still ours */
     private _claim;
     /**

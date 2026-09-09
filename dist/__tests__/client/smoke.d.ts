@@ -21,6 +21,10 @@ export declare function readPlan(): ISmokePlan | null;
 export declare function clearPlan(): void;
 export declare const TIMEOUT_CODE: string;
 export declare const SEED_CODE: string;
+/** Every event reports under the name of the timer it is about */
+export declare const eventCode: (event: string) => string;
+/** An event command runs with no target of its own, so this checks one can still reach discord */
+export declare const EVENT_MESSAGE_CODE: string;
 export declare const reports: Array<{
     label: string;
     at: number;

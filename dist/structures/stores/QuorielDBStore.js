@@ -22,7 +22,7 @@ class QuorielDBStore {
             await this.db.closeDB([exports.QUORIEL_TYPE]);
     }
     async get(kind, name) {
-        // a missing record reads back as {}, so the id is what says it was really there
+        // a missing record reads back as {}
         const row = this.db.getRecord(exports.QUORIEL_TYPE, Timer_1.Timer.idOf(kind, name));
         return row?.id ? Timer_1.Timer.from(row) : null;
     }
@@ -55,7 +55,6 @@ class QuorielDBStore {
     }
 }
 exports.QuorielDBStore = QuorielDBStore;
-/** Kept out of the import graph so ForgeDB users never need @quoriel/db installed */
 function load() {
     try {
         return require("@quoriel/db");

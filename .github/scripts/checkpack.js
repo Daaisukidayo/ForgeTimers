@@ -15,7 +15,6 @@ const belongs = (path) =>
     ROOT_FILES.includes(path) ||
     (path.startsWith("dist/") && !path.startsWith("dist/__tests__/") && !path.startsWith("dist/@build/"))
 
-/** Every .ts under a source folder, as paths relative to it */
 function sourcesOf(folder) {
     const found = []
 
@@ -38,15 +37,17 @@ for (const entry of [main, types]) {
     if (!shipped.includes(entry)) problems.push(`the package does not ship ${entry}, which package.json points at`)
 }
 
-const missing = sourcesOf("src/native")
-    .map((path) => posix.join("dist/native", path.replace(/\.ts$/, ".js")))
-    .filter((path) => !shipped.includes(path))
+for (const folder of ["native", "events"]) {
+    const missing = sourcesOf(`src/${folder}`)
+        .map((path) => posix.join(`dist/${folder}`, path.replace(/\.ts$/, ".js")))
+        .filter((path) => !shipped.includes(path))
 
-if (missing.length) problems.push(`the package is missing ${missing.length} native function(s): ${missing.join(", ")}`)
+    if (missing.length) problems.push(`the package is missing ${missing.length} ${folder} file(s): ${missing.join(", ")}`)
+}
 
 if (problems.length) {
     for (const problem of problems) console.error(`FAIL ${problem}`)
     process.exit(1)
 }
 
-console.log(`ok  ${shipped.length} files, nothing stray, every native function`)
+console.log(`ok  ${shipped.length} files, nothing stray, every native function and event`)

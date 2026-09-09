@@ -2,10 +2,10 @@ import { ForgeClient, ForgeExtension, LogPriority, FunctionManager } from "@tryf
 import { config } from "dotenv"
 import { Events } from "discord.js"
 import { ForgeTimers } from "../../index"
-import { TimerStorage } from "../../structures"
+import { TimerEvent, TimerStorage } from "../../types"
 import { join } from "node:path"
 import { ForgeDB } from "@tryforge/forge.db"
-import { readPlan, runSmoke, SEED_CODE } from "./smoke"
+import { CHANNEL, eventCode, EVENT_MESSAGE_CODE, readPlan, runSmoke, SEED_CODE } from "./smoke"
 config()
 
 /** Set by the restart check. Without it this file is the playground it has always been */
@@ -17,9 +17,13 @@ const storage = (process.env.SMOKE_STORAGE as TimerStorage) ?? "forgedb"
 /** Set when this boot is the one that moves timers over */
 const migrateFrom = process.env.SMOKE_MIGRATE_FROM as TimerStorage | undefined
 
+/** The events the restart check watches. The playground keeps them off, as a bot would by default */
+const WATCHED = [TimerEvent.timerStart, TimerEvent.timerFire, TimerEvent.timerRestore]
+
 const timer = new ForgeTimers({
     storage,
     migrateFrom,
+    events: smoke ? WATCHED : undefined,
     timeoutConfig: {
         // maxOverdue: 5_000
     },
@@ -90,6 +94,11 @@ if (smoke) {
         type: Events.ClientReady,
         code: plan ? `$smokeReport[booted]` : SEED_CODE,
     })
+
+    for (const event of WATCHED) timer.commands.add({ type: event, code: eventCode(event) })
+
+    // one message from an event command is enough to know they can reach discord at all
+    if (CHANNEL) timer.commands.add({ type: TimerEvent.timerFire, code: EVENT_MESSAGE_CODE })
 
     client.once(Events.ClientReady, () => void runSmoke(plan))
 }

@@ -61,9 +61,19 @@ function registerMark() {
         unwrap: true,
         brackets: true,
         args: [{ name: "label", description: "What to record", rest: false, required: true, type: forgescript_1.ArgType.String }],
-        execute(_ctx, [label]) {
+        execute(ctx, [label]) {
             exports.marks.push(label);
             return this.success();
+        },
+    }));
+    // stands in for the user command that throws where nobody expected one
+    forgescript_1.FunctionManager.add(new forgescript_1.NativeFunction({
+        name: "$testBoom",
+        version: "1.0.0",
+        description: "Throws, for the test suite",
+        unwrap: true,
+        execute() {
+            throw new Error("the command blew up");
         },
     }));
 }
@@ -134,6 +144,7 @@ function attach(ext) {
         getExtension: () => ext,
         once: (_event, handler) => handlers.push(handler),
     };
+    harness.client.events = new forgescript_1.EventManager(harness.client);
     ext.init(harness.client);
     // after init, or the extension's own natives lose to the stock ones
     forgescript_1.FunctionManager.loadNative();

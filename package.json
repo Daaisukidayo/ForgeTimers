@@ -1,7 +1,7 @@
 {
   "name": "forge.timers",
-  "version": "1.2.0",
-  "description": "Persists $setTimeout/$setInterval timers to disk and restores them on restart.",
+  "version": "1.3.0",
+  "description": "Persists $setTimeout and $setInterval in ForgeDB or QuorielDB, restores them on restart, and exposes them through functions and events.",
   "main": "dist/index.js",
   "files": [
     "dist",
@@ -17,7 +17,7 @@
     "eslint": "eslint ./src --fix",
     "prettier": "prettier --write ./src/**/*",
     "tidy": "npm run eslint && npm run prettier && tsc",
-    "docgen": "tsc && typedoc src/index.ts && node dist/@build/docgen",
+    "docgen": "npm run tidy && typedoc src/index.ts && node dist/@build/docgen",
     "commit": "npm run docgen && node dist/@build/commit",
     "prepublishOnly": "rimraf dist && npm run build && node .github/scripts/checkpack.js"
   },

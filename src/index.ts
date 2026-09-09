@@ -1,40 +1,12 @@
-import { ForgeClient, ForgeExtension } from "@tryforge/forgescript"
-import { TimersManager } from "./managers"
-import { Database, TimerStorage } from "./structures"
+import { EventManager, ForgeClient, ForgeExtension } from "@tryforge/forgescript"
+import { EventEmitter } from "node:events"
+import { HANDLER, TimerCommandManager, TimersManager } from "./managers"
+import { Database } from "./structures"
 import { migrateTimers } from "./functions/migrate"
-import { IIntervalConfig, ITimeoutConfig } from "./types"
+import { IForgeTimersOptions, ITimerEvents } from "./types"
 import { Logger } from "./functions/logger"
 import { description, version } from "../package.json"
 import path from "path"
-
-export interface IForgeTimersOptions {
-    timeoutConfig?: ITimeoutConfig
-    intervalConfig?: IIntervalConfig
-
-    /**
-     * Delete timers whose guild this process can't see on startup. Off by default.
-     * That's usually an outage or a sibling shard. Only safe unsharded.
-     */
-    pruneUnknownGuilds?: boolean
-
-    /**
-     * Which extension keeps the timers: `"forgedb"` (default) or `"quorieldb"`.
-     */
-    storage?: TimerStorage
-
-    /**
-     * Move stored timers out of this backend and into {@link storage} on startup, once.
-     * Both extensions have to be loaded for that boot. Names already taken in the target
-     * are left alone.
-     */
-    migrateFrom?: TimerStorage
-
-    /**
-     * Copy on migration instead of moving. The source keeps its timers, which means the
-     * migration runs again on every boot until `migrateFrom` is removed.
-     */
-    keepSource?: boolean
-}
 
 export class ForgeTimers extends ForgeExtension {
     name = "ForgeTimers"
@@ -42,6 +14,10 @@ export class ForgeTimers extends ForgeExtension {
     version = version
 
     public timersManager!: TimersManager
+
+    public commands!: TimerCommandManager
+
+    public readonly emitter = new EventEmitter<ITimerEvents>()
 
     public ready!: Promise<boolean>
 
@@ -52,6 +28,13 @@ export class ForgeTimers extends ForgeExtension {
 
     public init(client: ForgeClient) {
         this.load(path.resolve(__dirname, "native"))
+        this.commands = new TimerCommandManager(client)
+
+        if (this.options.events?.length) {
+            EventManager.load(HANDLER, path.resolve(__dirname, "events"))
+            client.events.load(HANDLER, this.options.events)
+        }
+
         this.ready = this._open(client)
         this.timersManager = new TimersManager(client)
     }

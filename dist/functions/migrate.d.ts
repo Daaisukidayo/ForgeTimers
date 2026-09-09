@@ -1,5 +1,5 @@
 import { ForgeClient } from "@tryforge/forgescript";
-import { TimerStorage } from "../structures/Database";
+import { TimerStorage } from "../types";
 export interface IMigrationResult {
     moved: number;
     /** Names already taken in the target, left where they were */

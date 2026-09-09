@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.reports = exports.SEED_CODE = exports.TIMEOUT_CODE = exports.TOLERANCE = exports.CARRIED = exports.OVERDUE_DELAY = exports.INTERVAL_TICK = exports.TIMEOUT_DELAY = exports.CHANNEL = exports.OVERDUE_NAME = exports.INTERVAL_NAME = exports.TIMEOUT_NAME = exports.FAIL = exports.PASS = exports.SEEDED = void 0;
+exports.reports = exports.EVENT_MESSAGE_CODE = exports.eventCode = exports.SEED_CODE = exports.TIMEOUT_CODE = exports.TOLERANCE = exports.CARRIED = exports.OVERDUE_DELAY = exports.INTERVAL_TICK = exports.TIMEOUT_DELAY = exports.CHANNEL = exports.OVERDUE_NAME = exports.INTERVAL_NAME = exports.TIMEOUT_NAME = exports.FAIL = exports.PASS = exports.SEEDED = void 0;
 exports.readPlan = readPlan;
 exports.clearPlan = clearPlan;
 exports.report = report;
@@ -46,6 +46,12 @@ exports.SEED_CODE = `$let[carried;${exports.CARRIED}]` +
     `$setTimeout[$smokeReport[overdue:$get[carried]];${exports.OVERDUE_DELAY};${exports.OVERDUE_NAME}]` +
     `$setInterval[$smokeReport[interval];${exports.INTERVAL_TICK};${exports.INTERVAL_NAME}]` +
     `$smokeReport[seeded]`;
+/** Every event reports under the name of the timer it is about */
+const eventCode = (event) => `$smokeReport[event-${event}:$env[name]]`;
+exports.eventCode = eventCode;
+/** An event command runs with no target of its own, so this checks one can still reach discord */
+exports.EVENT_MESSAGE_CODE = `$if[$env[name]==${exports.TIMEOUT_NAME};` +
+    `$let[sent;$sendMessage[${exports.CHANNEL};ForgeTimers event check;true]]$smokeReport[event-message:$get[sent]]]`;
 exports.reports = [];
 function report(label) {
     exports.reports.push({ label, at: Date.now() });
@@ -77,6 +83,9 @@ async function seed() {
     const overdue = await structures_1.Database.get(structures_1.TimerKind.timeout, exports.OVERDUE_NAME);
     if (!overdue)
         throw new Error(`${exports.OVERDUE_NAME} was scheduled but never persisted`);
+    const announced = await until(() => seen(`event-timerStart:${exports.TIMEOUT_NAME}`), 5_000);
+    if (!announced)
+        throw new Error(`${exports.TIMEOUT_NAME} was scheduled, but timerStart never reached its command`);
     (0, node_fs_1.writeFileSync)(MARKER, JSON.stringify({ timeoutDueAt: row.fireAt, overdueDueAt: overdue.fireAt, seededAt: Date.now() }, null, 2), "utf8");
     console.log(`due at ${new Date(row.fireAt).toISOString()}, ${Math.round(row.timeLeft() / 1000)}s from now`);
     console.log(exports.SEEDED);
@@ -93,8 +102,11 @@ async function verify(plan) {
     const lateBy = late ? late.at - plan.overdueDueAt : null;
     const carried = late?.label.split(":")[1];
     const overdueRow = await structures_1.Database.get(structures_1.TimerKind.timeout, exports.OVERDUE_NAME);
+    const restoreEvent = seen(`event-timerRestore:${exports.TIMEOUT_NAME}`, bootedAt);
+    const fireEvent = seen(`event-timerFire:${exports.TIMEOUT_NAME}`, bootedAt);
     // a snowflake back from $sendMessage is discord saying it accepted the message
     const sent = fired?.label.split(":")[1];
+    const eventSent = seen("event-message", bootedAt)?.label.split(":")[1];
     const checks = [
         ["the timeout ran after the restart", !!fired],
         [`it ran on its original deadline (drift ${drift ?? "n/a"}ms)`, drift !== null && Math.abs(drift) <= exports.TOLERANCE],
@@ -103,9 +115,15 @@ async function verify(plan) {
         [`the timeout that came due while it was down ran (${lateBy ?? "n/a"}ms late)`, !!late],
         [`its variables came back with it (${carried ?? "nothing"})`, carried === exports.CARRIED],
         ["it was deleted too", overdueRow === null],
+        ["the restart reported the timer it picked up", !!restoreEvent],
+        ["the run was reported as well", !!fireEvent],
         ...(exports.CHANNEL
             ? [
                 [`its message reached discord (${sent ?? "nothing came back"})`, /^\d{17,20}$/.test(sent ?? "")],
+                [
+                    `the event command reached discord too (${eventSent ?? "nothing came back"})`,
+                    /^\d{17,20}$/.test(eventSent ?? ""),
+                ],
             ]
             : []),
     ];

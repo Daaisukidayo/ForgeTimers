@@ -2,7 +2,7 @@
 
 # ForgeTimers
 
-ForgeTimers is an extension that makes `$setTimeout` and `$setInterval` survive a restart. Timers are persisted when scheduled and re-armed automatically the next time your app starts.
+ForgeTimers is an extension that makes `$setTimeout` and `$setInterval` survive a restart. Timers are persisted in ForgeDB or QuorielDB when scheduled, re-armed automatically the next time your app starts, and can be read with functions or reacted to through events.
 
 <a href="https://github.com/Daaisukidayo/ForgeTimers/"><img src="https://img.shields.io/github/package-json/v/Daaisukidayo/ForgeTimers/main?label=forge.timers&color=5c16d4" alt="forge.timers"></a>
 <a href="https://github.com/tryforge/ForgeScript/"><img src="https://img.shields.io/github/package-json/v/tryforge/ForgeScript/main?label=@tryforge/forgescript&color=5c16d4" alt="@tryforge/forgescript"></a>
@@ -18,6 +18,7 @@ ForgeTimers is an extension that makes `$setTimeout` and `$setInterval` survive 
 2. [Configuration](#configuration)
 3. [Storage](#storage)
 4. [Reading timers](#reading-timers)
+5. [Events](#events)
 
 <h3 align="center">Installation</h3><hr>
 
@@ -77,19 +78,27 @@ The extension overrides `$setTimeout`, `$setInterval`, `$clearTimeout` and `$cle
 
 At the top level, `ForgeTimers` accepts:
 
-- **`storage`** — which extension keeps the timers: `"forgedb"` (default) or `"quorieldb"`. See [Storage](#storage).
-- **`pruneUnknownGuilds`** — whether timers belonging to a guild this process can't see are deleted on startup. Default `false`. An invisible guild is far more often a Discord outage or another process's shard than a kick, and the deletion can't be undone. Turn it on only on a single unsharded process, where a missing guild really does mean the bot was removed.
+| Option | Type | Default | What it does |
+|---|---|---|---|
+| **`storage`** | `"forgedb"` or `"quorieldb"` | `"forgedb"` | Which extension keeps the timers. See [Storage](#storage). |
+| **`migrateFrom`** | `"forgedb"` or `"quorieldb"` | — | Moves the stored timers out of that backend and into `storage`, once, on startup. See [Storage](#storage). |
+| **`keepSource`** | `boolean` | `false` | Copies on migration instead of moving, leaving the old backend's timers where they are. |
+| **`events`** | `TimerEvent[]` | — | Which timer events to listen to. See [Events](#events). |
+| **`timeoutConfig`** | `ITimeoutConfig` | `{}` | How restored timeouts behave. Below. |
+| **`intervalConfig`** | `IIntervalConfig` | `{}` | How restored intervals behave. Below. |
+| **`pruneUnknownGuilds`** | `boolean` | `false` | Deletes timers belonging to a guild this process can't see, on startup. |
+
+An invisible guild is far more often a Discord outage or another process's shard than a kick, and the deletion can't be undone. Turn `pruneUnknownGuilds` on only on a single unsharded process, where a missing guild really does mean the bot was removed.
 
 Startup only compiles what it restores. Channels, messages and users are fetched when a timer actually fires, so booting with thousands of stored timers costs nothing extra, and a timer due next month is never discarded over an outage happening today. A timeout that could not reach Discord keeps its record and is retried on the next boot.
 
-Both `timeoutConfig` and `intervalConfig` accept:
+`timeoutConfig` and `intervalConfig` accept:
 
-- **`persist`** — whether records are re-armed on startup. Default `true`. With `false`, timers are still written while the app runs, but the records are dropped on the next boot.
-- **`maxOverdue`** — how late (ms) a timer may be when the app comes back. Default: no limit.
-
-`intervalConfig` additionally accepts:
-
-- **`restoredTicksLimit`** — how many ticks missed during downtime to replay: `0` (default) replays none, `-1` replays all, `n` replays at most `n`.
+| Option | Kind | Type | Default | What it does |
+|---|---|---|---|---|
+| **`persist`** | both | `boolean` | `true` | Whether records are re-armed on startup. With `false`, timers are still written while the app runs, but the records are dropped on the next boot. |
+| **`maxOverdue`** | both | `number` (ms) | no limit | How late a timer may be when the app comes back. |
+| **`restoredTicksLimit`** | interval | `number` | `0` | How many ticks missed during downtime to replay: `0` none, `-1` all, `n` at most `n`. |
 
 > ⚠️ **Warning**\
 > `restoredTicksLimit: -1` on a 1-minute interval that was down for a day means 1440 executions on boot. Pair it with `maxOverdue` to bound the damage.
@@ -112,9 +121,14 @@ const timers = new ForgeTimers({
 })
 ```
 
-**`"forgedb"`** stores them through **ForgeDB** - sqlite, mongodb, mysql or postgres, whichever you set up. There's nothing extra to configure: set ForgeDB up as usual and timers follow. On sqlite that means a `timers.db` file next to ForgeDB's own database.
+| `storage` | Extension | Where the timers land | To install |
+|---|---|---|---|
+| **`"forgedb"`** | [ForgeDB](https://github.com/tryforge/ForgeDB) | Whatever it is connected to: sqlite, mongodb, mysql or postgres. | `npm i @tryforge/forge.db` |
+| **`"quorieldb"`** | [QuorielDB](https://github.com/quoriel/db) | LMDB, under a `timers` record type. | `npm i @quoriel/db` |
 
-**`"quorieldb"`** stores them through **QuorielDB**, in LMDB, under a `timers` record type inside QuorielDB's store folder - `database` unless you gave QuorielDB another `path`. The type is registered on startup and your `config.json` is left alone, so there's nothing to add by hand, and the timers can be read with QuorielDB's own functions:
+**ForgeDB** needs nothing extra: set it up as usual and the timers follow. On sqlite that means a `timers.db` file next to ForgeDB's own database.
+
+**QuorielDB** keeps them in its own store folder - `database`, unless you gave QuorielDB another `path`. The record type is registered on startup and your `config.json` is left alone, so there is nothing to add by hand, and the timers can be read with QuorielDB's own functions:
 
 ```js
 $getRecord[timers;timeout:reminder]
@@ -142,14 +156,71 @@ Variables are stored alongside the timer. Strings, numbers, booleans, arrays and
 
 <h3 align="center">Reading timers</h3><hr>
 
-Stored timers can be read back from scripts:
+Stored timers can be read back from commands:
 
-- **`$getTimer[kind;name;property?]`** - one timer. Without a property it returns the whole thing as JSON; with one it returns just that field. Available properties: `id`, `name`, `kind`, `code`, `duration`, `timestamp`, `fireAt`, `timeLeft`, `guildID`, `channelID`, `hostID`, `messageID`, `args`.
-- **`$getAllTimers[kind?]`** - every stored timer as JSON, optionally filtered to `timeout` or `interval`.
-- **`$wipeTimers`** - cancels every stored timer and clears them. Returns how many were running.
+| Function | Returns | What it does |
+|---|---|---|
+| **`$getTimer[kind;name;property?]`** | one field, or the timer as JSON | Reads one timer. Without a property you get the whole data. |
+| **`$getAllTimers[kind?]`** | JSON array | Every stored timer, optionally only the `timeout`s or the `interval`s. |
+| **`$wipeTimers`** | number | Cancels every running timer and clears the stored ones. Returns how many were running. |
 
-Example:
 ```js
 $getTimer[timeout;reminder;timeLeft]
 $getAllTimers[interval]
 ```
+
+<h4 align="center">Properties</h4>
+
+The third argument of `$getTimer`, and the names an [event](#events) reads with `$env`:
+
+| Property | Type | What it is |
+|---|---|---|
+| **`id`** | string | `kind:name`, unique across the database. |
+| **`name`** | string | The name the timer was scheduled under. Unique per kind. |
+| **`kind`** | `timeout` or `interval` | Which of the two it is. |
+| **`code`** | string | The ForgeScript the timer runs. |
+| **`duration`** | number (ms) | The delay for a timeout, the tick length for an interval. |
+| **`timestamp`** | number (unix ms) | When the timer was scheduled. |
+| **`fireAt`** | number (unix ms) | When it is due next. |
+| **`timeLeft`** | number (ms) | How long until then, from right now. Negative once it is overdue. |
+| **`guildID`** | snowflake | The guild it was scheduled in, empty when it belongs to none. |
+| **`channelID`** | snowflake | The channel it answers in, empty when it was scheduled outside one. |
+| **`hostID`** | snowflake | Who scheduled it. |
+| **`messageID`** | snowflake | The message it was scheduled from, if there was one. |
+| **`args`** | JSON array | The command arguments present when it was scheduled. |
+
+<h3 align="center">Events</h3><hr>
+
+A timer's own code says what it does. Events say what happened to it - useful for logging, for telling a channel that a reminder was lost, or for watching what a restart picked up.
+
+Name the ones you want, then write commands for them:
+
+```js
+const timers = new ForgeTimers({
+    events: ["timerFire", "timerDrop"]
+})
+
+const client = new ForgeClient({ extensions: [db, timers] })
+
+timers.commands.add({
+    type: "timerDrop",
+    code: `$sendMessage[$env[channelID];Lost the $env[kind] "$env[name]": $env[reason]]`
+})
+
+// or from a folder, one file per command
+timers.commands.load("events")
+```
+
+The events:
+
+| Event | When | Extra `$env` |
+|---|---|---|
+| **`timerStart`** | A timer was scheduled. | — |
+| **`timerFire`** | A timer's code ran: a timeout going off, or an interval ticking. | — |
+| **`timerCancel`** | A timer was cancelled by hand, with `$clearTimeout`, `$clearInterval` or `$wipeTimers`. | — |
+| **`timerRestore`** | A stored timer was picked back up after a restart. | `overdueBy` — how late it was, in ms. |
+| **`timerDrop`** | A stored timer was thrown away without running. | `reason` — why it was thrown away. |
+
+Every event reads its timer through `$env`, under the same names `$getTimer` uses. See [Properties](#properties).
+
+Events cost nothing until they are asked for: without `events`, nothing listens and nothing is built.

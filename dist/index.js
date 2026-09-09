@@ -19,6 +19,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ForgeTimers = void 0;
 const forgescript_1 = require("@tryforge/forgescript");
+const node_events_1 = require("node:events");
 const managers_1 = require("./managers");
 const structures_1 = require("./structures");
 const migrate_1 = require("./functions/migrate");
@@ -31,6 +32,8 @@ class ForgeTimers extends forgescript_1.ForgeExtension {
     description = package_json_1.description;
     version = package_json_1.version;
     timersManager;
+    commands;
+    emitter = new node_events_1.EventEmitter();
     ready;
     constructor(options = {}) {
         super();
@@ -39,6 +42,11 @@ class ForgeTimers extends forgescript_1.ForgeExtension {
     }
     init(client) {
         this.load(path_1.default.resolve(__dirname, "native"));
+        this.commands = new managers_1.TimerCommandManager(client);
+        if (this.options.events?.length) {
+            forgescript_1.EventManager.load(managers_1.HANDLER, path_1.default.resolve(__dirname, "events"));
+            client.events.load(managers_1.HANDLER, this.options.events);
+        }
         this.ready = this._open(client);
         this.timersManager = new managers_1.TimersManager(client);
     }

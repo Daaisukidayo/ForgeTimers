@@ -3,6 +3,7 @@ import {
     ArgType,
     Compiler,
     Context,
+    EventManager,
     FunctionManager,
     ForgeClient,
     Interpreter,
@@ -101,9 +102,22 @@ function registerMark() {
             unwrap: true,
             brackets: true,
             args: [{ name: "label", description: "What to record", rest: false, required: true, type: ArgType.String }],
-            execute(_ctx, [label]) {
+            execute(ctx, [label]) {
                 marks.push(label as string)
                 return this.success()
+            },
+        })
+    )
+
+    // stands in for the user command that throws where nobody expected one
+    FunctionManager.add(
+        new NativeFunction({
+            name: "$testBoom",
+            version: "1.0.0",
+            description: "Throws, for the test suite",
+            unwrap: true,
+            execute() {
+                throw new Error("the command blew up")
             },
         })
     )
@@ -178,6 +192,8 @@ export function attach(ext: ForgeTimers): ITestClient {
         getExtension: () => ext,
         once: (_event: string, handler: () => unknown) => handlers.push(handler),
     }
+
+    harness.client.events = new EventManager(harness.client as unknown as ForgeClient)
 
     ext.init(harness.client as unknown as ForgeClient)
 

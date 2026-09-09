@@ -1,0 +1,1 @@
+{"version":3,"file":"timerStart.js","sourceRoot":"","sources":["../../src/events/timerStart.ts"],"names":[],"mappings":";;AAAA,0CAA4D;AAC5D,oCAAqC;AAErC,kBAAe,IAAI,4BAAiB,CAAC;IACjC,IAAI,EAAE,kBAAU,CAAC,UAAU;IAC3B,WAAW,EAAE,qCAAqC;IAClD,OAAO,EAAE,OAAO;IAChB,QAAQ,CAAC,WAAW;QAChB,IAAA,sBAAW,EAAC,IAAI,EAAE,kBAAU,CAAC,UAAU,EAAE,WAAW,CAAC,CAAA;IACzD,CAAC;CACJ,CAAC,CAAA"}
