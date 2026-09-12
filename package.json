@@ -12,8 +12,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "tsc && node --test \"dist/__tests__/*.test.js\"",
-    "test:bot": "tsc && node dist/__tests__/client/client.js",
-    "test:smoke": "tsc && node dist/__tests__/client/smokeRun.js",
+    "client": "tsc && node dist/__tests__/client/client.js",
+    "smoke": "tsc && node dist/__tests__/client/smokeRun.js",
     "eslint": "eslint ./src --fix",
     "prettier": "prettier --write ./src/**/*",
     "tidy": "npm run eslint && npm run prettier && tsc",

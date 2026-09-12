@@ -98,10 +98,10 @@ Startup only compiles what it restores. Channels, messages and users are fetched
 |---|---|---|---|---|
 | **`persist`** | both | `boolean` | `true` | Whether records are re-armed on startup. With `false`, timers are still written while the app runs, but the records are dropped on the next boot. |
 | **`maxOverdue`** | both | `number` (ms) | no limit | How late a timer may be when the app comes back. |
-| **`restoredTicksLimit`** | interval | `number` | `0` | How many ticks missed during downtime to replay: `0` none, `-1` all, `n` at most `n`. |
+| **`restoredTicksLimit`** | interval | `number` | `0` | How many ticks missed during downtime to replay: `0` none, `Infinity` all, `n` at most `n`. |
 
 > ⚠️ **Warning**\
-> `restoredTicksLimit: -1` on a 1-minute interval that was down for a day means 1440 executions on boot. Pair it with `maxOverdue` to bound the damage.
+> `restoredTicksLimit: Infinity` on a 1-minute interval that was down for a day means 1440 executions on boot. Pair it with `maxOverdue` to bound the damage.
 
 `maxOverdue` is measured against the timer's *due time* - a timer due next week is never affected by a week of downtime. What happens past the limit differs by kind: an overdue **timeout** is discarded, while an **interval** only skips the stale tick and resumes.
 

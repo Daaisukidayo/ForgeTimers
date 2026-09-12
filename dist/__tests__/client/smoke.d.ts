@@ -11,10 +11,14 @@ export declare const TIMEOUT_NAME = "smoke-timeout";
 export declare const INTERVAL_NAME = "smoke-interval";
 export declare const OVERDUE_NAME = "smoke-overdue";
 export declare const CHANNEL: string | undefined;
-export declare const TIMEOUT_DELAY = "60s";
-export declare const INTERVAL_TICK = "20s";
+export declare const SPEED: number;
+/** How long the bot stays down between the two runs */
+export declare const DOWNTIME: number;
+/** Still ahead of the second boot whatever the speed, or the timer would come due before anyone looks */
+export declare const TIMEOUT_DELAY: string;
+export declare const INTERVAL_TICK: string;
 /** Shorter than the downtime, so this one comes due while the bot is off */
-export declare const OVERDUE_DELAY = "10s";
+export declare const OVERDUE_DELAY: string;
 /** Set before the timers are scheduled, and read back by one of them after the restart */
 export declare const CARRIED = "carried-across";
 export declare const TOLERANCE = 3000;

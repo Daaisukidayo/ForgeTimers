@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { Database, marks, persist, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./harness"
+import { Database, marks, persist, run, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./harness"
 import { snapshotVars } from "../functions/snapshotVars"
 import { IIntervalConfig, ITimeoutConfig } from "../types"
 
@@ -62,6 +62,15 @@ describe("restoring timeouts", () => {
 })
 
 describe("restoring intervals", () => {
+    it("drops stored intervals when persist is off", async () => {
+        configure({}, { persist: false })
+        await stored(TimerKind.interval, 10_000, 60_000)
+        await harness.ready()
+
+        assert.equal(await Database.get(TimerKind.interval, "n"), null)
+        assert.equal(harness.client.intervals.has("n"), false)
+    })
+
     it("replays nothing by default", async () => {
         await stored(TimerKind.interval, 10_000, -35_000)
         await harness.ready()
@@ -70,8 +79,8 @@ describe("restoring intervals", () => {
         assert.equal(harness.client.intervals.has("n"), true, "but the schedule still resumes")
     })
 
-    it("replays every missed tick at -1", async () => {
-        configure({}, { restoredTicksLimit: -1 })
+    it("replays every missed tick at Infinity", async () => {
+        configure({}, { restoredTicksLimit: Infinity })
         await stored(TimerKind.interval, 10_000, -35_000)
         await harness.ready()
 
@@ -96,7 +105,7 @@ describe("restoring intervals", () => {
     })
 
     it("skips a stale tick past maxOverdue and carries on", async () => {
-        configure({}, { maxOverdue: 1000, restoredTicksLimit: -1 })
+        configure({}, { maxOverdue: 1000, restoredTicksLimit: Infinity })
         await stored(TimerKind.interval, 60_000, -60_000)
 
         const restoredAt = Date.now()
@@ -107,6 +116,28 @@ describe("restoring intervals", () => {
 
         const row = await Database.get(TimerKind.interval, "n")
         assert.ok(row!.fireAt > restoredAt, "the schedule was moved forward")
+    })
+})
+
+describe("a name that is already live", () => {
+    it("is left to the timer holding it, row and all", async () => {
+        await run(harness, "$setTimeout[$testMark[live];3600000;n]")
+
+        // straight into the database, or scheduling would just overwrite the row under test
+        const stale = new Timer({
+            name: "n",
+            kind: TimerKind.timeout,
+            code: "$testMark[stored]",
+            duration: 1000,
+            channelID: "chan-1",
+        })
+        await persist(stale, Date.now() - 60_000)
+
+        await harness.ready()
+
+        assert.ok(!(await waitFor(() => marks.includes("stored"), 300)), "the stored code ran over a live timer")
+        assert.equal(harness.client.timeouts.has("n"), true, "the live timer was disarmed by the restore")
+        assert.ok(await Database.get(TimerKind.timeout, "n"), "and its row was thrown away")
     })
 })
 

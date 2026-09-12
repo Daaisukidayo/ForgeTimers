@@ -43,9 +43,7 @@ export interface IBaseTimerConfig {
 }
 export type ITimeoutConfig = IBaseTimerConfig;
 export interface IIntervalConfig extends IBaseTimerConfig {
-    /**
-     * Missed ticks to replay on startup: `0` none (default), `-1` all - careful — or at most `n`.
-     */
+    /** Ticks missed while down to run on startup: at most `n`, all at `Infinity`, none at `0` (default) or below. */
     restoredTicksLimit?: number;
 }
 export declare enum TimerEvent {

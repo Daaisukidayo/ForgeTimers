@@ -455,7 +455,7 @@ class TimersManager {
         const limit = this.timers.options.intervalConfig?.restoredTicksLimit;
         if (!limit)
             return;
-        const toRun = limit < 0 ? missed : Math.min(missed, limit);
+        const toRun = Math.min(missed, limit);
         if (toRun <= 0)
             return;
         logger_1.Logger.warn(missed > toRun

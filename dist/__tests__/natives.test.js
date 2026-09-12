@@ -123,6 +123,23 @@ let harness;
         strict_1.default.deepEqual(await manager.stop(harness_1.TimerKind.timeout, "neither"), [false, false]);
     });
 });
+(0, node_test_1.describe)("a name used by both kinds at once", () => {
+    (0, node_test_1.it)("cancels only the kind that was asked for", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[t];1h;n]$setInterval[$testMark[i];1h;n]");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$clearTimeout[n]"), "true");
+        strict_1.default.equal(harness.client.timeouts.has("n"), false);
+        strict_1.default.equal(harness.client.intervals.has("n"), true, "the interval went down with the timeout");
+        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), null);
+        strict_1.default.ok(await harness_1.Database.get(harness_1.TimerKind.interval, "n"), "the interval's row went with it");
+    });
+    (0, node_test_1.it)("wipes both", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[t];1h;n]$setInterval[$testMark[i];1h;n]");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$wipeTimers"), "2");
+        strict_1.default.equal(harness.client.timeouts.size, 0);
+        strict_1.default.equal(harness.client.intervals.size, 0);
+        strict_1.default.equal((await harness_1.Database.getAll()).length, 0);
+    });
+});
 (0, node_test_1.describe)("reading timers back", () => {
     (0, node_test_1.it)("returns a single property", async () => {
         await (0, harness_1.run)(harness, "$setTimeout[x;1h;n]");

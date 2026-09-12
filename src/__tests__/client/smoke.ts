@@ -4,11 +4,7 @@ import { Database, TimerKind } from "../../structures"
 import { config } from "dotenv"
 config()
 
-/**
- * The bot writes into a pipe, never a tty, so nothing can detect colour support for it.
- * NO_COLOR is the way out, for a log file or a CI that keeps raw output.
- */
-const paint = (codes: string) => (text: string) => (process.env.NO_COLOR ? text : `[${codes}m${text}[0m`)
+const paint = (codes: string) => (text: string) => (process.env.NO_COLOR ? text : `\u001b[${codes}m${text}\u001b[0m`)
 
 export const green = paint("32")
 export const red = paint("31")
@@ -26,11 +22,23 @@ export const INTERVAL_NAME = "smoke-interval"
 export const OVERDUE_NAME = "smoke-overdue"
 export const CHANNEL = process.env.SMOKE_CHANNEL
 
-export const TIMEOUT_DELAY = "60s"
-export const INTERVAL_TICK = "20s"
+export const SPEED = Math.max(1, Number(process.env.SMOKE_SPEED ?? 2))
+
+/** How long the two boots take before the deadline can land: a cold login, and discord throttling the second one */
+const BOOT_BUDGET = Number(process.env.SMOKE_BOOT_BUDGET ?? 25_000)
+
+/** How long the bot stays down between the two runs */
+export const DOWNTIME = Math.round(Number(process.env.SMOKE_DOWNTIME ?? 25_000) / SPEED)
+
+const seconds = (ms: number) => `${Math.max(1, Math.round(ms / 1000))}s`
+
+/** Still ahead of the second boot whatever the speed, or the timer would come due before anyone looks */
+export const TIMEOUT_DELAY = seconds(Math.max(60_000 / SPEED, DOWNTIME + BOOT_BUDGET))
+
+export const INTERVAL_TICK = seconds(20_000 / SPEED)
 
 /** Shorter than the downtime, so this one comes due while the bot is off */
-export const OVERDUE_DELAY = "10s"
+export const OVERDUE_DELAY = seconds(Math.min(10_000 / SPEED, DOWNTIME * 0.4))
 
 /** Set before the timers are scheduled, and read back by one of them after the restart */
 export const CARRIED = "carried-across"

@@ -1,11 +1,24 @@
 import { spawn } from "node:child_process"
 import { join } from "node:path"
-import { bold, clearPlan, cyan, FAIL, green, grey, PASS, red, SEEDED, yellow } from "./smoke"
+import {
+    bold,
+    clearPlan,
+    cyan,
+    DOWNTIME,
+    FAIL,
+    green,
+    grey,
+    INTERVAL_TICK,
+    OVERDUE_DELAY,
+    PASS,
+    red,
+    SEEDED,
+    SPEED,
+    TIMEOUT_DELAY,
+    yellow,
+} from "./smoke"
 
 const BOT = join(__dirname, "client.js")
-
-/** Long enough for the interval to miss a tick while the timeout is still pending */
-const DOWNTIME = Number(process.env.SMOKE_DOWNTIME ?? 25_000)
 
 const BOOT_TIMEOUT = 60_000
 const VERIFY_TIMEOUT = 180_000
@@ -45,8 +58,7 @@ function phase(env: Record<string, string>, label: string, sentinels: string[], 
         console.log("\n" + cyan(`=== ${label} ===`))
 
         const bot = spawn(process.execPath, [BOT], {
-            // chalk gives up on colour when it sees a pipe, and the bot only ever writes into one
-            env: { ...process.env, FORCE_COLOR: "1", SMOKE: "1", ...env },
+            env: { ...process.env, FORCE_COLOR: "1", SMOKE: "1", SMOKE_SPEED: String(SPEED), ...env },
             stdio: ["ignore", "pipe", "inherit"],
         })
 
@@ -132,13 +144,26 @@ async function check(scenario: IScenario) {
 
 async function main() {
     // one scenario when named, otherwise all of them, because each can break alone
-    const only = process.env.SMOKE_ONLY
-    const scenarios = only ? SCENARIOS.filter((s) => s.id === only) : SCENARIOS
+    const only = process.env.SMOKE_ONLY?.split(",")
+        .map((id) => id.trim())
+        .filter(Boolean)
+
+    const wanted = only?.length ? only : SCENARIOS.map((s) => s.id)
+    const scenarios = SCENARIOS.filter((s) => wanted.includes(s.id))
 
     if (!scenarios.length) {
-        console.error(red(`No scenario called "${only}". Pick one of: ${SCENARIOS.map((s) => s.id).join(", ")}`))
+        console.error(
+            red(`No scenario called "${wanted.join(", ")}". Pick from: ${SCENARIOS.map((s) => s.id).join(", ")}`)
+        )
         process.exit(1)
     }
+
+    console.log(
+        grey(
+            `clock x${SPEED}: ${TIMEOUT_DELAY} deadline, ${INTERVAL_TICK} tick, ${OVERDUE_DELAY} while down, ` +
+                `${Math.round(DOWNTIME / 1000)}s down, ${scenarios.length} of ${SCENARIOS.length} scenarios`
+        )
+    )
 
     const failed: string[] = []
 

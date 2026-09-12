@@ -141,13 +141,13 @@ Only <strong>named</strong> timers are persisted. <code>$setTimeout[...;1h]</cod
 <td>interval</td>
 <td><code>number</code></td>
 <td><code>0</code></td>
-<td>How many ticks missed during downtime to replay: <code>0</code> none, <code>-1</code> all, <code>n</code> at most <code>n</code>.</td>
+<td>How many ticks missed during downtime to replay: <code>0</code> none, <code>Infinity</code> all, <code>n</code> at most <code>n</code>.</td>
 </tr>
 </tbody>
 </table>
 <blockquote>
 <p>⚠️ <strong>Warning</strong><br>
-<code>restoredTicksLimit: -1</code> on a 1-minute interval that was down for a day means 1440 executions on boot. Pair it with <code>maxOverdue</code> to bound the damage.</p>
+<code>restoredTicksLimit: Infinity</code> on a 1-minute interval that was down for a day means 1440 executions on boot. Pair it with <code>maxOverdue</code> to bound the damage.</p>
 </blockquote>
 <p><code>maxOverdue</code> is measured against the timer's <em>due time</em> - a timer due next week is never affected by a week of downtime. What happens past the limit differs by kind: an overdue <strong>timeout</strong> is discarded, while an <strong>interval</strong> only skips the stale tick and resumes.</p>
 <p>There is no upper bound on a duration: waits longer than node's own ~24.8 day limit are re-armed in chunks. An interval that survives a restart resumes on the time left on its current tick rather than waiting a whole fresh one, so its schedule doesn't drift with each restart.</p>

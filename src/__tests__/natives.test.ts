@@ -157,6 +157,28 @@ describe("$clearTimeout and $clearInterval", () => {
     })
 })
 
+describe("a name used by both kinds at once", () => {
+    it("cancels only the kind that was asked for", async () => {
+        await run(harness, "$setTimeout[$testMark[t];1h;n]$setInterval[$testMark[i];1h;n]")
+        assert.equal(await run(harness, "$clearTimeout[n]"), "true")
+
+        assert.equal(harness.client.timeouts.has("n"), false)
+        assert.equal(harness.client.intervals.has("n"), true, "the interval went down with the timeout")
+
+        assert.equal(await Database.get(TimerKind.timeout, "n"), null)
+        assert.ok(await Database.get(TimerKind.interval, "n"), "the interval's row went with it")
+    })
+
+    it("wipes both", async () => {
+        await run(harness, "$setTimeout[$testMark[t];1h;n]$setInterval[$testMark[i];1h;n]")
+
+        assert.equal(await run(harness, "$wipeTimers"), "2")
+        assert.equal(harness.client.timeouts.size, 0)
+        assert.equal(harness.client.intervals.size, 0)
+        assert.equal((await Database.getAll()).length, 0)
+    })
+})
+
 describe("reading timers back", () => {
     it("returns a single property", async () => {
         await run(harness, "$setTimeout[x;1h;n]")

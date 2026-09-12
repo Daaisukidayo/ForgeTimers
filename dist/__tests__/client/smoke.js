@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.reports = exports.EVENT_MESSAGE_CODE = exports.eventCode = exports.SEED_CODE = exports.TIMEOUT_CODE = exports.TOLERANCE = exports.CARRIED = exports.OVERDUE_DELAY = exports.INTERVAL_TICK = exports.TIMEOUT_DELAY = exports.CHANNEL = exports.OVERDUE_NAME = exports.INTERVAL_NAME = exports.TIMEOUT_NAME = exports.FAIL = exports.PASS = exports.SEEDED = exports.bold = exports.grey = exports.cyan = exports.yellow = exports.red = exports.green = void 0;
+exports.reports = exports.EVENT_MESSAGE_CODE = exports.eventCode = exports.SEED_CODE = exports.TIMEOUT_CODE = exports.TOLERANCE = exports.CARRIED = exports.OVERDUE_DELAY = exports.INTERVAL_TICK = exports.TIMEOUT_DELAY = exports.DOWNTIME = exports.SPEED = exports.CHANNEL = exports.OVERDUE_NAME = exports.INTERVAL_NAME = exports.TIMEOUT_NAME = exports.FAIL = exports.PASS = exports.SEEDED = exports.bold = exports.grey = exports.cyan = exports.yellow = exports.red = exports.green = void 0;
 exports.readPlan = readPlan;
 exports.clearPlan = clearPlan;
 exports.report = report;
@@ -10,11 +10,7 @@ const node_path_1 = require("node:path");
 const structures_1 = require("../../structures");
 const dotenv_1 = require("dotenv");
 (0, dotenv_1.config)();
-/**
- * The bot writes into a pipe, never a tty, so nothing can detect colour support for it.
- * NO_COLOR is the way out, for a log file or a CI that keeps raw output.
- */
-const paint = (codes) => (text) => (process.env.NO_COLOR ? text : `[${codes}m${text}[0m`);
+const paint = (codes) => (text) => (process.env.NO_COLOR ? text : `\u001b[${codes}m${text}\u001b[0m`);
 exports.green = paint("32");
 exports.red = paint("31");
 exports.yellow = paint("33");
@@ -28,10 +24,17 @@ exports.TIMEOUT_NAME = "smoke-timeout";
 exports.INTERVAL_NAME = "smoke-interval";
 exports.OVERDUE_NAME = "smoke-overdue";
 exports.CHANNEL = process.env.SMOKE_CHANNEL;
-exports.TIMEOUT_DELAY = "60s";
-exports.INTERVAL_TICK = "20s";
+exports.SPEED = Math.max(1, Number(process.env.SMOKE_SPEED ?? 2));
+/** How long the two boots take before the deadline can land: a cold login, and discord throttling the second one */
+const BOOT_BUDGET = Number(process.env.SMOKE_BOOT_BUDGET ?? 25_000);
+/** How long the bot stays down between the two runs */
+exports.DOWNTIME = Math.round(Number(process.env.SMOKE_DOWNTIME ?? 25_000) / exports.SPEED);
+const seconds = (ms) => `${Math.max(1, Math.round(ms / 1000))}s`;
+/** Still ahead of the second boot whatever the speed, or the timer would come due before anyone looks */
+exports.TIMEOUT_DELAY = seconds(Math.max(60_000 / exports.SPEED, exports.DOWNTIME + BOOT_BUDGET));
+exports.INTERVAL_TICK = seconds(20_000 / exports.SPEED);
 /** Shorter than the downtime, so this one comes due while the bot is off */
-exports.OVERDUE_DELAY = "10s";
+exports.OVERDUE_DELAY = seconds(Math.min(10_000 / exports.SPEED, exports.DOWNTIME * 0.4));
 /** Set before the timers are scheduled, and read back by one of them after the restart */
 exports.CARRIED = "carried-across";
 exports.TOLERANCE = 3000;

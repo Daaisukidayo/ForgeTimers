@@ -14,6 +14,7 @@ export declare class ForgeTimers extends ForgeExtension {
     constructor(options?: IForgeTimersOptions);
     init(client: ForgeClient): void;
     private _open;
+    private _reviewOptions;
 }
 export * from "./managers";
 export * from "./structures";

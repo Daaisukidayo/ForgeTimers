@@ -29,7 +29,7 @@ const timer = new ForgeTimers({
     },
     intervalConfig: {
         // replaying missed ticks would blur what the check is measuring
-        restoredTicksLimit: smoke ? 0 : -1,
+        restoredTicksLimit: smoke ? 0 : Infinity,
         // maxOverdue: 30_000
     },
 })

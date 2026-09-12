@@ -50,14 +50,21 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
     });
 });
 (0, node_test_1.describe)("restoring intervals", () => {
+    (0, node_test_1.it)("drops stored intervals when persist is off", async () => {
+        configure({}, { persist: false });
+        await stored(harness_1.TimerKind.interval, 10_000, 60_000);
+        await harness.ready();
+        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.interval, "n"), null);
+        strict_1.default.equal(harness.client.intervals.has("n"), false);
+    });
     (0, node_test_1.it)("replays nothing by default", async () => {
         await stored(harness_1.TimerKind.interval, 10_000, -35_000);
         await harness.ready();
         strict_1.default.deepEqual(harness_1.marks, [], "restoredTicksLimit defaults to 0");
         strict_1.default.equal(harness.client.intervals.has("n"), true, "but the schedule still resumes");
     });
-    (0, node_test_1.it)("replays every missed tick at -1", async () => {
-        configure({}, { restoredTicksLimit: -1 });
+    (0, node_test_1.it)("replays every missed tick at Infinity", async () => {
+        configure({}, { restoredTicksLimit: Infinity });
         await stored(harness_1.TimerKind.interval, 10_000, -35_000);
         await harness.ready();
         strict_1.default.equal(harness_1.marks.length, 4, `expected 4 missed ticks, replayed ${harness_1.marks.length}`);
@@ -76,7 +83,7 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
         strict_1.default.ok(fired, "the tick was five seconds away, not 30s");
     });
     (0, node_test_1.it)("skips a stale tick past maxOverdue and carries on", async () => {
-        configure({}, { maxOverdue: 1000, restoredTicksLimit: -1 });
+        configure({}, { maxOverdue: 1000, restoredTicksLimit: Infinity });
         await stored(harness_1.TimerKind.interval, 60_000, -60_000);
         const restoredAt = Date.now();
         await harness.ready();
@@ -84,6 +91,24 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
         strict_1.default.equal(harness.client.intervals.has("n"), true);
         const row = await harness_1.Database.get(harness_1.TimerKind.interval, "n");
         strict_1.default.ok(row.fireAt > restoredAt, "the schedule was moved forward");
+    });
+});
+(0, node_test_1.describe)("a name that is already live", () => {
+    (0, node_test_1.it)("is left to the timer holding it, row and all", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[live];3600000;n]");
+        // straight into the database, or scheduling would just overwrite the row under test
+        const stale = new harness_1.Timer({
+            name: "n",
+            kind: harness_1.TimerKind.timeout,
+            code: "$testMark[stored]",
+            duration: 1000,
+            channelID: "chan-1",
+        });
+        await (0, harness_1.persist)(stale, Date.now() - 60_000);
+        await harness.ready();
+        strict_1.default.ok(!(await (0, harness_1.waitFor)(() => harness_1.marks.includes("stored"), 300)), "the stored code ran over a live timer");
+        strict_1.default.equal(harness.client.timeouts.has("n"), true, "the live timer was disarmed by the restore");
+        strict_1.default.ok(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), "and its row was thrown away");
     });
 });
 (0, node_test_1.describe)("the stored schema", () => {
