@@ -8,11 +8,7 @@ const node_test_1 = require("node:test");
 const harness_1 = require("./harness");
 const types_1 = require("../types");
 let harness;
-(0, node_test_1.before)(async () => (harness = await (0, harness_1.boot)()));
-(0, node_test_1.after)(async () => {
-    harness.disarm();
-    await harness.cleanup();
-});
+(0, harness_1.useHarness)((booted) => (harness = booted));
 (0, node_test_1.describe)("an extension that was not asked for events", () => {
     (0, node_test_1.it)("listens to none of them", () => {
         for (const event of Object.values(types_1.TimerEvent)) {

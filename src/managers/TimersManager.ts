@@ -1,14 +1,13 @@
 import { Compiler, ForgeClient, Interpreter, Sendable } from "@tryforge/forgescript"
-import { DiscordAPIError, GuildMember, User } from "discord.js"
+import { DiscordAPIError, Events, GuildMember, User } from "discord.js"
 import { Database, Timer, TimerContext, TimerKind } from "../structures"
 import { ForgeTimers } from ".."
 import { IBaseTimerConfig, TimerEvent } from "../types"
 import { rehydrateLocalFunctions, restoreVars } from "../functions/snapshotVars"
 import { setLongTimeout } from "../functions/schedule"
 import { Logger } from "../functions/logger"
-import { TimerProperties } from "../properties/timer"
+import { readProperties } from "../properties/timer"
 
-/** Shared by every per-kind restore handler */
 interface IRestoreTiming {
     config: IBaseTimerConfig
     /** How far past due the timer is, or 0 if it isn't yet. */
@@ -17,14 +16,12 @@ interface IRestoreTiming {
     late: boolean
 }
 
-/** `gone` means the target is really destroyed — drop it. Anything else waits for the next boot */
 interface IRestoreFailure {
     ok: false
     gone: boolean
     reason: string
 }
 
-/** A run blocked by an outage isn't a run — the record is only spent when `ran` or `gone` */
 interface IRunOutcome {
     ran: boolean
     gone: boolean
@@ -35,7 +32,16 @@ type Runner = () => Promise<IRunOutcome>
 type IRunnerResult = { ok: true; run: Runner } | IRestoreFailure
 type ITargetResult = { ok: true; obj: Sendable } | IRestoreFailure
 
-/** Really gone, as opposed to a rate limit or an outage — only this may cost a timer */
+interface IResolved {
+    obj: Sendable
+    host: User | null
+    hostMember: GuildMember | null
+}
+
+type IResolveResult = { ok: true; resolved: IResolved } | IRestoreFailure
+
+const TARGET_GONE = "its target is gone"
+
 function isGone(err: unknown) {
     return err instanceof DiscordAPIError && err.status === 404
 }
@@ -47,13 +53,14 @@ function reasonOf(err: unknown) {
 export class TimersManager {
     private readonly timers: ForgeTimers
 
-    /** Bumped on every arm and every clear, so a callback can tell it was superseded */
+    private claims = 0
+
     private readonly generations = new Map<string, number>()
 
     public constructor(private readonly client: ForgeClient) {
         this.timers = client.getExtension(ForgeTimers, true)
 
-        client.once("clientReady", async () => {
+        client.once(Events.ClientReady, async () => {
             if (!(await this.timers.ready)) return
             await this._restore()
         })
@@ -97,7 +104,7 @@ export class TimersManager {
         else clearTimeout(handle)
 
         map.delete(name)
-        this._claim(kind, name)
+        this._release(kind, name)
         return true
     }
 
@@ -109,14 +116,20 @@ export class TimersManager {
         return Database.delete(timer.kind, timer.name).catch(Logger.error)
     }
 
+    /** Reports how a one-shot ended, and spends its record only once the run is really over */
+    private async _settle(timer: Timer, outcome: IRunOutcome) {
+        if (outcome.ran) this._report(TimerEvent.timerFire, timer)
+        else if (outcome.gone) this._report(TimerEvent.timerDrop, timer, { reason: TARGET_GONE })
+
+        // the record waits for the next boot because an outage is not a run
+        if (outcome.ran || outcome.gone) await this._forget(timer)
+    }
+
     private _report(event: TimerEvent, timer: Timer, extra?: Record<string, unknown>) {
         const { emitter } = this.timers
         if (!emitter.listenerCount(event)) return
 
-        const environment: Record<string, unknown> = {}
-        for (const [property, read] of Object.entries(TimerProperties)) environment[property] = read(timer)
-
-        emitter.emit(event, { ...environment, ...extra })
+        emitter.emit(event, { ...readProperties(timer), ...extra })
     }
 
     private async _reportCancel(kind: TimerKind, name: string, wasLive: boolean) {
@@ -131,10 +144,18 @@ export class TimersManager {
     /** Takes the name over and hands back a check for whether it's still ours */
     private _claim(kind: TimerKind, name: string) {
         const key = Timer.idOf(kind, name)
-        const generation = (this.generations.get(key) ?? 0) + 1
+        const claim = ++this.claims
 
-        this.generations.set(key, generation)
-        return () => this.generations.get(key) === generation
+        this.generations.set(key, claim)
+        return () => this.generations.get(key) === claim
+    }
+
+    /**
+     * Forgets a name nothing is armed under any more. Whoever still holds its claim reads undefined
+     * and stands down, the same as being superseded.
+     */
+    private _release(kind: TimerKind, name: string) {
+        this.generations.delete(Timer.idOf(kind, name))
     }
 
     /**
@@ -239,25 +260,19 @@ export class TimersManager {
         this._schedule(timer.kind, timer.name, timer.timeLeft(), async () => {
             const outcome = await run()
 
-            // someone took the name while we ran, their handle and row aren't ours to drop
             if (!owns()) return
 
             this.client.timeouts.delete(timer.name)
+            this._release(timer.kind, timer.name)
 
-            if (outcome.ran) this._report(TimerEvent.timerFire, timer)
-            else if (outcome.gone) this._report(TimerEvent.timerDrop, timer, { reason: "its target is gone" })
-
-            // don't burn the record on an outage, retry it next boot
-            if (outcome.ran || outcome.gone) await this._forget(timer)
+            await this._settle(timer, outcome)
         })
     }
 
-    /** Self-arming rather than `setInterval`: handles ticks past node's cap, and resumes on time left */
     private _armInterval(timer: Timer, run: Runner, owns: () => boolean) {
         this._schedule(timer.kind, timer.name, timer.timeLeft(), async () => {
             if (!owns()) return
 
-            // bump first: a slow run mustn't drag the phase, a crash mustn't look pending
             await this._save(timer.advance())
 
             if (!owns()) {
@@ -272,8 +287,8 @@ export class TimersManager {
             if (outcome.ran) this._report(TimerEvent.timerFire, timer)
 
             if (outcome.gone && owns()) {
-                Logger.warn(`Stopping interval "${timer.name}": its target is gone`)
-                this._report(TimerEvent.timerDrop, timer, { reason: "its target is gone" })
+                Logger.warn(`Stopping interval "${timer.name}": ${TARGET_GONE}`)
+                this._report(TimerEvent.timerDrop, timer, { reason: TARGET_GONE })
                 this.clear(timer.kind, timer.name)
                 await this._forget(timer)
             }
@@ -300,34 +315,31 @@ export class TimersManager {
         const keywords = restoreVars(timer.vars?.keywords, version)
         const environment = restoreVars(timer.vars?.environment, version)
 
-        let resolved: { obj: Sendable; host: User | null; hostMember: GuildMember | null } | null = null
+        let resolved: IResolved | null = null
+        let command: ReturnType<TimersManager["_commandFor"]> = null
 
         const run: Runner = async () => {
             if (!resolved) {
-                const target = await this._rebuildTarget(timer)
-                if (!target.ok) {
+                const attempt = await this._resolve(timer)
+
+                if (!attempt.ok) {
                     Logger.warn(
-                        target.gone
-                            ? `${timer.kind} "${timer.name}" has nowhere to run: ${target.reason}`
-                            : `Could not run ${timer.kind} "${timer.name}" yet: ${target.reason}`
+                        attempt.gone
+                            ? `${timer.kind} "${timer.name}" has nowhere to run: ${attempt.reason}`
+                            : `Could not run ${timer.kind} "${timer.name}" yet: ${attempt.reason}`
                     )
-                    return { ran: false, gone: target.gone }
+                    return { ran: false, gone: attempt.gone }
                 }
 
-                const obj = target.obj
-                const hasAuthor = "author" in obj || "user" in obj
-                const host =
-                    timer.hostID && !hasAuthor ? await this.client.users.fetch(timer.hostID).catch(() => null) : null
+                resolved = attempt.resolved
 
-                const guild = timer.guildID ? this.client.guilds.cache.get(timer.guildID) : undefined
-                const hostMember = host && guild ? await guild.members.fetch(host.id).catch(() => null) : null
-
-                resolved = { obj, host, hostMember }
+                // the file a timer came from cannot move under it, so this is looked up with the target
+                command = this._commandFor(timer)
             }
 
             const ctx = new TimerContext({
                 client: this.client,
-                command: this._commandFor(timer),
+                command,
                 data: compiled,
                 obj: resolved.obj,
                 doNotSend: true,
@@ -355,13 +367,28 @@ export class TimersManager {
         if (!timer.path && !timer.commandName) return null
 
         const commands = this.client.commands?.toArray() ?? []
-        const found = commands.find(
-            (command) =>
-                (timer.path && command.data.path === timer.path) ||
-                (timer.commandName && command.data.name === timer.commandName)
+        return (
+            commands.find(
+                (command) =>
+                    (timer.path && command.data.path === timer.path) ||
+                    (timer.commandName && command.data.name === timer.commandName)
+            ) ?? null
         )
+    }
 
-        return found ?? null
+    /** Fetches everything a run needs from discord */
+    private async _resolve(timer: Timer): Promise<IResolveResult> {
+        const target = await this._rebuildTarget(timer)
+        if (!target.ok) return target
+
+        const obj = target.obj
+        const hasAuthor = "author" in obj || "user" in obj
+        const host = timer.hostID && !hasAuthor ? await this.client.users.fetch(timer.hostID).catch(() => null) : null
+
+        const guild = timer.guildID ? this.client.guilds.cache.get(timer.guildID) : undefined
+        const hostMember = host && guild ? await guild.members.fetch(host.id).catch(() => null) : null
+
+        return { ok: true, resolved: { obj, host, hostMember } }
     }
 
     private async _rebuildTarget(timer: Timer): Promise<ITargetResult> {
@@ -507,10 +534,8 @@ export class TimersManager {
 
             if (!owns()) return
 
-            if (outcome.ran) this._report(TimerEvent.timerFire, timer)
-            else if (outcome.gone) this._report(TimerEvent.timerDrop, timer, { reason: "its target is gone" })
-
-            if (outcome.ran || outcome.gone) await this._forget(timer)
+            this._release(timer.kind, timer.name)
+            await this._settle(timer, outcome)
         })
     }
 
@@ -530,12 +555,10 @@ export class TimersManager {
             return this._arm(timer, run)
         }
 
-        // still on schedule, _arm picks up the time left on this tick
         if (!timer.isOverdue()) return this._arm(timer, run)
 
         const missed = timer.missedTicks()
 
-        // arm inside the task, isLive would go true first and eat every replay
         dueNow.push(async () => {
             if (this.isLive(timer.kind, timer.name)) return
             await this._replay(timer, missed, run)

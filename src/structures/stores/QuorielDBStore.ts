@@ -1,6 +1,6 @@
 import type * as QuorielDB from "@quoriel/db"
 import { ITimer, Timer, TimerKind } from "../Timer"
-import { IDeleteResult, ITimerFindOptions, ITimerStore } from "./ITimerStore"
+import { IDeleteResult, ITimerStore } from "./ITimerStore"
 
 /** The QuorielDB record type timers live under */
 export const QUORIEL_TYPE = "timers"
@@ -38,15 +38,6 @@ export class QuorielDBStore implements ITimerStore {
 
     public async getAllOf(kind: TimerKind) {
         return (await this.getAll()).filter((timer) => timer.kind === kind)
-    }
-
-    public async find(data?: ITimerFindOptions, amount?: number) {
-        const wanted = Object.entries(data ?? {})
-        const found = (await this.getAll()).filter((timer) =>
-            wanted.every(([key, value]) => timer[key as keyof Timer] === value)
-        )
-
-        return amount === undefined ? found : found.slice(0, amount)
     }
 
     public async set(timer: Timer) {

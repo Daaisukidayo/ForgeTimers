@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process"
 import { join } from "node:path"
-import { clearPlan, FAIL, PASS, SEEDED } from "./smoke"
+import { bold, clearPlan, cyan, FAIL, green, grey, PASS, red, SEEDED, yellow } from "./smoke"
 
 const BOT = join(__dirname, "client.js")
 
@@ -42,10 +42,11 @@ interface IPhase {
  */
 function phase(env: Record<string, string>, label: string, sentinels: string[], timeout: number, killOnMatch: boolean) {
     return new Promise<IPhase>((resolve) => {
-        console.log(`\n=== ${label} ===`)
+        console.log("\n" + cyan(`=== ${label} ===`))
 
         const bot = spawn(process.execPath, [BOT], {
-            env: { ...process.env, SMOKE: "1", ...env },
+            // chalk gives up on colour when it sees a pipe, and the bot only ever writes into one
+            env: { ...process.env, FORCE_COLOR: "1", SMOKE: "1", ...env },
             stdio: ["ignore", "pipe", "inherit"],
         })
 
@@ -61,7 +62,7 @@ function phase(env: Record<string, string>, label: string, sentinels: string[], 
         }
 
         const guard = setTimeout(() => {
-            console.error(`${label} timed out after ${Math.round(timeout / 1000)}s`)
+            console.error(yellow(`${label} timed out after ${Math.round(timeout / 1000)}s`))
             stop()
         }, timeout)
 
@@ -86,7 +87,7 @@ function phase(env: Record<string, string>, label: string, sentinels: string[], 
 
         bot.on("exit", (code) => done(code))
         bot.on("error", (err) => {
-            console.error(err)
+            console.error(red(String(err instanceof Error ? err.stack : err)))
             done(1)
         })
     })
@@ -100,18 +101,18 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
  * @returns Whether the timers came back intact.
  */
 async function check(scenario: IScenario) {
-    console.log(`\n########## ${scenario.label} ##########`)
+    console.log("\n" + bold(cyan(`########## ${scenario.label} ##########`)))
 
     // a run that died mid-way would otherwise send us straight to verifying
     clearPlan()
 
     const first = await phase({ SMOKE_STORAGE: scenario.seed }, "run 1 of 2 - scheduling", [SEEDED], BOOT_TIMEOUT, true)
     if (first.matched !== SEEDED) {
-        console.error("\nthe bot never scheduled its timers, so there is nothing to restart into")
+        console.error("\n" + red("the bot never scheduled its timers, so there is nothing to restart into"))
         return false
     }
 
-    console.log(`\nstopped. staying down ${Math.round(DOWNTIME / 1000)}s`)
+    console.log("\n" + grey(`stopped. staying down ${Math.round(DOWNTIME / 1000)}s`))
     await wait(DOWNTIME)
 
     // a differing backend means the second boot has to migrate before it can restore
@@ -123,7 +124,9 @@ async function check(scenario: IScenario) {
     const second = await phase(env, label, [PASS, FAIL], VERIFY_TIMEOUT, false)
     if (second.matched === PASS) return true
 
-    console.error(second.matched === FAIL ? "\nthe restart check failed" : "\nthe bot stopped before it could report")
+    console.error(
+        "\n" + red(second.matched === FAIL ? "the restart check failed" : "the bot stopped before it could report")
+    )
     return false
 }
 
@@ -133,7 +136,7 @@ async function main() {
     const scenarios = only ? SCENARIOS.filter((s) => s.id === only) : SCENARIOS
 
     if (!scenarios.length) {
-        console.error(`No scenario called "${only}". Pick one of: ${SCENARIOS.map((s) => s.id).join(", ")}`)
+        console.error(red(`No scenario called "${only}". Pick one of: ${SCENARIOS.map((s) => s.id).join(", ")}`))
         process.exit(1)
     }
 
@@ -145,7 +148,7 @@ async function main() {
 
     console.log("")
     for (const scenario of scenarios) {
-        console.log(`${failed.includes(scenario.label) ? "FAIL" : "ok  "} ${scenario.label}`)
+        console.log(`${failed.includes(scenario.label) ? red("FAIL") : green("ok  ")} ${scenario.label}`)
     }
 
     process.exit(failed.length ? 1 : 0)

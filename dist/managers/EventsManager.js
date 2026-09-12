@@ -28,4 +28,4 @@ function runCommands(client, event, environment) {
         }).catch(logger_1.Logger.error);
     }
 }
-//# sourceMappingURL=events.js.map
+//# sourceMappingURL=EventsManager.js.map

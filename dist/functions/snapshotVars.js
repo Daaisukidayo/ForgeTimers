@@ -17,6 +17,61 @@ function isPlainObject(value) {
     return proto === Object.prototype || proto === null;
 }
 const FAILED = { ok: false };
+/** Nothing nested to encode, for the codecs that hold a single value */
+const NO_WALK = () => FAILED;
+/** Both halves of every tagged type live together, so adding one is a single entry */
+const CODECS = {
+    bigint: {
+        test: (value) => typeof value === "bigint",
+        encode: (value) => ({ ok: true, value: value.toString() }),
+        decode: (payload) => BigInt(payload),
+    },
+    date: {
+        test: (value) => value instanceof Date,
+        encode: (value) => (Number.isFinite(value.getTime()) ? { ok: true, value: value.toISOString() } : FAILED),
+        decode: (payload) => new Date(payload),
+    },
+    regexp: {
+        test: (value) => value instanceof RegExp,
+        encode: (value) => ({ ok: true, value: { source: value.source, flags: value.flags } }),
+        decode: (payload) => {
+            const { source, flags } = payload;
+            return new RegExp(source, flags);
+        },
+    },
+    map: {
+        test: (value) => value instanceof Map,
+        encode: (value, walk) => {
+            const entries = [];
+            for (const [key, item] of value) {
+                const encodedKey = walk(key, "<key>");
+                const encodedItem = walk(item, "<value>");
+                if (encodedKey.ok && encodedItem.ok)
+                    entries.push([encodedKey.value, encodedItem.value]);
+            }
+            return { ok: true, value: entries };
+        },
+        decode: (payload) => new Map(payload.map(([key, item]) => [decode(key), decode(item)])),
+    },
+    set: {
+        test: (value) => value instanceof Set,
+        encode: (value, walk) => {
+            const items = [];
+            for (const item of value) {
+                const encoded = walk(item, "<item>");
+                if (encoded.ok)
+                    items.push(encoded.value);
+            }
+            return { ok: true, value: items };
+        },
+        decode: (payload) => new Set(payload.map(decode)),
+    },
+};
+/** Runs one codec and wraps what it produced in its envelope */
+function applyCodec(tag, value, walk) {
+    const payload = CODECS[tag].encode(value, walk);
+    return payload.ok ? { ok: true, value: { [TAG]: tag, value: payload.value } } : FAILED;
+}
 /**
  * Rewrites a value into something JSON can hold without losing its type.
  * @param value The value to encode.
@@ -35,7 +90,7 @@ function encode(value, seen, path, dropped) {
             dropped.push(`${path} (${String(value)})`);
             return FAILED;
         case "bigint":
-            return { ok: true, value: { [TAG]: "bigint", value: value.toString() } };
+            return applyCodec("bigint", value, NO_WALK);
         case "object":
             break;
         default:
@@ -49,33 +104,9 @@ function encode(value, seen, path, dropped) {
     }
     seen.add(obj);
     try {
-        if (obj instanceof Date) {
-            return Number.isFinite(obj.getTime())
-                ? { ok: true, value: { [TAG]: "date", value: obj.toISOString() } }
-                : FAILED;
-        }
-        if (obj instanceof RegExp) {
-            return { ok: true, value: { [TAG]: "regexp", value: { source: obj.source, flags: obj.flags } } };
-        }
-        if (obj instanceof Map) {
-            const entries = [];
-            for (const [key, item] of obj) {
-                const encodedKey = encode(key, seen, `${path}<key>`, dropped);
-                const encodedItem = encode(item, seen, `${path}<value>`, dropped);
-                if (encodedKey.ok && encodedItem.ok)
-                    entries.push([encodedKey.value, encodedItem.value]);
-            }
-            return { ok: true, value: { [TAG]: "map", value: entries } };
-        }
-        if (obj instanceof Set) {
-            const items = [];
-            for (const item of obj) {
-                const encoded = encode(item, seen, `${path}<item>`, dropped);
-                if (encoded.ok)
-                    items.push(encoded.value);
-            }
-            return { ok: true, value: { [TAG]: "set", value: items } };
-        }
+        const tag = Object.keys(CODECS).find((name) => CODECS[name].test(obj));
+        if (tag)
+            return applyCodec(tag, obj, (item, suffix) => encode(item, seen, `${path}${suffix}`, dropped));
         if (Array.isArray(obj)) {
             // null instead of dropping, otherwise every index after it shifts
             return {
@@ -116,25 +147,11 @@ function decode(value) {
     if (!isTagged(obj))
         return decodeEntries(obj);
     const inner = obj.value;
-    switch (obj[TAG]) {
-        case "raw":
-            // the payload's tag key is user data, not ours
-            return decodeEntries(inner);
-        case "bigint":
-            return BigInt(inner);
-        case "date":
-            return new Date(inner);
-        case "regexp": {
-            const { source, flags } = inner;
-            return new RegExp(source, flags);
-        }
-        case "map":
-            return new Map(inner.map(([k, v]) => [decode(k), decode(v)]));
-        case "set":
-            return new Set(inner.map(decode));
-        default:
-            return undefined;
-    }
+    // the payload's tag key is user data, not ours
+    if (obj[TAG] === "raw")
+        return decodeEntries(inner);
+    // an unknown tag was written by a build that knows more than this one
+    return CODECS[obj[TAG]]?.decode(inner);
 }
 const decodeEntries = (obj) => Object.fromEntries(Object.entries(obj).map(([key, item]) => [key, decode(item)]));
 function encodeRecord(source) {

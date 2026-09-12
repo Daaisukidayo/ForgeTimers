@@ -9,10 +9,13 @@ import {
     Interpreter,
     NativeFunction,
 } from "@tryforge/forgescript"
+import { DiscordAPIError } from "discord.js"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { after, before, beforeEach } from "node:test"
 import { ForgeTimers } from ".."
+import { TimerStorage } from "../types"
 import { Database, Timer, TimerKind } from "../structures"
 
 export class ConfigSeed extends DataBaseManager {
@@ -60,7 +63,7 @@ export interface ITestClient {
     users: Map<string, unknown>
     members: Map<string, unknown>
 
-    fetches: { channels: number }
+    fetches: { channels: number; commands: number }
     commands: unknown[]
 
     channelError?: unknown
@@ -70,6 +73,8 @@ export interface ITestClient {
     ready(): Promise<void>
 
     disarm(): void
+
+    reset(): void
 }
 
 let seeded = false
@@ -135,13 +140,18 @@ globalThis.setTimeout = ((handler: never, ms?: number, ...rest: never[]) => {
 
 /** Wraps an extension in a client it can believe in, without any of the setup boot() does */
 export function attach(ext: ForgeTimers): ITestClient {
+    const booted = structuredClone({
+        timeoutConfig: ext.options.timeoutConfig,
+        intervalConfig: ext.options.intervalConfig,
+        pruneUnknownGuilds: ext.options.pruneUnknownGuilds,
+    })
     const channels = new Map<string, unknown>()
     const users = new Map<string, unknown>()
     const members = new Map<string, unknown>()
     const guilds = new Set<string>()
     const handlers: Array<() => unknown> = []
 
-    const fetches = { channels: 0 }
+    const fetches = { channels: 0, commands: 0 }
 
     const harness: ITestClient = {
         ext,
@@ -160,6 +170,24 @@ export function attach(ext: ForgeTimers): ITestClient {
                 for (const handle of map.values()) clearTimeout(handle)
                 map.clear()
             }
+        },
+        reset() {
+            harness.disarm()
+            marks.length = 0
+
+            harness.channelError = undefined
+            harness.commands = []
+            harness.client.shard = null
+            harness.fetches.channels = 0
+            harness.fetches.commands = 0
+
+            guilds.clear()
+            users.clear()
+            members.clear()
+
+            ext.options.timeoutConfig = structuredClone(booted.timeoutConfig)
+            ext.options.intervalConfig = structuredClone(booted.intervalConfig)
+            ext.options.pruneUnknownGuilds = booted.pruneUnknownGuilds
         },
     }
 
@@ -188,7 +216,12 @@ export function attach(ext: ForgeTimers): ITestClient {
                 return channels.get(id) ?? null
             },
         },
-        commands: { toArray: () => harness.commands },
+        commands: {
+            toArray: () => {
+                fetches.commands++
+                return harness.commands
+            },
+        },
         getExtension: () => ext,
         once: (_event: string, handler: () => unknown) => handlers.push(handler),
     }
@@ -256,6 +289,90 @@ export async function run(harness: ITestClient, code: string, target: IFakeTarge
             redirectErrorsToConsole: true,
         })
     )
+}
+
+export type TestHarness = Awaited<ReturnType<typeof boot>>
+
+export interface IHarnessSetup {
+    options?: ConstructorParameters<typeof ForgeTimers>[0]
+
+    target?: TestDatabase
+
+    setup?(harness: TestHarness): void | Promise<void>
+}
+
+export function useHarness(assign: (harness: TestHarness) => void, config: IHarnessSetup = {}) {
+    let harness: TestHarness
+
+    before(async () => {
+        harness = await boot(config.options ?? {}, config.target ?? "sqlite")
+        harness.channels.set("chan-1", { id: "chan-1" })
+
+        assign(harness)
+        await config.setup?.(harness)
+    })
+
+    beforeEach(async () => {
+        restoreDatabase()
+        harness.reset()
+        await Database.wipe()
+    })
+
+    after(async () => {
+        restoreDatabase()
+        harness.disarm()
+        await harness.cleanup()
+    })
+}
+
+export function useTempHome(prefix: string) {
+    const home = process.cwd()
+    const folder = mkdtempSync(join(tmpdir(), `${prefix}-`))
+
+    before(() => {
+        process.chdir(folder)
+        new ConfigSeed({ type: "better-sqlite3", folder: "forgedb" } as never)
+    })
+
+    after(async () => {
+        await Database.destroy().catch(() => undefined)
+        process.chdir(home)
+        rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+    })
+
+    return folder
+}
+
+export const marked = (mark: string) => waitFor(() => marks.includes(mark))
+
+export const apiError = (status: number, code: number, message: string) =>
+    new DiscordAPIError({ message, code } as never, code, status, "GET", "/channels/x", {})
+
+export async function contentsOf(storage: TimerStorage) {
+    const store = await Database.open(storage)
+    const all = await store.getAll()
+    await store.destroy()
+
+    return all.map((timer) => timer.id).sort()
+}
+
+type DatabaseCall = "set" | "delete" | "get" | "getAll" | "wipe"
+
+const patched = new Map<DatabaseCall, unknown>()
+
+export function patchDatabase<K extends DatabaseCall>(
+    call: K,
+    make: (real: (typeof Database)[K]) => (typeof Database)[K]
+) {
+    const real = Database[call]
+    if (!patched.has(call)) patched.set(call, real)
+
+    Database[call] = make(real.bind(Database) as (typeof Database)[K])
+}
+
+export function restoreDatabase() {
+    for (const [call, real] of patched) Database[call] = real as never
+    patched.clear()
 }
 
 export async function persist(timer: Timer, fireAt = timer.fireAt) {

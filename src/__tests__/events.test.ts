@@ -1,53 +1,39 @@
 import assert from "node:assert/strict"
 import { after, before, beforeEach, describe, it } from "node:test"
-import { DiscordAPIError } from "discord.js"
-import { boot, Database, marks, persist, run, Timer, TimerKind, waitFor } from "./harness"
+import {
+    apiError,
+    Database,
+    marked,
+    marks,
+    persist,
+    run,
+    TestHarness,
+    Timer,
+    TimerKind,
+    useHarness,
+    waitFor,
+} from "./harness"
 import { TimerEvent } from "../types"
 
-let harness: Awaited<ReturnType<typeof boot>>
+let harness: TestHarness
 
-before(async () => {
-    harness = await boot({
-        events: [
-            TimerEvent.timerStart,
-            TimerEvent.timerFire,
-            TimerEvent.timerCancel,
-            TimerEvent.timerRestore,
-            TimerEvent.timerDrop,
-        ],
-        timeoutConfig: { maxOverdue: 1000 },
-    })
+useHarness((booted) => (harness = booted), {
+    options: { events: Object.values(TimerEvent), timeoutConfig: { maxOverdue: 1000 } },
+    setup: (booted) => {
+        for (const event of Object.values(TimerEvent)) {
+            booted.ext.commands.add({ type: event, code: `$testMark[${event}:$env[name]:$env[kind]]` })
+        }
 
-    harness.channels.set("chan-1", { id: "chan-1" })
-
-    for (const event of Object.values(TimerEvent)) {
-        harness.ext.commands.add({ type: event, code: `$testMark[${event}:$env[name]:$env[kind]]` })
-    }
-
-    harness.ext.commands.add({ type: TimerEvent.timerDrop, code: "$testMark[why:$env[reason]]" })
+        booted.ext.commands.add({ type: TimerEvent.timerDrop, code: "$testMark[why:$env[reason]]" })
+    },
 })
-
-beforeEach(async () => {
-    harness.disarm()
-    await Database.wipe()
-    marks.length = 0
-})
-
-after(async () => {
-    harness.disarm()
-    await harness.cleanup()
-})
-
-const marked = (mark: string) => waitFor(() => marks.includes(mark))
 
 const QUIET = 250
 
-const apiError = (status: number, code: number, message: string) =>
-    new DiscordAPIError({ message, code } as never, code, status, "GET", "/channels/x", {})
-
 const droppedBecause = () => marks.find((mark) => mark.startsWith("why:"))?.slice("why:".length)
 
-const stored = (name: string, code = "$testMark[ran]", extra: Record<string, unknown> = {}) =>
+/** A row already past due when the restore reaches it, but inside the maxOverdue this suite boots with */
+const overdue = (name: string, code = "$testMark[ran]", extra: Record<string, unknown> = {}) =>
     persist(
         new Timer({ name, kind: TimerKind.timeout, code, duration: 3_600_000, channelID: "chan-1", ...extra }),
         Date.now() - 100
@@ -176,7 +162,7 @@ describe("the reason a timer was dropped", () => {
     })
 
     it("says the target is gone", async () => {
-        await stored("orphaned")
+        await overdue("orphaned")
         harness.channelError = apiError(404, 10003, "Unknown Channel")
 
         await harness.ready()
@@ -186,7 +172,7 @@ describe("the reason a timer was dropped", () => {
     })
 
     it("says the code no longer compiles", async () => {
-        await stored("broken", "$if[")
+        await overdue("broken", "$if[")
 
         await harness.ready()
 
@@ -196,7 +182,7 @@ describe("the reason a timer was dropped", () => {
 
     it("says persist is off", async () => {
         harness.ext.options.timeoutConfig = { persist: false }
-        await stored("unwanted")
+        await overdue("unwanted")
 
         await harness.ready()
 
@@ -206,7 +192,7 @@ describe("the reason a timer was dropped", () => {
 
     it("says the guild is out of sight", async () => {
         harness.ext.options.pruneUnknownGuilds = true
-        await stored("elsewhere", "$testMark[ran]", { guildID: "g-gone" })
+        await overdue("elsewhere", "$testMark[ran]", { guildID: "g-gone" })
 
         await harness.ready()
 

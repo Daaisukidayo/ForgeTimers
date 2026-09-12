@@ -4,6 +4,19 @@ import { Database, TimerKind } from "../../structures"
 import { config } from "dotenv"
 config()
 
+/**
+ * The bot writes into a pipe, never a tty, so nothing can detect colour support for it.
+ * NO_COLOR is the way out, for a log file or a CI that keeps raw output.
+ */
+const paint = (codes: string) => (text: string) => (process.env.NO_COLOR ? text : `[${codes}m${text}[0m`)
+
+export const green = paint("32")
+export const red = paint("31")
+export const yellow = paint("33")
+export const cyan = paint("36")
+export const grey = paint("90")
+export const bold = paint("1")
+
 export const SEEDED = "SMOKE:SEEDED"
 export const PASS = "SMOKE:PASS"
 export const FAIL = "SMOKE:FAIL"
@@ -84,8 +97,8 @@ export async function runSmoke(plan: ISmokePlan | null) {
         if (plan) await verify(plan)
         else await seed()
     } catch (err) {
-        console.error(err)
-        console.log(FAIL)
+        console.error(red(String(err instanceof Error ? err.stack : err)))
+        console.log(red(FAIL))
         process.exit(1)
     }
 }
@@ -113,15 +126,32 @@ async function seed() {
         "utf8"
     )
 
-    console.log(`due at ${new Date(row.fireAt).toISOString()}, ${Math.round(row.timeLeft() / 1000)}s from now`)
-    console.log(SEEDED)
+    console.log(grey(`due at ${new Date(row.fireAt).toISOString()}, ${Math.round(row.timeLeft() / 1000)}s from now`))
+    console.log(cyan(SEEDED))
+}
+
+/**
+ * A restored interval starts a whole fresh tick rather than the remainder, so its first tick can land
+ * after the timeout's deadline - a slow login on either boot is enough. Waiting on the row it wrote
+ * keeps the check about whether it ticks at all, not about how long discord took to connect.
+ */
+async function waitForTheBeat() {
+    if (seen("interval", bootedAt)) return
+
+    const beat = await Database.get(TimerKind.interval, INTERVAL_NAME)
+    const untilTick = (beat?.fireAt ?? 0) - Date.now()
+    if (untilTick <= 0) return
+
+    console.log(grey(`waiting ${Math.round(untilTick / 1000)}s more for the interval's first tick`))
+    await wait(untilTick + TOLERANCE)
 }
 
 async function verify(plan: ISmokePlan) {
     const left = plan.timeoutDueAt - Date.now()
-    console.log(`waiting ${Math.round(left / 1000)}s for the deadline set before the restart`)
+    console.log(grey(`waiting ${Math.round(left / 1000)}s for the deadline set before the restart`))
 
     await wait(left + TOLERANCE + 1000)
+    await waitForTheBeat()
 
     const fired = seen("timeout", bootedAt)
     const drift = fired ? fired.at - plan.timeoutDueAt : null
@@ -161,7 +191,7 @@ async function verify(plan: ISmokePlan) {
             : []),
     ] as const
 
-    for (const [what, ok] of checks) console.log(`${ok ? "ok  " : "FAIL"} ${what}`)
+    for (const [what, ok] of checks) console.log(`${ok ? green("ok  ") : red("FAIL")} ${what}`)
 
     clearPlan()
     await Database.delete(TimerKind.timeout, TIMEOUT_NAME).catch(() => undefined)
@@ -169,7 +199,7 @@ async function verify(plan: ISmokePlan) {
     await Database.delete(TimerKind.interval, INTERVAL_NAME).catch(() => undefined)
 
     const passed = checks.every(([, ok]) => ok)
-    console.log(passed ? PASS : FAIL)
+    console.log(passed ? green(PASS) : red(FAIL))
     process.exit(passed ? 0 : 1)
 }
 

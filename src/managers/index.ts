@@ -1,2 +1,2 @@
 export * from "./TimersManager"
-export * from "./events"
+export * from "./EventsManager"

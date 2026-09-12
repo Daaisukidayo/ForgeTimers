@@ -1,3 +1,3 @@
 export * from "./TimersManager";
-export * from "./events";
+export * from "./EventsManager";
 //# sourceMappingURL=index.d.ts.map

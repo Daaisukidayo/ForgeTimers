@@ -3,7 +3,7 @@ import { Timer, TimerKind } from "../structures";
 export declare class TimersManager {
     private readonly client;
     private readonly timers;
-    /** Bumped on every arm and every clear, so a callback can tell it was superseded */
+    private claims;
     private readonly generations;
     constructor(client: ForgeClient);
     /**
@@ -20,10 +20,17 @@ export declare class TimersManager {
     clear(kind: TimerKind, name: string): boolean;
     private _save;
     private _forget;
+    /** Reports how a one-shot ended, and spends its record only once the run is really over */
+    private _settle;
     private _report;
     private _reportCancel;
     /** Takes the name over and hands back a check for whether it's still ours */
     private _claim;
+    /**
+     * Forgets a name nothing is armed under any more. Whoever still holds its claim reads undefined
+     * and stands down, the same as being superseded.
+     */
+    private _release;
     /**
      * Cancels a running timer and deletes it from the database.
      * @param kind The kind of the timer.
@@ -52,7 +59,6 @@ export declare class TimersManager {
     private _schedule;
     private _arm;
     private _armTimeout;
-    /** Self-arming rather than `setInterval`: handles ticks past node's cap, and resumes on time left */
     private _armInterval;
     /**
      * Compiles now, fetches later. Boot stays free of requests, and a distant timer isn't
@@ -65,6 +71,8 @@ export declare class TimersManager {
      * @param timer The timer to look up.
      */
     private _commandFor;
+    /** Fetches everything a run needs from discord */
+    private _resolve;
     private _rebuildTarget;
     /** What we can't see is left alone — it's a sibling shard or an outage. Deleting is opt-in */
     private _owns;

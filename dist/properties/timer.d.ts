@@ -14,5 +14,6 @@ export declare enum TimerProperty {
     messageID = "messageID",
     args = "args"
 }
+export declare function readProperties(timer: Timer): Record<string, unknown>;
 export declare const TimerProperties: Record<TimerProperty, (timer: Timer) => unknown>;
 //# sourceMappingURL=timer.d.ts.map

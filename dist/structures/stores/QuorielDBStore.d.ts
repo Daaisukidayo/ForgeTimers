@@ -1,5 +1,5 @@
 import { Timer, TimerKind } from "../Timer";
-import { IDeleteResult, ITimerFindOptions, ITimerStore } from "./ITimerStore";
+import { IDeleteResult, ITimerStore } from "./ITimerStore";
 /** The QuorielDB record type timers live under */
 export declare const QUORIEL_TYPE = "timers";
 /** Keeps timers in QuorielDB's LMDB store, under its own record type */
@@ -10,7 +10,6 @@ export declare class QuorielDBStore implements ITimerStore {
     get(kind: TimerKind, name: string): Promise<Timer | null>;
     getAll(): Promise<Timer[]>;
     getAllOf(kind: TimerKind): Promise<Timer[]>;
-    find(data?: ITimerFindOptions, amount?: number): Promise<Timer[]>;
     set(timer: Timer): Promise<void>;
     delete(kind: TimerKind, name: string): Promise<IDeleteResult>;
     wipe(): Promise<void>;

@@ -1,16 +1,11 @@
 import assert from "node:assert/strict"
-import { after, before, describe, it } from "node:test"
-import { boot, marks, run, waitFor } from "./harness"
+import { describe, it } from "node:test"
+import { marks, run, TestHarness, useHarness, waitFor } from "./harness"
 import { TimerEvent } from "../types"
 
-let harness: Awaited<ReturnType<typeof boot>>
+let harness: TestHarness
 
-before(async () => (harness = await boot()))
-
-after(async () => {
-    harness.disarm()
-    await harness.cleanup()
-})
+useHarness((booted) => (harness = booted))
 
 describe("an extension that was not asked for events", () => {
     it("listens to none of them", () => {

@@ -32,11 +32,6 @@ class QuorielDBStore {
     async getAllOf(kind) {
         return (await this.getAll()).filter((timer) => timer.kind === kind);
     }
-    async find(data, amount) {
-        const wanted = Object.entries(data ?? {});
-        const found = (await this.getAll()).filter((timer) => wanted.every(([key, value]) => timer[key] === value));
-        return amount === undefined ? found : found.slice(0, amount);
-    }
     async set(timer) {
         // lmdb keeps the object as it is
         await this.db.putRecord(exports.QUORIEL_TYPE, timer.id, { ...timer });

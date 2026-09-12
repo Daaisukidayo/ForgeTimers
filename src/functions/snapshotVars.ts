@@ -35,6 +35,79 @@ type Encoded = { ok: true; value: unknown } | { ok: false }
 
 const FAILED: Encoded = { ok: false }
 
+/** Encodes a nested value, tracking where it sat for the dropped-variable log */
+type Walk = (value: unknown, suffix: string) => Encoded
+
+/** Nothing nested to encode, for the codecs that hold a single value */
+const NO_WALK: Walk = () => FAILED
+
+interface ICodec {
+    /** Recognises the values this codec owns */
+    test(value: unknown): boolean
+    /** What to store under the tag, or FAILED when the value cannot be held */
+    encode(value: never, walk: Walk): Encoded
+    /** Rebuilds the value from what was stored */
+    decode(payload: unknown): unknown
+}
+
+/** Both halves of every tagged type live together, so adding one is a single entry */
+const CODECS: Record<string, ICodec> = {
+    bigint: {
+        test: (value) => typeof value === "bigint",
+        encode: (value: bigint) => ({ ok: true, value: value.toString() }),
+        decode: (payload) => BigInt(payload as string),
+    },
+    date: {
+        test: (value) => value instanceof Date,
+        encode: (value: Date) => (Number.isFinite(value.getTime()) ? { ok: true, value: value.toISOString() } : FAILED),
+        decode: (payload) => new Date(payload as string),
+    },
+    regexp: {
+        test: (value) => value instanceof RegExp,
+        encode: (value: RegExp) => ({ ok: true, value: { source: value.source, flags: value.flags } }),
+        decode: (payload) => {
+            const { source, flags } = payload as { source: string; flags: string }
+            return new RegExp(source, flags)
+        },
+    },
+    map: {
+        test: (value) => value instanceof Map,
+        encode: (value: Map<unknown, unknown>, walk) => {
+            const entries: unknown[] = []
+
+            for (const [key, item] of value) {
+                const encodedKey = walk(key, "<key>")
+                const encodedItem = walk(item, "<value>")
+                if (encodedKey.ok && encodedItem.ok) entries.push([encodedKey.value, encodedItem.value])
+            }
+
+            return { ok: true, value: entries }
+        },
+        decode: (payload) =>
+            new Map((payload as [unknown, unknown][]).map(([key, item]) => [decode(key), decode(item)])),
+    },
+    set: {
+        test: (value) => value instanceof Set,
+        encode: (value: Set<unknown>, walk) => {
+            const items: unknown[] = []
+
+            for (const item of value) {
+                const encoded = walk(item, "<item>")
+                if (encoded.ok) items.push(encoded.value)
+            }
+
+            return { ok: true, value: items }
+        },
+        decode: (payload) => new Set((payload as unknown[]).map(decode)),
+    },
+}
+
+/** Runs one codec and wraps what it produced in its envelope */
+function applyCodec(tag: string, value: unknown, walk: Walk): Encoded {
+    const payload = CODECS[tag].encode(value as never, walk)
+    return payload.ok ? { ok: true, value: { [TAG]: tag, value: payload.value } } : FAILED
+}
+
 /**
  * Rewrites a value into something JSON can hold without losing its type.
  * @param value The value to encode.
@@ -52,7 +125,7 @@ function encode(value: unknown, seen: WeakSet<object>, path: string, dropped: st
             dropped.push(`${path} (${String(value)})`)
             return FAILED
         case "bigint":
-            return { ok: true, value: { [TAG]: "bigint", value: value.toString() } }
+            return applyCodec("bigint", value, NO_WALK)
         case "object":
             break
         default:
@@ -68,34 +141,8 @@ function encode(value: unknown, seen: WeakSet<object>, path: string, dropped: st
     seen.add(obj)
 
     try {
-        if (obj instanceof Date) {
-            return Number.isFinite(obj.getTime())
-                ? { ok: true, value: { [TAG]: "date", value: obj.toISOString() } }
-                : FAILED
-        }
-
-        if (obj instanceof RegExp) {
-            return { ok: true, value: { [TAG]: "regexp", value: { source: obj.source, flags: obj.flags } } }
-        }
-
-        if (obj instanceof Map) {
-            const entries: unknown[] = []
-            for (const [key, item] of obj) {
-                const encodedKey = encode(key, seen, `${path}<key>`, dropped)
-                const encodedItem = encode(item, seen, `${path}<value>`, dropped)
-                if (encodedKey.ok && encodedItem.ok) entries.push([encodedKey.value, encodedItem.value])
-            }
-            return { ok: true, value: { [TAG]: "map", value: entries } }
-        }
-
-        if (obj instanceof Set) {
-            const items: unknown[] = []
-            for (const item of obj) {
-                const encoded = encode(item, seen, `${path}<item>`, dropped)
-                if (encoded.ok) items.push(encoded.value)
-            }
-            return { ok: true, value: { [TAG]: "set", value: items } }
-        }
+        const tag = Object.keys(CODECS).find((name) => CODECS[name].test(obj))
+        if (tag) return applyCodec(tag, obj, (item, suffix) => encode(item, seen, `${path}${suffix}`, dropped))
 
         if (Array.isArray(obj)) {
             // null instead of dropping, otherwise every index after it shifts
@@ -140,25 +187,11 @@ function decode(value: unknown): unknown {
 
     const inner = obj.value
 
-    switch (obj[TAG]) {
-        case "raw":
-            // the payload's tag key is user data, not ours
-            return decodeEntries(inner as Record<string, unknown>)
-        case "bigint":
-            return BigInt(inner as string)
-        case "date":
-            return new Date(inner as string)
-        case "regexp": {
-            const { source, flags } = inner as { source: string; flags: string }
-            return new RegExp(source, flags)
-        }
-        case "map":
-            return new Map((inner as [unknown, unknown][]).map(([k, v]) => [decode(k), decode(v)]))
-        case "set":
-            return new Set((inner as unknown[]).map(decode))
-        default:
-            return undefined
-    }
+    // the payload's tag key is user data, not ours
+    if (obj[TAG] === "raw") return decodeEntries(inner as Record<string, unknown>)
+
+    // an unknown tag was written by a build that knows more than this one
+    return CODECS[obj[TAG]]?.decode(inner)
 }
 
 const decodeEntries = (obj: Record<string, unknown>) =>

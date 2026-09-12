@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.reports = exports.EVENT_MESSAGE_CODE = exports.eventCode = exports.SEED_CODE = exports.TIMEOUT_CODE = exports.TOLERANCE = exports.CARRIED = exports.OVERDUE_DELAY = exports.INTERVAL_TICK = exports.TIMEOUT_DELAY = exports.CHANNEL = exports.OVERDUE_NAME = exports.INTERVAL_NAME = exports.TIMEOUT_NAME = exports.FAIL = exports.PASS = exports.SEEDED = void 0;
+exports.reports = exports.EVENT_MESSAGE_CODE = exports.eventCode = exports.SEED_CODE = exports.TIMEOUT_CODE = exports.TOLERANCE = exports.CARRIED = exports.OVERDUE_DELAY = exports.INTERVAL_TICK = exports.TIMEOUT_DELAY = exports.CHANNEL = exports.OVERDUE_NAME = exports.INTERVAL_NAME = exports.TIMEOUT_NAME = exports.FAIL = exports.PASS = exports.SEEDED = exports.bold = exports.grey = exports.cyan = exports.yellow = exports.red = exports.green = void 0;
 exports.readPlan = readPlan;
 exports.clearPlan = clearPlan;
 exports.report = report;
@@ -10,6 +10,17 @@ const node_path_1 = require("node:path");
 const structures_1 = require("../../structures");
 const dotenv_1 = require("dotenv");
 (0, dotenv_1.config)();
+/**
+ * The bot writes into a pipe, never a tty, so nothing can detect colour support for it.
+ * NO_COLOR is the way out, for a log file or a CI that keeps raw output.
+ */
+const paint = (codes) => (text) => (process.env.NO_COLOR ? text : `[${codes}m${text}[0m`);
+exports.green = paint("32");
+exports.red = paint("31");
+exports.yellow = paint("33");
+exports.cyan = paint("36");
+exports.grey = paint("90");
+exports.bold = paint("1");
 exports.SEEDED = "SMOKE:SEEDED";
 exports.PASS = "SMOKE:PASS";
 exports.FAIL = "SMOKE:FAIL";
@@ -68,8 +79,8 @@ async function runSmoke(plan) {
             await seed();
     }
     catch (err) {
-        console.error(err);
-        console.log(exports.FAIL);
+        console.error((0, exports.red)(String(err instanceof Error ? err.stack : err)));
+        console.log((0, exports.red)(exports.FAIL));
         process.exit(1);
     }
 }
@@ -87,13 +98,29 @@ async function seed() {
     if (!announced)
         throw new Error(`${exports.TIMEOUT_NAME} was scheduled, but timerStart never reached its command`);
     (0, node_fs_1.writeFileSync)(MARKER, JSON.stringify({ timeoutDueAt: row.fireAt, overdueDueAt: overdue.fireAt, seededAt: Date.now() }, null, 2), "utf8");
-    console.log(`due at ${new Date(row.fireAt).toISOString()}, ${Math.round(row.timeLeft() / 1000)}s from now`);
-    console.log(exports.SEEDED);
+    console.log((0, exports.grey)(`due at ${new Date(row.fireAt).toISOString()}, ${Math.round(row.timeLeft() / 1000)}s from now`));
+    console.log((0, exports.cyan)(exports.SEEDED));
+}
+/**
+ * A restored interval starts a whole fresh tick rather than the remainder, so its first tick can land
+ * after the timeout's deadline - a slow login on either boot is enough. Waiting on the row it wrote
+ * keeps the check about whether it ticks at all, not about how long discord took to connect.
+ */
+async function waitForTheBeat() {
+    if (seen("interval", bootedAt))
+        return;
+    const beat = await structures_1.Database.get(structures_1.TimerKind.interval, exports.INTERVAL_NAME);
+    const untilTick = (beat?.fireAt ?? 0) - Date.now();
+    if (untilTick <= 0)
+        return;
+    console.log((0, exports.grey)(`waiting ${Math.round(untilTick / 1000)}s more for the interval's first tick`));
+    await wait(untilTick + exports.TOLERANCE);
 }
 async function verify(plan) {
     const left = plan.timeoutDueAt - Date.now();
-    console.log(`waiting ${Math.round(left / 1000)}s for the deadline set before the restart`);
+    console.log((0, exports.grey)(`waiting ${Math.round(left / 1000)}s for the deadline set before the restart`));
     await wait(left + exports.TOLERANCE + 1000);
+    await waitForTheBeat();
     const fired = seen("timeout", bootedAt);
     const drift = fired ? fired.at - plan.timeoutDueAt : null;
     const ticked = seen("interval", bootedAt);
@@ -128,13 +155,13 @@ async function verify(plan) {
             : []),
     ];
     for (const [what, ok] of checks)
-        console.log(`${ok ? "ok  " : "FAIL"} ${what}`);
+        console.log(`${ok ? (0, exports.green)("ok  ") : (0, exports.red)("FAIL")} ${what}`);
     clearPlan();
     await structures_1.Database.delete(structures_1.TimerKind.timeout, exports.TIMEOUT_NAME).catch(() => undefined);
     await structures_1.Database.delete(structures_1.TimerKind.timeout, exports.OVERDUE_NAME).catch(() => undefined);
     await structures_1.Database.delete(structures_1.TimerKind.interval, exports.INTERVAL_NAME).catch(() => undefined);
     const passed = checks.every(([, ok]) => ok);
-    console.log(passed ? exports.PASS : exports.FAIL);
+    console.log(passed ? (0, exports.green)(exports.PASS) : (0, exports.red)(exports.FAIL));
     process.exit(passed ? 0 : 1);
 }
 async function until(condition, timeout) {

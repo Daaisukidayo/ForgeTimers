@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TimerProperties = exports.TimerProperty = void 0;
+exports.readProperties = readProperties;
 var TimerProperty;
 (function (TimerProperty) {
     TimerProperty["id"] = "id";
@@ -17,6 +18,12 @@ var TimerProperty;
     TimerProperty["messageID"] = "messageID";
     TimerProperty["args"] = "args";
 })(TimerProperty || (exports.TimerProperty = TimerProperty = {}));
+function readProperties(timer) {
+    const out = {};
+    for (const [property, read] of Object.entries(exports.TimerProperties))
+        out[property] = read(timer);
+    return out;
+}
 exports.TimerProperties = {
     [TimerProperty.id]: (t) => t.id,
     [TimerProperty.name]: (t) => t.name,

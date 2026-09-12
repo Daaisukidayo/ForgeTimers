@@ -8,4 +8,4 @@ export declare class TimerEventHandler extends BaseEventHandler<ITimerEvents, Ti
     register(client: ForgeClient): void;
 }
 export declare function runCommands(client: ForgeClient, event: TimerEvent, environment: Record<string, unknown>): void;
-//# sourceMappingURL=events.d.ts.map
+//# sourceMappingURL=EventsManager.d.ts.map

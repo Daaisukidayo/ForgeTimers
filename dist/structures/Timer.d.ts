@@ -157,10 +157,6 @@ export declare class Timer implements ITimer {
      * Steps whole ticks into the future, keeping the phase — a slow run shifts by ticks, not by itself.
      */
     advance(): this;
-    /**
-     * Clones this timer.
-     */
-    clone(): this;
 }
 export declare class MongoTimer extends Timer {
     /**

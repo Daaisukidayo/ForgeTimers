@@ -1,31 +1,20 @@
 import assert from "node:assert/strict"
-import { after, before, beforeEach, describe, it } from "node:test"
-import { boot, Database, marks, run, TimerKind, waitFor } from "./harness"
+import { describe, it } from "node:test"
+import { Database, marked, marks, run, TestHarness, TimerKind, useHarness, waitFor } from "./harness"
 import { TimerEvent } from "../types"
 
-let harness: Awaited<ReturnType<typeof boot>>
+const WATCHED = [TimerEvent.timerStart, TimerEvent.timerFire, TimerEvent.timerCancel]
 
-before(async () => {
-    harness = await boot({ events: [TimerEvent.timerStart, TimerEvent.timerFire, TimerEvent.timerCancel] })
-    harness.channels.set("chan-1", { id: "chan-1" })
+let harness: TestHarness
 
-    for (const event of [TimerEvent.timerStart, TimerEvent.timerFire, TimerEvent.timerCancel]) {
-        harness.ext.commands.add({ type: event, code: `$testMark[${event}-reached]$testBoom` })
-    }
+useHarness((booted) => (harness = booted), {
+    options: { events: WATCHED },
+    setup: (booted) => {
+        for (const event of WATCHED) {
+            booted.ext.commands.add({ type: event, code: `$testMark[${event}-reached]$testBoom` })
+        }
+    },
 })
-
-beforeEach(async () => {
-    harness.disarm()
-    await Database.wipe()
-    marks.length = 0
-})
-
-after(async () => {
-    harness.disarm()
-    await harness.cleanup()
-})
-
-const marked = (mark: string) => waitFor(() => marks.includes(mark))
 
 describe("an event command that throws", () => {
     it("still lets the timer be scheduled and stored", async () => {

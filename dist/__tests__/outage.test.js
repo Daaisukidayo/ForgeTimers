@@ -7,36 +7,14 @@ const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
 const harness_1 = require("./harness");
 let harness;
-(0, node_test_1.before)(async () => {
-    harness = await (0, harness_1.boot)();
-    harness.channels.set("chan-1", { id: "chan-1" });
-});
-(0, node_test_1.beforeEach)(async () => {
-    repair();
-    harness.disarm();
-    await harness_1.Database.wipe();
-    harness_1.marks.length = 0;
-});
-(0, node_test_1.after)(async () => {
-    repair();
-    harness.disarm();
-    await harness.cleanup();
-});
-const originals = new Map();
+(0, harness_1.useHarness)((booted) => (harness = booted));
 /** Takes a call away the way a connection dropped after startup would */
 function breaks(...calls) {
     for (const call of calls) {
-        if (!originals.has(call))
-            originals.set(call, harness_1.Database[call]);
-        harness_1.Database[call] = (async () => {
+        (0, harness_1.patchDatabase)(call, () => async () => {
             throw new Error(`the database went away (${call})`);
         });
     }
-}
-function repair() {
-    for (const [call, original] of originals)
-        harness_1.Database[call] = original;
-    originals.clear();
 }
 const timer = (name, kind = harness_1.TimerKind.timeout, duration = 50) => new harness_1.Timer({ name, kind, code: `$testMark[${name}]`, duration, channelID: "chan-1" });
 (0, node_test_1.describe)("a database that fails after startup", () => {
@@ -83,7 +61,6 @@ const timer = (name, kind = harness_1.TimerKind.timeout, duration = 50) => new h
         await harness.ready();
         strict_1.default.deepEqual(harness_1.marks, [], "a timer was restored out of a read that failed");
         strict_1.default.equal(harness.client.timeouts.size, 0);
-        repair();
         strict_1.default.ok(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), "the record was dropped over a failed read");
     });
 });

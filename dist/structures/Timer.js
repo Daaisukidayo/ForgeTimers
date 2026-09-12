@@ -157,12 +157,6 @@ class Timer {
         this.fireAt += ticks * this.duration;
         return this;
     }
-    /**
-     * Clones this timer.
-     */
-    clone() {
-        return Object.assign(Object.create(Object.getPrototypeOf(this)), this);
-    }
 }
 exports.Timer = Timer;
 class MongoTimer extends Timer {

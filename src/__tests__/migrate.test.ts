@@ -1,31 +1,15 @@
 import assert from "node:assert/strict"
-import { mkdtempSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { after, before, beforeEach, describe, it } from "node:test"
+import { beforeEach, describe, it } from "node:test"
 import { ForgeClient } from "@tryforge/forgescript"
-import { ConfigSeed, Database, Timer, TimerKind } from "./harness"
+import { contentsOf, Database, Timer, TimerKind, useTempHome } from "./harness"
 import { migrateTimers, TimerStorage } from ".."
 
-const home = process.cwd()
-const folder = mkdtempSync(join(tmpdir(), "forgetimers-migrate-"))
+useTempHome("forgetimers-migrate")
 
 const clientWith = (...extensions: string[]) =>
     ({ options: { extensions: extensions.map((name) => ({ name })) } }) as unknown as ForgeClient
 
 const both = clientWith("forge.db", "QuorielDB")
-
-before(() => {
-    // quoriel hangs its store off the working directory, forge.db off its configured folder
-    process.chdir(folder)
-    new ConfigSeed({ type: "better-sqlite3", folder: "forgedb" } as never)
-})
-
-after(async () => {
-    await Database.destroy().catch(() => undefined)
-    process.chdir(home)
-    rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
-})
 
 beforeEach(async () => {
     for (const storage of ["forgedb", "quorieldb"] as TimerStorage[]) {
@@ -43,15 +27,6 @@ async function seed(from: TimerStorage, to: TimerStorage, timers: Timer[]) {
     for (const t of timers) await Database.set(t)
 
     await Database.use(to)
-}
-
-/** Reads a backend without leaving it in charge */
-async function contentsOf(storage: TimerStorage) {
-    const store = await Database.open(storage)
-    const all = await store.getAll()
-    await store.destroy()
-
-    return all.map((t) => t.id).sort()
 }
 
 describe("moving timers between backends", () => {

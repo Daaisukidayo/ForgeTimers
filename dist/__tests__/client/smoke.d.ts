@@ -1,3 +1,9 @@
+export declare const green: (text: string) => string;
+export declare const red: (text: string) => string;
+export declare const yellow: (text: string) => string;
+export declare const cyan: (text: string) => string;
+export declare const grey: (text: string) => string;
+export declare const bold: (text: string) => string;
 export declare const SEEDED = "SMOKE:SEEDED";
 export declare const PASS = "SMOKE:PASS";
 export declare const FAIL = "SMOKE:FAIL";

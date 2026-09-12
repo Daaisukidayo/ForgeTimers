@@ -6,17 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
 const harness_1 = require("./harness");
+const timer_1 = require("../properties/timer");
 let harness;
-(0, node_test_1.before)(async () => (harness = await (0, harness_1.boot)()));
-(0, node_test_1.beforeEach)(async () => {
-    harness.disarm();
-    await harness_1.Database.wipe();
-    harness_1.marks.length = 0;
-});
-(0, node_test_1.after)(async () => {
-    harness.disarm();
-    await harness.cleanup();
-});
+(0, harness_1.useHarness)((booted) => (harness = booted));
 (0, node_test_1.describe)("$setTimeout", () => {
     (0, node_test_1.it)("persists a named timeout and arms it", async () => {
         await (0, harness_1.run)(harness, "$setTimeout[$sendMessage[now];1h;reminder]");
@@ -143,6 +135,16 @@ let harness;
         const parsed = JSON.parse((await (0, harness_1.run)(harness, "$getTimer[timeout;n]")));
         strict_1.default.equal(parsed.id, "timeout:n");
         strict_1.default.equal(parsed.duration, 3_600_000);
+    });
+    (0, node_test_1.it)("carries the documented properties, and nothing kept for the extension itself", async () => {
+        await (0, harness_1.run)(harness, "$let[note;kept]$setTimeout[$get[note];1h;n]");
+        const parsed = JSON.parse((await (0, harness_1.run)(harness, "$getTimer[timeout;n]")));
+        const listed = JSON.parse((await (0, harness_1.run)(harness, "$getAllTimers")))[0];
+        const documented = Object.values(timer_1.TimerProperty).sort();
+        strict_1.default.deepEqual(Object.keys(parsed).sort(), documented, "$getTimer drifted from the property list");
+        strict_1.default.deepEqual(Object.keys(listed).sort(), documented, "$getAllTimers drifted from it too");
+        strict_1.default.ok(parsed.timeLeft > 0, "timeLeft is a property, so json has to carry it");
+        strict_1.default.deepEqual(parsed.args, [], "args reads as a list, not as null");
     });
     (0, node_test_1.it)("returns nothing for a timer that does not exist", async () => {
         strict_1.default.equal(await (0, harness_1.run)(harness, "$getTimer[timeout;missing]"), "");

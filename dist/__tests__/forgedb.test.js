@@ -4,22 +4,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
-const node_fs_1 = require("node:fs");
-const node_os_1 = require("node:os");
 const node_path_1 = require("node:path");
 const node_test_1 = require("node:test");
 const harness_1 = require("./harness");
-const home = process.cwd();
-const folder = (0, node_fs_1.mkdtempSync)((0, node_path_1.join)((0, node_os_1.tmpdir)(), "forgetimers-forgedb-"));
-(0, node_test_1.before)(() => {
-    process.chdir(folder);
-    new harness_1.ConfigSeed({ type: "better-sqlite3", folder: "forgedb" });
-});
-(0, node_test_1.after)(async () => {
-    await harness_1.Database.destroy().catch(() => undefined);
-    process.chdir(home);
-    (0, node_fs_1.rmSync)(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-});
+const folder = (0, harness_1.useTempHome)("forgetimers-forgedb");
 const reminder = () => new harness_1.Timer({
     name: "reminder",
     kind: harness_1.TimerKind.timeout,

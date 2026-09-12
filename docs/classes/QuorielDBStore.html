@@ -18,7 +18,7 @@
 <ul class="tsd-hierarchy">
 <li><a href="../interfaces/ITimerStore.html" class="tsd-signature-type tsd-kind-interface">ITimerStore</a></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/449487be0b4ba8187bb7981caa0417aa786d6b81/src/structures/stores/QuorielDBStore.ts#L12">src/structures/stores/QuorielDBStore.ts:12</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/62fff4e1fca4c8785eb36b144eca4019230898d8/src/structures/stores/QuorielDBStore.ts#L12">src/structures/stores/QuorielDBStore.ts:12</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -32,7 +32,6 @@
 <h3 class="tsd-index-heading tsd-anchor-link" id="methods">Methods<a href="#methods" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-index-list"><a href="#delete" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>delete</span></a>
 <a href="#destroy" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>destroy</span></a>
-<a href="#find" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>find</span></a>
 <a href="#get" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get</span></a>
 <a href="#getall" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>All</span></a>
 <a href="#getallof" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>All<wbr/>Of</span></a>
@@ -67,7 +66,7 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/IDeleteResult.html" class="tsd-signature-type tsd-kind-interface">IDeleteResult</a><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/ITimerStore.html">ITimerStore</a>.<a href="../interfaces/ITimerStore.html#delete">delete</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/449487be0b4ba8187bb7981caa0417aa786d6b81/src/structures/stores/QuorielDBStore.ts#L57">src/structures/stores/QuorielDBStore.ts:57</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/62fff4e1fca4c8785eb36b144eca4019230898d8/src/structures/stores/QuorielDBStore.ts#L48">src/structures/stores/QuorielDBStore.ts:48</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="destroy"><span>destroy</span><a href="#destroy" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -77,22 +76,7 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/ITimerStore.html">ITimerStore</a>.<a href="../interfaces/ITimerStore.html#destroy">destroy</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/449487be0b4ba8187bb7981caa0417aa786d6b81/src/structures/stores/QuorielDBStore.ts#L24">src/structures/stores/QuorielDBStore.ts:24</a></li></ul></aside></div></li></ul></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="find"><span>find</span><a href="#find" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
-<li class="">
-<div class="tsd-signature tsd-anchor-link" id="find-1"><span class="tsd-kind-call-signature">find</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">data</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-keyword">keyof</span> <a href="../interfaces/ITimer.html" class="tsd-signature-type tsd-kind-interface">ITimer</a><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">amount</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span><a href="#find-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
-<div class="tsd-description">
-<div class="tsd-parameters">
-<h4 class="tsd-parameters-title">Parameters</h4>
-<ul class="tsd-parameter-list">
-<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">data</span>: <span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-keyword">keyof</span> <a href="../interfaces/ITimer.html" class="tsd-signature-type tsd-kind-interface">ITimer</a><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span></span></li>
-<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">amount</span>: <span class="tsd-signature-type">number</span></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/ITimerStore.html">ITimerStore</a>.<a href="../interfaces/ITimerStore.html#find">find</a></p>
-<ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/449487be0b4ba8187bb7981caa0417aa786d6b81/src/structures/stores/QuorielDBStore.ts#L43">src/structures/stores/QuorielDBStore.ts:43</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/62fff4e1fca4c8785eb36b144eca4019230898d8/src/structures/stores/QuorielDBStore.ts#L24">src/structures/stores/QuorielDBStore.ts:24</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="get"><span>get</span><a href="#get" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -107,7 +91,7 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/ITimerStore.html">ITimerStore</a>.<a href="../interfaces/ITimerStore.html#get">get</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/449487be0b4ba8187bb7981caa0417aa786d6b81/src/structures/stores/QuorielDBStore.ts#L29">src/structures/stores/QuorielDBStore.ts:29</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/62fff4e1fca4c8785eb36b144eca4019230898d8/src/structures/stores/QuorielDBStore.ts#L29">src/structures/stores/QuorielDBStore.ts:29</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getall"><span>get<wbr/>All</span><a href="#getall" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -117,7 +101,7 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/ITimerStore.html">ITimerStore</a>.<a href="../interfaces/ITimerStore.html#getall">getAll</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/449487be0b4ba8187bb7981caa0417aa786d6b81/src/structures/stores/QuorielDBStore.ts#L35">src/structures/stores/QuorielDBStore.ts:35</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/62fff4e1fca4c8785eb36b144eca4019230898d8/src/structures/stores/QuorielDBStore.ts#L35">src/structures/stores/QuorielDBStore.ts:35</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getallof"><span>get<wbr/>All<wbr/>Of</span><a href="#getallof" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -131,7 +115,7 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/ITimerStore.html">ITimerStore</a>.<a href="../interfaces/ITimerStore.html#getallof">getAllOf</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/449487be0b4ba8187bb7981caa0417aa786d6b81/src/structures/stores/QuorielDBStore.ts#L39">src/structures/stores/QuorielDBStore.ts:39</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/62fff4e1fca4c8785eb36b144eca4019230898d8/src/structures/stores/QuorielDBStore.ts#L39">src/structures/stores/QuorielDBStore.ts:39</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="init"><span>init</span><a href="#init" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -141,7 +125,7 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/ITimerStore.html">ITimerStore</a>.<a href="../interfaces/ITimerStore.html#init">init</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/449487be0b4ba8187bb7981caa0417aa786d6b81/src/structures/stores/QuorielDBStore.ts#L15">src/structures/stores/QuorielDBStore.ts:15</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/62fff4e1fca4c8785eb36b144eca4019230898d8/src/structures/stores/QuorielDBStore.ts#L15">src/structures/stores/QuorielDBStore.ts:15</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="set"><span>set</span><a href="#set" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -155,7 +139,7 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/ITimerStore.html">ITimerStore</a>.<a href="../interfaces/ITimerStore.html#set">set</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/449487be0b4ba8187bb7981caa0417aa786d6b81/src/structures/stores/QuorielDBStore.ts#L52">src/structures/stores/QuorielDBStore.ts:52</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/62fff4e1fca4c8785eb36b144eca4019230898d8/src/structures/stores/QuorielDBStore.ts#L43">src/structures/stores/QuorielDBStore.ts:43</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="wipe"><span>wipe</span><a href="#wipe" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -165,7 +149,7 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/ITimerStore.html">ITimerStore</a>.<a href="../interfaces/ITimerStore.html#wipe">wipe</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/449487be0b4ba8187bb7981caa0417aa786d6b81/src/structures/stores/QuorielDBStore.ts#L65">src/structures/stores/QuorielDBStore.ts:65</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/62fff4e1fca4c8785eb36b144eca4019230898d8/src/structures/stores/QuorielDBStore.ts#L56">src/structures/stores/QuorielDBStore.ts:56</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -184,7 +168,7 @@
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Constructors</summary>
 <div><a href="#constructor"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Constructor"><use href="../assets/icons.svg#icon-512"></use></svg><span>constructor</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Methods</summary>
-<div><a href="#delete"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>delete</span></a><a href="#destroy"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>destroy</span></a><a href="#find"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>find</span></a><a href="#get"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get</span></a><a href="#getall"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>All</span></a><a href="#getallof"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>All<wbr/>Of</span></a><a href="#init"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>init</span></a><a href="#set"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set</span></a><a href="#wipe"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>wipe</span></a></div></details></div></details></div>
+<div><a href="#delete"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>delete</span></a><a href="#destroy"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>destroy</span></a><a href="#get"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get</span></a><a href="#getall"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>All</span></a><a href="#getallof"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>All<wbr/>Of</span></a><a href="#init"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>init</span></a><a href="#set"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set</span></a><a href="#wipe"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>wipe</span></a></div></details></div></details></div>
 <div class="site-menu">
 <nav class="tsd-navigation"><a href="../modules.html">forge.timers</a>
 <ul class="tsd-small-nested-navigation" id="tsd-nav-container">

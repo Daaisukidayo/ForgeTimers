@@ -1,5 +1,6 @@
 import { ArgType, NativeFunction } from "@tryforge/forgescript"
 import { Database, ForgeTimers, TimerKind } from "../.."
+import { readProperties } from "../../properties/timer"
 
 export default new NativeFunction({
     name: "$getAllTimers",
@@ -20,6 +21,7 @@ export default new NativeFunction({
     async execute(ctx, [kind]) {
         if (!(await ctx.client.getExtension(ForgeTimers, true).ready)) return this.successJSON([])
 
-        return this.successJSON(kind ? await Database.getAllOf(kind) : await Database.getAll())
+        const timers = kind ? await Database.getAllOf(kind) : await Database.getAll()
+        return this.successJSON(timers.map(readProperties))
     }
 })
