@@ -1,7 +1,8 @@
 import { DataBaseManager } from "@tryforge/forge.db"
-import { DataSource, EntitySchema, EntitySchemaColumnOptions, FindOptionsWhere, MongoRepository } from "typeorm"
+import { DataSource, EntitySchema, EntitySchemaColumnOptions, MongoRepository } from "typeorm"
 import { ITimer, MongoTimer, Timer, TimerKind } from "../Timer"
-import { IDeleteResult, ITimerFindOptions, ITimerStore } from "./ITimerStore"
+import { IDeleteResult, ITimerStore } from "./ITimerStore"
+import { Logger } from "../../functions/logger"
 
 /** Epoch ms overflows an int32 on mysql and postgres, so these columns are bigint */
 const numeric = {
@@ -74,6 +75,19 @@ export class ForgeDBStore extends DataBaseManager implements ITimerStore {
 
         const type = this.type ?? "sqlite"
         this.entity = this.entityManager[type === "better-sqlite3" ? "sqlite" : type][0]
+
+        if (type === "sqlite" || type === "better-sqlite3") await this.useWriteAheadLog()
+    }
+
+    private async useWriteAheadLog() {
+        try {
+            await this.source.query("PRAGMA journal_mode = WAL")
+        } catch (err) {
+            // a network share or a read-only folder refuses it
+            Logger.warn(
+                `Could not put ${this.database} in write-ahead mode: ${err instanceof Error ? err.message : String(err)}`
+            )
+        }
     }
 
     public async destroy() {
@@ -96,18 +110,15 @@ export class ForgeDBStore extends DataBaseManager implements ITimerStore {
         return (await this.repository.findBy({ kind })) as Timer[]
     }
 
-    public async find(data?: ITimerFindOptions, amount?: number) {
-        const where = data as FindOptionsWhere<ITimer> | undefined
-        return (await this.repository.find({ where, take: amount })) as Timer[]
-    }
-
     public async set(timer: Timer) {
-        const oldData = await this.get(timer.kind, timer.name)
+        if (this.type === "mongodb") {
+            const existing = await this.get(timer.kind, timer.name)
 
-        if (oldData && this.type === "mongodb") {
-            // has to be an object
-            await this.repository.update({ id: oldData.id }, timer as never)
-            return
+            if (existing) {
+                // has to be an object
+                await this.repository.update({ id: existing.id }, timer as never)
+                return
+            }
         }
 
         await this.repository.save(timer)

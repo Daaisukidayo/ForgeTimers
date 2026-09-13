@@ -4,6 +4,7 @@ exports.ForgeDBStore = void 0;
 const forge_db_1 = require("@tryforge/forge.db");
 const typeorm_1 = require("typeorm");
 const Timer_1 = require("../Timer");
+const logger_1 = require("../../functions/logger");
 /** Epoch ms overflows an int32 on mysql and postgres, so these columns are bigint */
 const numeric = {
     to: (value) => value,
@@ -63,6 +64,17 @@ class ForgeDBStore extends forge_db_1.DataBaseManager {
             await this.source.initialize();
         const type = this.type ?? "sqlite";
         this.entity = this.entityManager[type === "better-sqlite3" ? "sqlite" : type][0];
+        if (type === "sqlite" || type === "better-sqlite3")
+            await this.useWriteAheadLog();
+    }
+    async useWriteAheadLog() {
+        try {
+            await this.source.query("PRAGMA journal_mode = WAL");
+        }
+        catch (err) {
+            // a network share or a read-only folder refuses it
+            logger_1.Logger.warn(`Could not put ${this.database} in write-ahead mode: ${err instanceof Error ? err.message : String(err)}`);
+        }
     }
     async destroy() {
         if (this.source?.isInitialized)
@@ -80,16 +92,14 @@ class ForgeDBStore extends forge_db_1.DataBaseManager {
     async getAllOf(kind) {
         return (await this.repository.findBy({ kind }));
     }
-    async find(data, amount) {
-        const where = data;
-        return (await this.repository.find({ where, take: amount }));
-    }
     async set(timer) {
-        const oldData = await this.get(timer.kind, timer.name);
-        if (oldData && this.type === "mongodb") {
-            // has to be an object
-            await this.repository.update({ id: oldData.id }, timer);
-            return;
+        if (this.type === "mongodb") {
+            const existing = await this.get(timer.kind, timer.name);
+            if (existing) {
+                // has to be an object
+                await this.repository.update({ id: existing.id }, timer);
+                return;
+            }
         }
         await this.repository.save(timer);
     }

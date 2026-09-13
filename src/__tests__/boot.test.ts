@@ -1,34 +1,20 @@
 import assert from "node:assert/strict"
-import { mkdtempSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { after, before, describe, it } from "node:test"
-import { attach, ConfigSeed, Database, ITestClient, marks, run, Timer, TimerKind, waitFor } from "./harness"
-import { ForgeTimers, TimerStorage } from ".."
+import { describe, it } from "node:test"
+import {
+    attach,
+    contentsOf,
+    Database,
+    ITestClient,
+    marks,
+    run,
+    Timer,
+    TimerKind,
+    useTempHome,
+    waitFor,
+} from "./harness"
+import { ForgeTimers } from ".."
 
-const home = process.cwd()
-const folder = mkdtempSync(join(tmpdir(), "forgetimers-boot-"))
-
-before(() => {
-    // quoriel hangs its store off the working directory, forge.db off its configured folder
-    process.chdir(folder)
-    new ConfigSeed({ type: "better-sqlite3", folder: "forgedb" } as never)
-})
-
-after(async () => {
-    await Database.destroy().catch(() => undefined)
-    process.chdir(home)
-    rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
-})
-
-/** Reads a backend without leaving it in charge */
-async function contentsOf(storage: TimerStorage) {
-    const store = await Database.open(storage)
-    const all = await store.getAll()
-    await store.destroy()
-
-    return all.map((timer) => timer.id)
-}
+useTempHome("forgetimers-boot")
 
 /** Runs `fn` against an extension whose backend could not be required at all */
 async function withoutForgeDB(fn: (harness: ITestClient) => Promise<void>) {

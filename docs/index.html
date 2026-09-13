@@ -10,7 +10,7 @@
 <h1>forge.timers</h1></div>
 <div class="tsd-panel tsd-typography"><div align="center">
 <h1 id="forgetimers" class="tsd-anchor-link">ForgeTimers<a href="#forgetimers" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<p>ForgeTimers is an extension that makes <code>$setTimeout</code> and <code>$setInterval</code> survive a restart. Timers are persisted when scheduled and re-armed automatically the next time your app starts.</p>
+<p>ForgeTimers is an extension that makes <code>$setTimeout</code> and <code>$setInterval</code> survive a restart. Timers are persisted in ForgeDB or QuorielDB when scheduled, re-armed automatically the next time your app starts, and can be read with functions or reacted to through events.</p>
 <p><a href="https://github.com/Daaisukidayo/ForgeTimers/"><img src="https://img.shields.io/github/package-json/v/Daaisukidayo/ForgeTimers/main?label=forge.timers&color=5c16d4" alt="forge.timers"></a>
 <a href="https://github.com/tryforge/ForgeScript/"><img src="https://img.shields.io/github/package-json/v/tryforge/ForgeScript/main?label=@tryforge/forgescript&color=5c16d4" alt="@tryforge/forgescript"></a>
 <a href="https://discord.gg/yFW5Ju6JP8"><img src="https://img.shields.io/discord/997899472610795580?logo=discord" alt="Discord"></a></p>
@@ -22,26 +22,39 @@
 <li><a href="#configuration">Configuration</a></li>
 <li><a href="#storage">Storage</a></li>
 <li><a href="#reading-timers">Reading timers</a></li>
+<li><a href="#events">Events</a></li>
 </ol>
 <h3 align="center">Installation</h3><hr>
-<blockquote>
-<p>⚠️ <strong>Warning</strong><br>
-<strong>ForgeTimers</strong> stores its timers in another extension's database, so it needs one of <a href="https://github.com/tryforge/ForgeDB"><strong>ForgeDB</strong></a> or <a href="https://github.com/quoriel/db"><strong>QuorielDB</strong></a> installed, plus <strong>ForgeScript 2.7.0</strong> or newer.</p>
-</blockquote>
 <ol>
 <li>
-<p>Run the following command to install the required <code>npm</code> package:</p>
-<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">i</span><span class="hl-1"> </span><span class="hl-2">github:Daaisukidayo/ForgeTimers</span><span class="hl-1"> </span><span class="hl-2">@tryforge/forge.db</span>
+<p>Install the package.</p>
+<p><strong>From npm</strong> - the stable release:</p>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">i</span><span class="hl-1"> </span><span class="hl-2">forge.timers</span>
 </code><button type="button">Copy</button></pre>
 
-<p>Or, to keep timers in QuorielDB's LMDB store instead:</p>
-<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">i</span><span class="hl-1"> </span><span class="hl-2">github:Daaisukidayo/ForgeTimers</span><span class="hl-1"> </span><span class="hl-2">@quoriel/db</span>
+<p><strong>From GitHub</strong> - <code>main</code> carries that same release:</p>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">i</span><span class="hl-1"> </span><span class="hl-2">github:Daaisukidayo/ForgeTimers#main</span>
+</code><button type="button">Copy</button></pre>
+
+<p>And <code>dev</code> is where the next version is put together - take it to try what is coming, and expect it to break:</p>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">i</span><span class="hl-1"> </span><span class="hl-2">github:Daaisukidayo/ForgeTimers#dev</span>
 </code><button type="button">Copy</button></pre>
 
 </li>
 <li>
+<p>Install a database for the timers to live in.</p>
+<p>One of these has to be installed and listed in <code>extensions</code> next to it:</p>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">i</span><span class="hl-1"> </span><span class="hl-2">@tryforge/forge.db</span><span class="hl-1">   </span><span class="hl-3"># sqlite, mongodb, mysql or postgres</span>
+</code><button type="button">Copy</button></pre>
+
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">i</span><span class="hl-1"> </span><span class="hl-2">@quoriel/db</span><span class="hl-1">          </span><span class="hl-3"># lmdb</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Either will do, and <a href="#storage">Storage</a> says how to pick between them. <strong>ForgeScript 2.7.0</strong> or newer is required in both cases.</p>
+</li>
+<li>
 <p>Here's an example of how your main file should look:</p>
-<pre><code class="js"><span class="hl-3">const</span><span class="hl-1"> { </span><span class="hl-4">ForgeClient</span><span class="hl-1"> } = </span><span class="hl-0">require</span><span class="hl-1">(</span><span class="hl-2">&quot;@tryforge/forgescript&quot;</span><span class="hl-1">)</span><br/><span class="hl-3">const</span><span class="hl-1"> { </span><span class="hl-4">ForgeTimers</span><span class="hl-1"> } = </span><span class="hl-0">require</span><span class="hl-1">(</span><span class="hl-2">&quot;forge.timers&quot;</span><span class="hl-1">)</span><br/><span class="hl-3">const</span><span class="hl-1"> { </span><span class="hl-4">ForgeDB</span><span class="hl-1"> } = </span><span class="hl-0">require</span><span class="hl-1">(</span><span class="hl-2">&quot;@tryforge/forge.db&quot;</span><span class="hl-1">)</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">timers</span><span class="hl-1"> = </span><span class="hl-3">new</span><span class="hl-1"> </span><span class="hl-0">ForgeTimers</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-5">timeoutConfig:</span><span class="hl-1"> {</span><br/><span class="hl-1">        </span><span class="hl-5">maxOverdue:</span><span class="hl-1"> </span><span class="hl-6">86_400_000</span><span class="hl-1"> </span><span class="hl-7">// Discard timeouts over a day late</span><br/><span class="hl-1">    },</span><br/><span class="hl-1">    </span><span class="hl-5">intervalConfig:</span><span class="hl-1"> {</span><br/><span class="hl-1">        </span><span class="hl-5">restoredTicksLimit:</span><span class="hl-1"> </span><span class="hl-6">5</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">db</span><span class="hl-1"> = </span><span class="hl-3">new</span><span class="hl-1"> </span><span class="hl-0">ForgeDB</span><span class="hl-1">({</span><br/><span class="hl-1">     ...</span><span class="hl-5">options</span><span class="hl-1">, </span><span class="hl-7">// Change that to the options you currently have</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1"> = </span><span class="hl-3">new</span><span class="hl-1"> </span><span class="hl-0">ForgeClient</span><span class="hl-1">({</span><br/><span class="hl-1">    ...</span><span class="hl-5">options</span><span class="hl-1">, </span><span class="hl-7">// Change that to the options you currently have</span><br/><span class="hl-1">    </span><span class="hl-5">extensions:</span><span class="hl-1"> [</span><br/><span class="hl-1">        </span><span class="hl-5">timers</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-5">db</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-7">// Add other extensions you installed here</span><br/><span class="hl-1">    ]</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-5">client</span><span class="hl-1">.</span><span class="hl-0">login</span><span class="hl-1">(</span><span class="hl-2">&quot;YourToken&quot;</span><span class="hl-1">)</span>
+<pre><code class="js"><span class="hl-4">const</span><span class="hl-1"> { </span><span class="hl-5">ForgeClient</span><span class="hl-1"> } = </span><span class="hl-0">require</span><span class="hl-1">(</span><span class="hl-2">&quot;@tryforge/forgescript&quot;</span><span class="hl-1">)</span><br/><span class="hl-4">const</span><span class="hl-1"> { </span><span class="hl-5">ForgeTimers</span><span class="hl-1"> } = </span><span class="hl-0">require</span><span class="hl-1">(</span><span class="hl-2">&quot;forge.timers&quot;</span><span class="hl-1">)</span><br/><span class="hl-4">const</span><span class="hl-1"> { </span><span class="hl-5">ForgeDB</span><span class="hl-1"> } = </span><span class="hl-0">require</span><span class="hl-1">(</span><span class="hl-2">&quot;@tryforge/forge.db&quot;</span><span class="hl-1">)</span><br/><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">timers</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-0">ForgeTimers</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-6">timeoutConfig:</span><span class="hl-1"> {</span><br/><span class="hl-1">        </span><span class="hl-6">maxOverdue:</span><span class="hl-1"> </span><span class="hl-7">86_400_000</span><span class="hl-1"> </span><span class="hl-3">// Discard timeouts over a day late</span><br/><span class="hl-1">    },</span><br/><span class="hl-1">    </span><span class="hl-6">intervalConfig:</span><span class="hl-1"> {</span><br/><span class="hl-1">        </span><span class="hl-6">restoredTicksLimit:</span><span class="hl-1"> </span><span class="hl-7">5</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">db</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-0">ForgeDB</span><span class="hl-1">({</span><br/><span class="hl-1">     ...</span><span class="hl-6">options</span><span class="hl-1">, </span><span class="hl-3">// Change that to the options you currently have</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">client</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-0">ForgeClient</span><span class="hl-1">({</span><br/><span class="hl-1">    ...</span><span class="hl-6">options</span><span class="hl-1">, </span><span class="hl-3">// Change that to the options you currently have</span><br/><span class="hl-1">    </span><span class="hl-6">extensions:</span><span class="hl-1"> [</span><br/><span class="hl-1">        </span><span class="hl-6">timers</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-6">db</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-3">// Add other extensions you installed here</span><br/><span class="hl-1">    ]</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-6">client</span><span class="hl-1">.</span><span class="hl-0">login</span><span class="hl-1">(</span><span class="hl-2">&quot;YourToken&quot;</span><span class="hl-1">)</span>
 </code><button type="button">Copy</button></pre>
 
 </li>
@@ -53,23 +66,100 @@ Only <strong>named</strong> timers are persisted. <code>$setTimeout[...;1h]</cod
 </blockquote>
 <h3 align="center">Configuration</h3><hr>
 <p>At the top level, <code>ForgeTimers</code> accepts:</p>
-<ul>
-<li><strong><code>storage</code></strong> — which extension keeps the timers: <code>&quot;forgedb&quot;</code> (default) or <code>&quot;quorieldb&quot;</code>. See <a href="#storage">Storage</a>.</li>
-<li><strong><code>pruneUnknownGuilds</code></strong> — whether timers belonging to a guild this process can't see are deleted on startup. Default <code>false</code>. An invisible guild is far more often a Discord outage or another process's shard than a kick, and the deletion can't be undone. Turn it on only on a single unsharded process, where a missing guild really does mean the bot was removed.</li>
-</ul>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Type</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>storage</code></strong></td>
+<td><code>&quot;forgedb&quot;</code> or <code>&quot;quorieldb&quot;</code></td>
+<td><code>&quot;forgedb&quot;</code></td>
+<td>Which extension keeps the timers. See <a href="#storage">Storage</a>.</td>
+</tr>
+<tr>
+<td><strong><code>migrateFrom</code></strong></td>
+<td><code>&quot;forgedb&quot;</code> or <code>&quot;quorieldb&quot;</code></td>
+<td>—</td>
+<td>Moves the stored timers out of that backend and into <code>storage</code>, once, on startup. See <a href="#storage">Storage</a>.</td>
+</tr>
+<tr>
+<td><strong><code>keepSource</code></strong></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Copies on migration instead of moving, leaving the old backend's timers where they are.</td>
+</tr>
+<tr>
+<td><strong><code>events</code></strong></td>
+<td><code>TimerEvent[]</code></td>
+<td>—</td>
+<td>Which timer events to listen to. See <a href="#events">Events</a>.</td>
+</tr>
+<tr>
+<td><strong><code>timeoutConfig</code></strong></td>
+<td><code>ITimeoutConfig</code></td>
+<td><code>{}</code></td>
+<td>How restored timeouts behave. Below.</td>
+</tr>
+<tr>
+<td><strong><code>intervalConfig</code></strong></td>
+<td><code>IIntervalConfig</code></td>
+<td><code>{}</code></td>
+<td>How restored intervals behave. Below.</td>
+</tr>
+<tr>
+<td><strong><code>pruneUnknownGuilds</code></strong></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Deletes timers belonging to a guild this process can't see, on startup.</td>
+</tr>
+</tbody>
+</table>
+<p>An invisible guild is far more often a Discord outage or another process's shard than a kick, and the deletion can't be undone. Turn <code>pruneUnknownGuilds</code> on only on a single unsharded process, where a missing guild really does mean the bot was removed.</p>
 <p>Startup only compiles what it restores. Channels, messages and users are fetched when a timer actually fires, so booting with thousands of stored timers costs nothing extra, and a timer due next month is never discarded over an outage happening today. A timeout that could not reach Discord keeps its record and is retried on the next boot.</p>
-<p>Both <code>timeoutConfig</code> and <code>intervalConfig</code> accept:</p>
-<ul>
-<li><strong><code>persist</code></strong> — whether records are re-armed on startup. Default <code>true</code>. With <code>false</code>, timers are still written while the app runs, but the records are dropped on the next boot.</li>
-<li><strong><code>maxOverdue</code></strong> — how late (ms) a timer may be when the app comes back. Default: no limit.</li>
-</ul>
-<p><code>intervalConfig</code> additionally accepts:</p>
-<ul>
-<li><strong><code>restoredTicksLimit</code></strong> — how many ticks missed during downtime to replay: <code>0</code> (default) replays none, <code>-1</code> replays all, <code>n</code> replays at most <code>n</code>.</li>
-</ul>
+<p><code>timeoutConfig</code> and <code>intervalConfig</code> accept:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Kind</th>
+<th>Type</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>persist</code></strong></td>
+<td>both</td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td>Whether records are re-armed on startup. With <code>false</code>, timers are still written while the app runs, but the records are dropped on the next boot.</td>
+</tr>
+<tr>
+<td><strong><code>maxOverdue</code></strong></td>
+<td>both</td>
+<td><code>number</code> (ms)</td>
+<td>no limit</td>
+<td>How late a timer may be when the app comes back.</td>
+</tr>
+<tr>
+<td><strong><code>restoredTicksLimit</code></strong></td>
+<td>interval</td>
+<td><code>number</code></td>
+<td><code>0</code></td>
+<td>How many ticks missed during downtime to replay: <code>0</code> none, <code>Infinity</code> all, <code>n</code> at most <code>n</code>.</td>
+</tr>
+</tbody>
+</table>
 <blockquote>
 <p>⚠️ <strong>Warning</strong><br>
-<code>restoredTicksLimit: -1</code> on a 1-minute interval that was down for a day means 1440 executions on boot. Pair it with <code>maxOverdue</code> to bound the damage.</p>
+<code>restoredTicksLimit: Infinity</code> on a 1-minute interval that was down for a day means 1440 executions on boot. Pair it with <code>maxOverdue</code> to bound the damage.</p>
 </blockquote>
 <p><code>maxOverdue</code> is measured against the timer's <em>due time</em> - a timer due next week is never affected by a week of downtime. What happens past the limit differs by kind: an overdue <strong>timeout</strong> is discarded, while an <strong>interval</strong> only skips the stale tick and resumes.</p>
 <p>There is no upper bound on a duration: waits longer than node's own ~24.8 day limit are re-armed in chunks. An interval that survives a restart resumes on the time left on its current tick rather than waiting a whole fresh one, so its schedule doesn't drift with each restart.</p>
@@ -77,12 +167,36 @@ Only <strong>named</strong> timers are persisted. <code>$setTimeout[...;1h]</cod
 <p>A timer doesn't need a channel at all. One scheduled where there is none - a <code>clientReady</code> command, for instance - is persisted and restored just the same, and runs against the empty target ForgeScript gives that event. It belongs to no guild, so on a sharded bot it runs once, on shard 0, rather than once per shard.</p>
 <h3 align="center">Storage</h3><hr>
 <p>Timers go wherever you already keep your data. Pick the extension with <code>storage</code>:</p>
-<pre><code class="js"><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">timers</span><span class="hl-1"> = </span><span class="hl-3">new</span><span class="hl-1"> </span><span class="hl-0">ForgeTimers</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-5">storage:</span><span class="hl-1"> </span><span class="hl-2">&quot;quorieldb&quot;</span><span class="hl-1"> </span><span class="hl-7">// &quot;forgedb&quot; by default</span><br/><span class="hl-1">})</span>
+<pre><code class="js"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">timers</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-0">ForgeTimers</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-6">storage:</span><span class="hl-1"> </span><span class="hl-2">&quot;quorieldb&quot;</span><span class="hl-1"> </span><span class="hl-3">// &quot;forgedb&quot; by default</span><br/><span class="hl-1">})</span>
 </code><button type="button">Copy</button></pre>
 
-<p><strong><code>&quot;forgedb&quot;</code></strong> stores them through <strong>ForgeDB</strong> - sqlite, mongodb, mysql or postgres, whichever you set up. There's nothing extra to configure: set ForgeDB up as usual and timers follow. On sqlite that means a <code>timers.db</code> file next to ForgeDB's own database.</p>
-<p><strong><code>&quot;quorieldb&quot;</code></strong> stores them through <strong>QuorielDB</strong>, in LMDB, under a <code>timers</code> record type inside QuorielDB's store folder - <code>database</code> unless you gave QuorielDB another <code>path</code>. The type is registered on startup and your <code>config.json</code> is left alone, so there's nothing to add by hand, and the timers can be read with QuorielDB's own functions:</p>
-<pre><code class="js"><span class="hl-5">$getRecord</span><span class="hl-1">[</span><span class="hl-5">timers</span><span class="hl-1">;</span><span class="hl-5">timeout</span><span class="hl-1">:</span><span class="hl-5">reminder</span><span class="hl-1">]</span>
+<table>
+<thead>
+<tr>
+<th><code>storage</code></th>
+<th>Extension</th>
+<th>Where the timers land</th>
+<th>To install</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>&quot;forgedb&quot;</code></strong></td>
+<td><a href="https://github.com/tryforge/ForgeDB">ForgeDB</a></td>
+<td>Whatever it is connected to: sqlite, mongodb, mysql or postgres.</td>
+<td><code>npm i @tryforge/forge.db</code></td>
+</tr>
+<tr>
+<td><strong><code>&quot;quorieldb&quot;</code></strong></td>
+<td><a href="https://github.com/quoriel/db">QuorielDB</a></td>
+<td>LMDB, under a <code>timers</code> record type.</td>
+<td><code>npm i @quoriel/db</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>ForgeDB</strong> needs nothing extra: set it up as usual and the timers follow. On sqlite that means a <code>timers.db</code> file next to ForgeDB's own database.</p>
+<p><strong>QuorielDB</strong> keeps them in its own store folder - <code>database</code>, unless you gave QuorielDB another <code>path</code>. The record type is registered on startup and your <code>config.json</code> is left alone, so there is nothing to add by hand, and the timers can be read with QuorielDB's own functions:</p>
+<pre><code class="js"><span class="hl-6">$getRecord</span><span class="hl-1">[</span><span class="hl-6">timers</span><span class="hl-1">;</span><span class="hl-6">timeout</span><span class="hl-1">:</span><span class="hl-6">reminder</span><span class="hl-1">]</span>
 </code><button type="button">Copy</button></pre>
 
 <blockquote>
@@ -90,24 +204,165 @@ Only <strong>named</strong> timers are persisted. <code>$setTimeout[...;1h]</cod
 Only one of the two is used. Whichever you pick must be installed and listed in <code>extensions</code> - the extension refuses to load otherwise.</p>
 </blockquote>
 <p><strong>Switching backends.</strong> Timers already stored do not follow on their own. Point <code>migrateFrom</code> at the old backend for one boot:</p>
-<pre><code class="js"><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-4">timers</span><span class="hl-1"> = </span><span class="hl-3">new</span><span class="hl-1"> </span><span class="hl-0">ForgeTimers</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-5">storage:</span><span class="hl-1"> </span><span class="hl-2">&quot;quorieldb&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-5">migrateFrom:</span><span class="hl-1"> </span><span class="hl-2">&quot;forgedb&quot;</span><br/><span class="hl-1">})</span>
+<pre><code class="js"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">timers</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-0">ForgeTimers</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-6">storage:</span><span class="hl-1"> </span><span class="hl-2">&quot;quorieldb&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-6">migrateFrom:</span><span class="hl-1"> </span><span class="hl-2">&quot;forgedb&quot;</span><br/><span class="hl-1">})</span>
 </code><button type="button">Copy</button></pre>
 
-<p>Both extensions have to be in <code>extensions</code> for that boot - the old one is what the timers are read through. Once the log says the migration is done, remove <code>migrateFrom</code> and the old extension.</p>
-<p>The move happens before anything is restored, so deadlines carry over untouched: a timeout due tomorrow is still due tomorrow. Timers whose name is already taken in the new backend are left where they are and named in the log - what is already live there wins.</p>
-<p>Each timer is written, read back, and only then dropped from the old backend. Draining it is what makes a rerun harmless: a timer that has since fired cannot come back from a source nobody cleared. Pass <code>keepSource: true</code> to copy instead of move - then the old timers stay, and the migration repeats every boot until you remove <code>migrateFrom</code>.</p>
-<p>Variables are stored alongside the timer. Strings, numbers, booleans, arrays and plain objects survive, and so do dates, maps, sets, regular expressions and bigints. Anything with no meaning after a restart - a function, a class instance, a live Discord structure - is dropped, and the names that were dropped are logged when the timer is scheduled.</p>
+<p>Both extensions have to be in <code>extensions</code> for that boot - the old one is what the timers are read through. Drop <code>migrateFrom</code> and the old extension once the log says it is done.</p>
+<p>The move happens before anything is restored, so deadlines carry over untouched. A name already taken in the new backend wins, and the timer that lost it is named in the log.</p>
+<p>Each timer is written, read back, and only then dropped from the old backend, so a rerun cannot bring back one that has since fired. <code>keepSource: true</code> copies instead, and the migration then repeats every boot until <code>migrateFrom</code> goes.</p>
 <h3 align="center">Reading timers</h3><hr>
-<p>Stored timers can be read back from scripts:</p>
-<ul>
-<li><strong><code>$getTimer[kind;name;property?]</code></strong> - one timer. Without a property it returns the whole thing as JSON; with one it returns just that field. Available properties: <code>id</code>, <code>name</code>, <code>kind</code>, <code>code</code>, <code>duration</code>, <code>timestamp</code>, <code>fireAt</code>, <code>timeLeft</code>, <code>guildID</code>, <code>channelID</code>, <code>hostID</code>, <code>messageID</code>, <code>args</code>.</li>
-<li><strong><code>$getAllTimers[kind?]</code></strong> - every stored timer as JSON, optionally filtered to <code>timeout</code> or <code>interval</code>.</li>
-<li><strong><code>$wipeTimers</code></strong> - cancels every stored timer and clears them. Returns how many were running.</li>
-</ul>
-<p>Example:</p>
-<pre><code class="js"><span class="hl-5">$getTimer</span><span class="hl-1">[</span><span class="hl-5">timeout</span><span class="hl-1">;</span><span class="hl-5">reminder</span><span class="hl-1">;</span><span class="hl-5">timeLeft</span><span class="hl-1">]</span><br/><span class="hl-5">$getAllTimers</span><span class="hl-1">[</span><span class="hl-5">interval</span><span class="hl-1">]</span>
+<p>Stored timers can be read back from commands:</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Returns</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>$getTimer[kind;name;property?]</code></strong></td>
+<td>one field, or the timer as JSON</td>
+<td>Reads one timer. Without a property you get the whole data.</td>
+</tr>
+<tr>
+<td><strong><code>$getAllTimers[kind?]</code></strong></td>
+<td>JSON array</td>
+<td>Every stored timer, optionally only the <code>timeout</code>s or the <code>interval</code>s.</td>
+</tr>
+<tr>
+<td><strong><code>$wipeTimers</code></strong></td>
+<td>number</td>
+<td>Cancels every running timer and clears the stored ones. Returns how many were running.</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="js"><span class="hl-6">$getTimer</span><span class="hl-1">[</span><span class="hl-6">timeout</span><span class="hl-1">;</span><span class="hl-6">reminder</span><span class="hl-1">;</span><span class="hl-6">timeLeft</span><span class="hl-1">]</span><br/><span class="hl-6">$getAllTimers</span><span class="hl-1">[</span><span class="hl-6">interval</span><span class="hl-1">]</span>
 </code><button type="button">Copy</button></pre>
 
+<h4 align="center">Properties</h4>
+<p>The third argument of <code>$getTimer</code>, and the names an <a href="#events">event</a> reads with <code>$env</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>id</code></strong></td>
+<td>string</td>
+<td><code>kind:name</code>, unique across the database.</td>
+</tr>
+<tr>
+<td><strong><code>name</code></strong></td>
+<td>string</td>
+<td>The name the timer was scheduled under. Unique per kind.</td>
+</tr>
+<tr>
+<td><strong><code>kind</code></strong></td>
+<td><code>timeout</code> or <code>interval</code></td>
+<td>Which of the two it is.</td>
+</tr>
+<tr>
+<td><strong><code>code</code></strong></td>
+<td>string</td>
+<td>The ForgeScript the timer runs.</td>
+</tr>
+<tr>
+<td><strong><code>duration</code></strong></td>
+<td>number (ms)</td>
+<td>The delay for a timeout, the tick length for an interval.</td>
+</tr>
+<tr>
+<td><strong><code>timestamp</code></strong></td>
+<td>number (unix ms)</td>
+<td>When the timer was scheduled.</td>
+</tr>
+<tr>
+<td><strong><code>fireAt</code></strong></td>
+<td>number (unix ms)</td>
+<td>When it is due next.</td>
+</tr>
+<tr>
+<td><strong><code>timeLeft</code></strong></td>
+<td>number (ms)</td>
+<td>How long until then, from right now. Negative once it is overdue.</td>
+</tr>
+<tr>
+<td><strong><code>guildID</code></strong></td>
+<td>snowflake</td>
+<td>The guild it was scheduled in, empty when it belongs to none.</td>
+</tr>
+<tr>
+<td><strong><code>channelID</code></strong></td>
+<td>snowflake</td>
+<td>The channel it answers in, empty when it was scheduled outside one.</td>
+</tr>
+<tr>
+<td><strong><code>hostID</code></strong></td>
+<td>snowflake</td>
+<td>Who scheduled it.</td>
+</tr>
+<tr>
+<td><strong><code>messageID</code></strong></td>
+<td>snowflake</td>
+<td>The message it was scheduled from, if there was one.</td>
+</tr>
+<tr>
+<td><strong><code>args</code></strong></td>
+<td>JSON array</td>
+<td>The command arguments present when it was scheduled.</td>
+</tr>
+</tbody>
+</table>
+<h3 align="center">Events</h3><hr>
+<p>A timer's own code says what it does. Events say what happened to it - useful for logging, for telling a channel that a reminder was lost, or for watching what a restart picked up.</p>
+<p>Name the ones you want, then write commands for them:</p>
+<pre><code class="js"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">timers</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-0">ForgeTimers</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-6">events:</span><span class="hl-1"> [</span><span class="hl-2">&quot;timerFire&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;timerDrop&quot;</span><span class="hl-1">]</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">client</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-0">ForgeClient</span><span class="hl-1">({ </span><span class="hl-6">extensions:</span><span class="hl-1"> [</span><span class="hl-6">db</span><span class="hl-1">, </span><span class="hl-6">timers</span><span class="hl-1">] })</span><br/><br/><span class="hl-6">timers</span><span class="hl-1">.</span><span class="hl-6">commands</span><span class="hl-1">.</span><span class="hl-0">add</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-6">type:</span><span class="hl-1"> </span><span class="hl-2">&quot;timerDrop&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-6">code:</span><span class="hl-1"> </span><span class="hl-2">`$sendMessage[$env[channelID];Lost the $env[kind] &quot;$env[name]&quot;: $env[reason]]`</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-3">// or from a folder</span><br/><span class="hl-6">timers</span><span class="hl-1">.</span><span class="hl-6">commands</span><span class="hl-1">.</span><span class="hl-0">load</span><span class="hl-1">(</span><span class="hl-2">&quot;events&quot;</span><span class="hl-1">)</span>
+</code><button type="button">Copy</button></pre>
+
+<p>The events:</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>When</th>
+<th>Extra <code>$env</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>timerStart</code></strong></td>
+<td>A timer was scheduled.</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong><code>timerFire</code></strong></td>
+<td>A timer's code ran: a timeout going off, or an interval ticking.</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong><code>timerCancel</code></strong></td>
+<td>A timer was cancelled by hand, with <code>$clearTimeout</code>, <code>$clearInterval</code> or <code>$wipeTimers</code>.</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong><code>timerRestore</code></strong></td>
+<td>A stored timer was picked back up after a restart.</td>
+<td><code>overdueBy</code> — how late it was, in ms.</td>
+</tr>
+<tr>
+<td><strong><code>timerDrop</code></strong></td>
+<td>A stored timer was thrown away without running.</td>
+<td><code>reason</code> — why it was thrown away.</td>
+</tr>
+</tbody>
+</table>
+<p>Every event reads its timer through <code>$env</code>, under the same names <code>$getTimer</code> uses. See <a href="#properties">Properties</a>.</p>
 </div></div>
 <div class="col-sidebar">
 <div class="page-menu">

@@ -1,19 +1,11 @@
 import assert from "node:assert/strict"
-import { after, before, beforeEach, describe, it } from "node:test"
-import { boot, Database, marks, persist, run, Timer, TimerKind } from "./harness"
+import { describe, it } from "node:test"
+import { Database, marks, persist, run, TestHarness, Timer, TimerKind, useHarness } from "./harness"
+import { TimerProperty } from "../properties/timer"
 
-let harness: Awaited<ReturnType<typeof boot>>
+let harness: TestHarness
 
-before(async () => (harness = await boot()))
-beforeEach(async () => {
-    harness.disarm()
-    await Database.wipe()
-    marks.length = 0
-})
-after(async () => {
-    harness.disarm()
-    await harness.cleanup()
-})
+useHarness((booted) => (harness = booted))
 
 describe("$setTimeout", () => {
     it("persists a named timeout and arms it", async () => {
@@ -165,6 +157,28 @@ describe("$clearTimeout and $clearInterval", () => {
     })
 })
 
+describe("a name used by both kinds at once", () => {
+    it("cancels only the kind that was asked for", async () => {
+        await run(harness, "$setTimeout[$testMark[t];1h;n]$setInterval[$testMark[i];1h;n]")
+        assert.equal(await run(harness, "$clearTimeout[n]"), "true")
+
+        assert.equal(harness.client.timeouts.has("n"), false)
+        assert.equal(harness.client.intervals.has("n"), true, "the interval went down with the timeout")
+
+        assert.equal(await Database.get(TimerKind.timeout, "n"), null)
+        assert.ok(await Database.get(TimerKind.interval, "n"), "the interval's row went with it")
+    })
+
+    it("wipes both", async () => {
+        await run(harness, "$setTimeout[$testMark[t];1h;n]$setInterval[$testMark[i];1h;n]")
+
+        assert.equal(await run(harness, "$wipeTimers"), "2")
+        assert.equal(harness.client.timeouts.size, 0)
+        assert.equal(harness.client.intervals.size, 0)
+        assert.equal((await Database.getAll()).length, 0)
+    })
+})
+
 describe("reading timers back", () => {
     it("returns a single property", async () => {
         await run(harness, "$setTimeout[x;1h;n]")
@@ -178,6 +192,20 @@ describe("reading timers back", () => {
         const parsed = JSON.parse((await run(harness, "$getTimer[timeout;n]")) as string)
         assert.equal(parsed.id, "timeout:n")
         assert.equal(parsed.duration, 3_600_000)
+    })
+
+    it("carries the documented properties, and nothing kept for the extension itself", async () => {
+        await run(harness, "$let[note;kept]$setTimeout[$get[note];1h;n]")
+
+        const parsed = JSON.parse((await run(harness, "$getTimer[timeout;n]")) as string)
+        const listed = JSON.parse((await run(harness, "$getAllTimers")) as string)[0]
+
+        const documented = Object.values(TimerProperty).sort()
+        assert.deepEqual(Object.keys(parsed).sort(), documented, "$getTimer drifted from the property list")
+        assert.deepEqual(Object.keys(listed).sort(), documented, "$getAllTimers drifted from it too")
+
+        assert.ok(parsed.timeLeft > 0, "timeLeft is a property, so json has to carry it")
+        assert.deepEqual(parsed.args, [], "args reads as a list, not as null")
     })
 
     it("returns nothing for a timer that does not exist", async () => {

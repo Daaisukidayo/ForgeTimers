@@ -4,6 +4,15 @@ import { Database, TimerKind } from "../../structures"
 import { config } from "dotenv"
 config()
 
+const paint = (codes: string) => (text: string) => (process.env.NO_COLOR ? text : `\u001b[${codes}m${text}\u001b[0m`)
+
+export const green = paint("32")
+export const red = paint("31")
+export const yellow = paint("33")
+export const cyan = paint("36")
+export const grey = paint("90")
+export const bold = paint("1")
+
 export const SEEDED = "SMOKE:SEEDED"
 export const PASS = "SMOKE:PASS"
 export const FAIL = "SMOKE:FAIL"
@@ -13,11 +22,23 @@ export const INTERVAL_NAME = "smoke-interval"
 export const OVERDUE_NAME = "smoke-overdue"
 export const CHANNEL = process.env.SMOKE_CHANNEL
 
-export const TIMEOUT_DELAY = "60s"
-export const INTERVAL_TICK = "20s"
+export const SPEED = Math.max(1, Number(process.env.SMOKE_SPEED ?? 2))
+
+/** How long the two boots take before the deadline can land: a cold login, and discord throttling the second one */
+const BOOT_BUDGET = Number(process.env.SMOKE_BOOT_BUDGET ?? 25_000)
+
+/** How long the bot stays down between the two runs */
+export const DOWNTIME = Math.round(Number(process.env.SMOKE_DOWNTIME ?? 25_000) / SPEED)
+
+const seconds = (ms: number) => `${Math.max(1, Math.round(ms / 1000))}s`
+
+/** Still ahead of the second boot whatever the speed, or the timer would come due before anyone looks */
+export const TIMEOUT_DELAY = seconds(Math.max(60_000 / SPEED, DOWNTIME + BOOT_BUDGET))
+
+export const INTERVAL_TICK = seconds(20_000 / SPEED)
 
 /** Shorter than the downtime, so this one comes due while the bot is off */
-export const OVERDUE_DELAY = "10s"
+export const OVERDUE_DELAY = seconds(Math.min(10_000 / SPEED, DOWNTIME * 0.4))
 
 /** Set before the timers are scheduled, and read back by one of them after the restart */
 export const CARRIED = "carried-across"
@@ -47,7 +68,7 @@ export function clearPlan() {
 }
 
 export const TIMEOUT_CODE = CHANNEL
-    ? `$let[sent;$sendMessage[${CHANNEL};ForgeTimers restart check;true]]$smokeReport[timeout:$get[sent]]`
+    ? `$smokeReport[timeout]$let[sent;$sendMessage[${CHANNEL};ForgeTimers restart check;true]]$smokeReport[sent:$get[sent]]`
     : `$smokeReport[timeout]`
 
 export const SEED_CODE =
@@ -56,6 +77,14 @@ export const SEED_CODE =
     `$setTimeout[$smokeReport[overdue:$get[carried]];${OVERDUE_DELAY};${OVERDUE_NAME}]` +
     `$setInterval[$smokeReport[interval];${INTERVAL_TICK};${INTERVAL_NAME}]` +
     `$smokeReport[seeded]`
+
+/** Every event reports under the name of the timer it is about */
+export const eventCode = (event: string) => `$smokeReport[event-${event}:$env[name]]`
+
+/** An event command runs with no target of its own, so this checks one can still reach discord */
+export const EVENT_MESSAGE_CODE =
+    `$if[$env[name]==${TIMEOUT_NAME};` +
+    `$let[sent;$sendMessage[${CHANNEL};ForgeTimers event check;true]]$smokeReport[event-message:$get[sent]]]`
 
 export const reports: Array<{ label: string; at: number }> = []
 
@@ -76,8 +105,8 @@ export async function runSmoke(plan: ISmokePlan | null) {
         if (plan) await verify(plan)
         else await seed()
     } catch (err) {
-        console.error(err)
-        console.log(FAIL)
+        console.error(red(String(err instanceof Error ? err.stack : err)))
+        console.log(red(FAIL))
         process.exit(1)
     }
 }
@@ -92,6 +121,9 @@ async function seed() {
     const overdue = await Database.get(TimerKind.timeout, OVERDUE_NAME)
     if (!overdue) throw new Error(`${OVERDUE_NAME} was scheduled but never persisted`)
 
+    const announced = await until(() => seen(`event-timerStart:${TIMEOUT_NAME}`), 5_000)
+    if (!announced) throw new Error(`${TIMEOUT_NAME} was scheduled, but timerStart never reached its command`)
+
     writeFileSync(
         MARKER,
         JSON.stringify(
@@ -102,15 +134,44 @@ async function seed() {
         "utf8"
     )
 
-    console.log(`due at ${new Date(row.fireAt).toISOString()}, ${Math.round(row.timeLeft() / 1000)}s from now`)
-    console.log(SEEDED)
+    console.log(grey(`due at ${new Date(row.fireAt).toISOString()}, ${Math.round(row.timeLeft() / 1000)}s from now`))
+    console.log(cyan(SEEDED))
+}
+
+/**
+ * A restored interval starts a whole fresh tick rather than the remainder, so its first tick can land
+ * after the timeout's deadline - a slow login on either boot is enough. Waiting on the row it wrote
+ * keeps the check about whether it ticks at all, not about how long discord took to connect.
+ */
+async function waitForTheBeat() {
+    if (seen("interval", bootedAt)) return
+
+    const beat = await Database.get(TimerKind.interval, INTERVAL_NAME)
+    const untilTick = (beat?.fireAt ?? 0) - Date.now()
+    if (untilTick <= 0) return
+
+    console.log(grey(`waiting ${Math.round(untilTick / 1000)}s more for the interval's first tick`))
+    await wait(untilTick + TOLERANCE)
+}
+
+/**
+ * The timers report the moment they run, and only then send their messages. Discord answering slowly
+ * is not the timer being late, so the round trips are waited for separately instead of being measured.
+ */
+async function waitForDiscord() {
+    if (!CHANNEL) return
+
+    const arrived = await until(() => !!seen("sent", bootedAt) && !!seen("event-message", bootedAt), 20_000)
+    if (!arrived) console.log(grey("discord never answered one of the two messages"))
 }
 
 async function verify(plan: ISmokePlan) {
     const left = plan.timeoutDueAt - Date.now()
-    console.log(`waiting ${Math.round(left / 1000)}s for the deadline set before the restart`)
+    console.log(grey(`waiting ${Math.round(left / 1000)}s for the deadline set before the restart`))
 
     await wait(left + TOLERANCE + 1000)
+    await waitForTheBeat()
+    await waitForDiscord()
 
     const fired = seen("timeout", bootedAt)
     const drift = fired ? fired.at - plan.timeoutDueAt : null
@@ -122,8 +183,12 @@ async function verify(plan: ISmokePlan) {
     const carried = late?.label.split(":")[1]
     const overdueRow = await Database.get(TimerKind.timeout, OVERDUE_NAME)
 
+    const restoreEvent = seen(`event-timerRestore:${TIMEOUT_NAME}`, bootedAt)
+    const fireEvent = seen(`event-timerFire:${TIMEOUT_NAME}`, bootedAt)
+
     // a snowflake back from $sendMessage is discord saying it accepted the message
-    const sent = fired?.label.split(":")[1]
+    const sent = seen("sent", bootedAt)?.label.split(":")[1]
+    const eventSent = seen("event-message", bootedAt)?.label.split(":")[1]
 
     const checks = [
         ["the timeout ran after the restart", !!fired],
@@ -133,14 +198,20 @@ async function verify(plan: ISmokePlan) {
         [`the timeout that came due while it was down ran (${lateBy ?? "n/a"}ms late)`, !!late],
         [`its variables came back with it (${carried ?? "nothing"})`, carried === CARRIED],
         ["it was deleted too", overdueRow === null],
+        ["the restart reported the timer it picked up", !!restoreEvent],
+        ["the run was reported as well", !!fireEvent],
         ...(CHANNEL
             ? ([
                   [`its message reached discord (${sent ?? "nothing came back"})`, /^\d{17,20}$/.test(sent ?? "")],
+                  [
+                      `the event command reached discord too (${eventSent ?? "nothing came back"})`,
+                      /^\d{17,20}$/.test(eventSent ?? ""),
+                  ],
               ] as const)
             : []),
     ] as const
 
-    for (const [what, ok] of checks) console.log(`${ok ? "ok  " : "FAIL"} ${what}`)
+    for (const [what, ok] of checks) console.log(`${ok ? green("ok  ") : red("FAIL")} ${what}`)
 
     clearPlan()
     await Database.delete(TimerKind.timeout, TIMEOUT_NAME).catch(() => undefined)
@@ -148,7 +219,7 @@ async function verify(plan: ISmokePlan) {
     await Database.delete(TimerKind.interval, INTERVAL_NAME).catch(() => undefined)
 
     const passed = checks.every(([, ok]) => ok)
-    console.log(passed ? PASS : FAIL)
+    console.log(passed ? green(PASS) : red(FAIL))
     process.exit(passed ? 0 : 1)
 }
 

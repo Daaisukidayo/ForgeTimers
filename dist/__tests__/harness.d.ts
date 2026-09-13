@@ -1,5 +1,7 @@
 import { DataBaseManager } from "@tryforge/forge.db";
+import { DiscordAPIError } from "discord.js";
 import { ForgeTimers } from "..";
+import { TimerStorage } from "../types";
 import { Database, Timer, TimerKind } from "../structures";
 export declare class ConfigSeed extends DataBaseManager {
     database: string;
@@ -42,12 +44,14 @@ export interface ITestClient {
     members: Map<string, unknown>;
     fetches: {
         channels: number;
+        commands: number;
     };
     commands: unknown[];
     channelError?: unknown;
     guilds: Set<string>;
     ready(): Promise<void>;
     disarm(): void;
+    reset(): void;
 }
 export declare const marks: string[];
 /** Waits for something to become true instead of guessing how long it takes */
@@ -59,6 +63,20 @@ export declare function boot(options?: ConstructorParameters<typeof ForgeTimers>
     cleanup: () => Promise<void>;
 }>;
 export declare function run(harness: ITestClient, code: string, target?: IFakeTarget): Promise<string | null>;
+export type TestHarness = Awaited<ReturnType<typeof boot>>;
+export interface IHarnessSetup {
+    options?: ConstructorParameters<typeof ForgeTimers>[0];
+    target?: TestDatabase;
+    setup?(harness: TestHarness): void | Promise<void>;
+}
+export declare function useHarness(assign: (harness: TestHarness) => void, config?: IHarnessSetup): void;
+export declare function useTempHome(prefix: string): string;
+export declare const marked: (mark: string) => Promise<boolean>;
+export declare const apiError: (status: number, code: number, message: string) => DiscordAPIError;
+export declare function contentsOf(storage: TimerStorage): Promise<string[]>;
+type DatabaseCall = "set" | "delete" | "get" | "getAll" | "wipe";
+export declare function patchDatabase<K extends DatabaseCall>(call: K, make: (real: (typeof Database)[K]) => (typeof Database)[K]): void;
+export declare function restoreDatabase(): void;
 export declare function persist(timer: Timer, fireAt?: number): Promise<Timer>;
 export { Database, Timer, TimerKind };
 //# sourceMappingURL=harness.d.ts.map

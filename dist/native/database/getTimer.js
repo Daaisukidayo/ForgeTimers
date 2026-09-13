@@ -49,7 +49,7 @@ exports.default = new forgescript_1.NativeFunction({
                 ? this.successJSON(value)
                 : this.success(value);
         }
-        return this.successJSON(timer);
+        return this.successJSON((0, timer_1.readProperties)(timer));
     }
 });
 //# sourceMappingURL=getTimer.js.map

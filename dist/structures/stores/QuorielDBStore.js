@@ -22,7 +22,7 @@ class QuorielDBStore {
             await this.db.closeDB([exports.QUORIEL_TYPE]);
     }
     async get(kind, name) {
-        // a missing record reads back as {}, so the id is what says it was really there
+        // a missing record reads back as {}
         const row = this.db.getRecord(exports.QUORIEL_TYPE, Timer_1.Timer.idOf(kind, name));
         return row?.id ? Timer_1.Timer.from(row) : null;
     }
@@ -31,11 +31,6 @@ class QuorielDBStore {
     }
     async getAllOf(kind) {
         return (await this.getAll()).filter((timer) => timer.kind === kind);
-    }
-    async find(data, amount) {
-        const wanted = Object.entries(data ?? {});
-        const found = (await this.getAll()).filter((timer) => wanted.every(([key, value]) => timer[key] === value));
-        return amount === undefined ? found : found.slice(0, amount);
     }
     async set(timer) {
         // lmdb keeps the object as it is
@@ -55,7 +50,6 @@ class QuorielDBStore {
     }
 }
 exports.QuorielDBStore = QuorielDBStore;
-/** Kept out of the import graph so ForgeDB users never need @quoriel/db installed */
 function load() {
     try {
         return require("@quoriel/db");

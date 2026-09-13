@@ -1,45 +1,29 @@
 import assert from "node:assert/strict"
-import { after, before, beforeEach, describe, it } from "node:test"
-import { boot, Database, marks, persist, run, Timer, TimerKind, waitFor } from "./harness"
+import { describe, it } from "node:test"
+import {
+    Database,
+    marks,
+    patchDatabase,
+    persist,
+    run,
+    TestHarness,
+    Timer,
+    TimerKind,
+    useHarness,
+    waitFor,
+} from "./harness"
 
-let harness: Awaited<ReturnType<typeof boot>>
+let harness: TestHarness
 
-before(async () => {
-    harness = await boot()
-    harness.channels.set("chan-1", { id: "chan-1" })
-})
-
-beforeEach(async () => {
-    repair()
-    harness.disarm()
-    await Database.wipe()
-    marks.length = 0
-})
-
-after(async () => {
-    repair()
-    harness.disarm()
-    await harness.cleanup()
-})
-
-type DatabaseCall = "set" | "delete" | "getAll" | "wipe"
-
-const originals = new Map<DatabaseCall, unknown>()
+useHarness((booted) => (harness = booted))
 
 /** Takes a call away the way a connection dropped after startup would */
-function breaks(...calls: DatabaseCall[]) {
+function breaks(...calls: Parameters<typeof patchDatabase>[0][]) {
     for (const call of calls) {
-        if (!originals.has(call)) originals.set(call, Database[call])
-
-        Database[call] = (async () => {
+        patchDatabase(call, () => async () => {
             throw new Error(`the database went away (${call})`)
-        }) as never
+        })
     }
-}
-
-function repair() {
-    for (const [call, original] of originals) Database[call] = original as never
-    originals.clear()
 }
 
 const timer = (name: string, kind = TimerKind.timeout, duration = 50) =>
@@ -108,7 +92,6 @@ describe("a database that fails after startup", () => {
         assert.deepEqual(marks, [], "a timer was restored out of a read that failed")
         assert.equal(harness.client.timeouts.size, 0)
 
-        repair()
         assert.ok(await Database.get(TimerKind.timeout, "n"), "the record was dropped over a failed read")
     })
 })

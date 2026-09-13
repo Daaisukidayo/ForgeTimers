@@ -1,7 +1,6 @@
 import { Timer, TimerKind } from "./Timer";
-import { ITimerFindOptions, ITimerStore } from "./stores";
-/** Which extension holds the timers */
-export type TimerStorage = "forgedb" | "quorieldb";
+import { ITimerStore } from "./stores";
+import { TimerStorage } from "../types";
 /**
  * The database, whichever one was picked. Everything reads and writes timers through here,
  * so the backend is a single decision made at startup rather than a shape the rest has to know.
@@ -39,12 +38,6 @@ export declare class Database {
      * @param kind The kind of the timers to get.
      */
     static getAllOf(kind: TimerKind): Promise<Timer[]>;
-    /**
-     * Finds existing timers matching the provided data.
-     * @param data The data to use for searching.
-     * @param amount The amount of results to return.
-     */
-    static find(data?: ITimerFindOptions, amount?: number): Promise<Timer[]>;
     /**
      * Saves a timer in the database.
      * @param timer The timer to save.

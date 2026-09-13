@@ -6,17 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
 const harness_1 = require("./harness");
+const timer_1 = require("../properties/timer");
 let harness;
-(0, node_test_1.before)(async () => (harness = await (0, harness_1.boot)()));
-(0, node_test_1.beforeEach)(async () => {
-    harness.disarm();
-    await harness_1.Database.wipe();
-    harness_1.marks.length = 0;
-});
-(0, node_test_1.after)(async () => {
-    harness.disarm();
-    await harness.cleanup();
-});
+(0, harness_1.useHarness)((booted) => (harness = booted));
 (0, node_test_1.describe)("$setTimeout", () => {
     (0, node_test_1.it)("persists a named timeout and arms it", async () => {
         await (0, harness_1.run)(harness, "$setTimeout[$sendMessage[now];1h;reminder]");
@@ -131,6 +123,23 @@ let harness;
         strict_1.default.deepEqual(await manager.stop(harness_1.TimerKind.timeout, "neither"), [false, false]);
     });
 });
+(0, node_test_1.describe)("a name used by both kinds at once", () => {
+    (0, node_test_1.it)("cancels only the kind that was asked for", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[t];1h;n]$setInterval[$testMark[i];1h;n]");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$clearTimeout[n]"), "true");
+        strict_1.default.equal(harness.client.timeouts.has("n"), false);
+        strict_1.default.equal(harness.client.intervals.has("n"), true, "the interval went down with the timeout");
+        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), null);
+        strict_1.default.ok(await harness_1.Database.get(harness_1.TimerKind.interval, "n"), "the interval's row went with it");
+    });
+    (0, node_test_1.it)("wipes both", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[t];1h;n]$setInterval[$testMark[i];1h;n]");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$wipeTimers"), "2");
+        strict_1.default.equal(harness.client.timeouts.size, 0);
+        strict_1.default.equal(harness.client.intervals.size, 0);
+        strict_1.default.equal((await harness_1.Database.getAll()).length, 0);
+    });
+});
 (0, node_test_1.describe)("reading timers back", () => {
     (0, node_test_1.it)("returns a single property", async () => {
         await (0, harness_1.run)(harness, "$setTimeout[x;1h;n]");
@@ -143,6 +152,16 @@ let harness;
         const parsed = JSON.parse((await (0, harness_1.run)(harness, "$getTimer[timeout;n]")));
         strict_1.default.equal(parsed.id, "timeout:n");
         strict_1.default.equal(parsed.duration, 3_600_000);
+    });
+    (0, node_test_1.it)("carries the documented properties, and nothing kept for the extension itself", async () => {
+        await (0, harness_1.run)(harness, "$let[note;kept]$setTimeout[$get[note];1h;n]");
+        const parsed = JSON.parse((await (0, harness_1.run)(harness, "$getTimer[timeout;n]")));
+        const listed = JSON.parse((await (0, harness_1.run)(harness, "$getAllTimers")))[0];
+        const documented = Object.values(timer_1.TimerProperty).sort();
+        strict_1.default.deepEqual(Object.keys(parsed).sort(), documented, "$getTimer drifted from the property list");
+        strict_1.default.deepEqual(Object.keys(listed).sort(), documented, "$getAllTimers drifted from it too");
+        strict_1.default.ok(parsed.timeLeft > 0, "timeLeft is a property, so json has to carry it");
+        strict_1.default.deepEqual(parsed.args, [], "args reads as a list, not as null");
     });
     (0, node_test_1.it)("returns nothing for a timer that does not exist", async () => {
         strict_1.default.equal(await (0, harness_1.run)(harness, "$getTimer[timeout;missing]"), "");

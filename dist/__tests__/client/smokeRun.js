@@ -4,8 +4,6 @@ const node_child_process_1 = require("node:child_process");
 const node_path_1 = require("node:path");
 const smoke_1 = require("./smoke");
 const BOT = (0, node_path_1.join)(__dirname, "client.js");
-/** Long enough for the interval to miss a tick while the timeout is still pending */
-const DOWNTIME = Number(process.env.SMOKE_DOWNTIME ?? 25_000);
 const BOOT_TIMEOUT = 60_000;
 const VERIFY_TIMEOUT = 180_000;
 const SCENARIOS = [
@@ -24,9 +22,9 @@ const SCENARIOS = [
  */
 function phase(env, label, sentinels, timeout, killOnMatch) {
     return new Promise((resolve) => {
-        console.log(`\n=== ${label} ===`);
+        console.log("\n" + (0, smoke_1.cyan)(`=== ${label} ===`));
         const bot = (0, node_child_process_1.spawn)(process.execPath, [BOT], {
-            env: { ...process.env, SMOKE: "1", ...env },
+            env: { ...process.env, FORCE_COLOR: "1", SMOKE: "1", SMOKE_SPEED: String(smoke_1.SPEED), ...env },
             stdio: ["ignore", "pipe", "inherit"],
         });
         let matched = null;
@@ -40,7 +38,7 @@ function phase(env, label, sentinels, timeout, killOnMatch) {
             resolve({ matched, code });
         };
         const guard = setTimeout(() => {
-            console.error(`${label} timed out after ${Math.round(timeout / 1000)}s`);
+            console.error((0, smoke_1.yellow)(`${label} timed out after ${Math.round(timeout / 1000)}s`));
             stop();
         }, timeout);
         function stop() {
@@ -63,7 +61,7 @@ function phase(env, label, sentinels, timeout, killOnMatch) {
         });
         bot.on("exit", (code) => done(code));
         bot.on("error", (err) => {
-            console.error(err);
+            console.error((0, smoke_1.red)(String(err instanceof Error ? err.stack : err)));
             done(1);
         });
     });
@@ -75,16 +73,16 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * @returns Whether the timers came back intact.
  */
 async function check(scenario) {
-    console.log(`\n########## ${scenario.label} ##########`);
+    console.log("\n" + (0, smoke_1.bold)((0, smoke_1.cyan)(`########## ${scenario.label} ##########`)));
     // a run that died mid-way would otherwise send us straight to verifying
     (0, smoke_1.clearPlan)();
     const first = await phase({ SMOKE_STORAGE: scenario.seed }, "run 1 of 2 - scheduling", [smoke_1.SEEDED], BOOT_TIMEOUT, true);
     if (first.matched !== smoke_1.SEEDED) {
-        console.error("\nthe bot never scheduled its timers, so there is nothing to restart into");
+        console.error("\n" + (0, smoke_1.red)("the bot never scheduled its timers, so there is nothing to restart into"));
         return false;
     }
-    console.log(`\nstopped. staying down ${Math.round(DOWNTIME / 1000)}s`);
-    await wait(DOWNTIME);
+    console.log("\n" + (0, smoke_1.grey)(`stopped. staying down ${Math.round(smoke_1.DOWNTIME / 1000)}s`));
+    await wait(smoke_1.DOWNTIME);
     // a differing backend means the second boot has to migrate before it can restore
     const moving = scenario.seed !== scenario.verify;
     const env = { SMOKE_STORAGE: scenario.verify };
@@ -94,17 +92,22 @@ async function check(scenario) {
     const second = await phase(env, label, [smoke_1.PASS, smoke_1.FAIL], VERIFY_TIMEOUT, false);
     if (second.matched === smoke_1.PASS)
         return true;
-    console.error(second.matched === smoke_1.FAIL ? "\nthe restart check failed" : "\nthe bot stopped before it could report");
+    console.error("\n" + (0, smoke_1.red)(second.matched === smoke_1.FAIL ? "the restart check failed" : "the bot stopped before it could report"));
     return false;
 }
 async function main() {
     // one scenario when named, otherwise all of them, because each can break alone
-    const only = process.env.SMOKE_ONLY;
-    const scenarios = only ? SCENARIOS.filter((s) => s.id === only) : SCENARIOS;
+    const only = process.env.SMOKE_ONLY?.split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+    const wanted = only?.length ? only : SCENARIOS.map((s) => s.id);
+    const scenarios = SCENARIOS.filter((s) => wanted.includes(s.id));
     if (!scenarios.length) {
-        console.error(`No scenario called "${only}". Pick one of: ${SCENARIOS.map((s) => s.id).join(", ")}`);
+        console.error((0, smoke_1.red)(`No scenario called "${wanted.join(", ")}". Pick from: ${SCENARIOS.map((s) => s.id).join(", ")}`));
         process.exit(1);
     }
+    console.log((0, smoke_1.grey)(`clock x${smoke_1.SPEED}: ${smoke_1.TIMEOUT_DELAY} deadline, ${smoke_1.INTERVAL_TICK} tick, ${smoke_1.OVERDUE_DELAY} while down, ` +
+        `${Math.round(smoke_1.DOWNTIME / 1000)}s down, ${scenarios.length} of ${SCENARIOS.length} scenarios`));
     const failed = [];
     for (const scenario of scenarios) {
         if (!(await check(scenario)))
@@ -112,7 +115,7 @@ async function main() {
     }
     console.log("");
     for (const scenario of scenarios) {
-        console.log(`${failed.includes(scenario.label) ? "FAIL" : "ok  "} ${scenario.label}`);
+        console.log(`${failed.includes(scenario.label) ? (0, smoke_1.red)("FAIL") : (0, smoke_1.green)("ok  ")} ${scenario.label}`);
     }
     process.exit(failed.length ? 1 : 0);
 }

@@ -1,38 +1,34 @@
 import assert from "node:assert/strict"
-import { after, before, beforeEach, describe, it } from "node:test"
-import { boot, Database, marks, run, Timer, TimerKind, waitFor } from "./harness"
+import { describe, it } from "node:test"
+import {
+    Database,
+    marks,
+    patchDatabase,
+    restoreDatabase,
+    run,
+    TestHarness,
+    Timer,
+    TimerKind,
+    useHarness,
+    waitFor,
+} from "./harness"
 
-let harness: Awaited<ReturnType<typeof boot>>
+let harness: TestHarness
+
+useHarness((booted) => (harness = booted))
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-before(async () => {
-    harness = await boot()
-    harness.channels.set("chan-1", { id: "chan-1" })
-})
-
-beforeEach(async () => {
-    harness.disarm()
-    await Database.wipe()
-    marks.length = 0
-})
-
-after(async () => {
-    harness.disarm()
-    await harness.cleanup()
-})
-
 async function withSlowWrites<T>(delay: number, fn: () => Promise<T>) {
-    const real = Database.set.bind(Database)
-    Database.set = async (timer) => {
+    patchDatabase("set", (real) => async (timer) => {
         await sleep(delay)
         return real(timer)
-    }
+    })
 
     try {
         return await fn()
     } finally {
-        Database.set = real
+        restoreDatabase()
     }
 }
 
@@ -136,5 +132,34 @@ describe("replacing a timer while it runs", () => {
         } finally {
             clearTimeout(handle)
         }
+    })
+})
+
+describe("the claim a name is on", () => {
+    const claims = () => harness.ext.timersManager["generations"]
+
+    it("is dropped once the name is cancelled", async () => {
+        for (let i = 0; i < 20; i++) await run(harness, `$setTimeout[$testMark[x];1h;t${i}]`)
+        assert.equal(claims().size, 20, "an armed name has to be tracked")
+
+        for (let i = 0; i < 20; i++) await run(harness, `$clearTimeout[t${i}]`)
+        assert.equal(claims().size, 0, "a cancelled name must not be tracked for the life of the process")
+    })
+
+    it("is dropped once a timeout has run", async () => {
+        await run(harness, "$setTimeout[$testMark[ran];50;quick]")
+        assert.ok(await waitFor(() => marks.includes("ran")), "the timer never ran")
+
+        assert.ok(await waitFor(() => claims().size === 0), `${claims().size} left behind`)
+    })
+
+    it("is kept while an interval is still ticking", async () => {
+        await run(harness, "$setInterval[$testMark[tick];50;beat]")
+        assert.ok(await waitFor(() => marks.filter((mark) => mark === "tick").length >= 2))
+
+        assert.equal(claims().size, 1, "an interval owns its name until it is cancelled")
+
+        await run(harness, "$clearInterval[beat]")
+        assert.equal(claims().size, 0)
     })
 })

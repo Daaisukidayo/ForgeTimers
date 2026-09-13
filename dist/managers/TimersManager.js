@@ -5,10 +5,12 @@ const forgescript_1 = require("@tryforge/forgescript");
 const discord_js_1 = require("discord.js");
 const structures_1 = require("../structures");
 const __1 = require("..");
+const types_1 = require("../types");
 const snapshotVars_1 = require("../functions/snapshotVars");
 const schedule_1 = require("../functions/schedule");
 const logger_1 = require("../functions/logger");
-/** Really gone, as opposed to a rate limit or an outage — only this may cost a timer */
+const timer_1 = require("../properties/timer");
+const TARGET_GONE = "its target is gone";
 function isGone(err) {
     return err instanceof discord_js_1.DiscordAPIError && err.status === 404;
 }
@@ -18,12 +20,12 @@ function reasonOf(err) {
 class TimersManager {
     client;
     timers;
-    /** Bumped on every arm and every clear, so a callback can tell it was superseded */
+    claims = 0;
     generations = new Map();
     constructor(client) {
         this.client = client;
         this.timers = client.getExtension(__1.ForgeTimers, true);
-        client.once("clientReady", async () => {
+        client.once(discord_js_1.Events.ClientReady, async () => {
             if (!(await this.timers.ready))
                 return;
             await this._restore();
@@ -46,6 +48,7 @@ class TimersManager {
             await run();
             return { ran: true, gone: false };
         });
+        this._report(types_1.TimerEvent.timerStart, timer);
         return timer;
     }
     /**
@@ -63,7 +66,7 @@ class TimersManager {
         else
             clearTimeout(handle);
         map.delete(name);
-        this._claim(kind, name);
+        this._release(kind, name);
         return true;
     }
     _save(timer) {
@@ -72,12 +75,44 @@ class TimersManager {
     _forget(timer) {
         return structures_1.Database.delete(timer.kind, timer.name).catch(logger_1.Logger.error);
     }
+    /** Reports how a one-shot ended, and spends its record only once the run is really over */
+    async _settle(timer, outcome) {
+        if (outcome.ran)
+            this._report(types_1.TimerEvent.timerFire, timer);
+        else if (outcome.gone)
+            this._report(types_1.TimerEvent.timerDrop, timer, { reason: TARGET_GONE });
+        // the record waits for the next boot because an outage is not a run
+        if (outcome.ran || outcome.gone)
+            await this._forget(timer);
+    }
+    _report(event, timer, extra) {
+        const { emitter } = this.timers;
+        if (!emitter.listenerCount(event))
+            return;
+        emitter.emit(event, { ...(0, timer_1.readProperties)(timer), ...extra });
+    }
+    async _reportCancel(kind, name, wasLive) {
+        if (!this.timers.emitter.listenerCount(types_1.TimerEvent.timerCancel))
+            return;
+        const stored = (await this.timers.ready) ? await structures_1.Database.get(kind, name).catch(logger_1.Logger.error) : null;
+        if (stored)
+            return this._report(types_1.TimerEvent.timerCancel, stored);
+        if (wasLive)
+            this.timers.emitter.emit(types_1.TimerEvent.timerCancel, { id: structures_1.Timer.idOf(kind, name), kind, name });
+    }
     /** Takes the name over and hands back a check for whether it's still ours */
     _claim(kind, name) {
         const key = structures_1.Timer.idOf(kind, name);
-        const generation = (this.generations.get(key) ?? 0) + 1;
-        this.generations.set(key, generation);
-        return () => this.generations.get(key) === generation;
+        const claim = ++this.claims;
+        this.generations.set(key, claim);
+        return () => this.generations.get(key) === claim;
+    }
+    /**
+     * Forgets a name nothing is armed under any more. Whoever still holds its claim reads undefined
+     * and stands down, the same as being superseded.
+     */
+    _release(kind, name) {
+        this.generations.delete(structures_1.Timer.idOf(kind, name));
     }
     /**
      * Cancels a running timer and deletes it from the database.
@@ -87,6 +122,7 @@ class TimersManager {
      */
     async stop(kind, name) {
         const cleared = this.clear(kind, name);
+        await this._reportCancel(kind, name, cleared);
         if (!(await this.timers.ready))
             return [cleared, false];
         const result = await structures_1.Database.delete(kind, name).catch(logger_1.Logger.error);
@@ -100,8 +136,10 @@ class TimersManager {
         let cleared = 0;
         for (const kind of [structures_1.TimerKind.timeout, structures_1.TimerKind.interval]) {
             for (const name of [...(this.mapOf(kind)?.keys() ?? [])]) {
-                if (this.clear(kind, name))
-                    cleared++;
+                if (!this.clear(kind, name))
+                    continue;
+                cleared++;
+                await this._reportCancel(kind, name, true);
             }
         }
         if (!(await this.timers.ready))
@@ -162,21 +200,17 @@ class TimersManager {
     _armTimeout(timer, run, owns) {
         this._schedule(timer.kind, timer.name, timer.timeLeft(), async () => {
             const outcome = await run();
-            // someone took the name while we ran, their handle and row aren't ours to drop
             if (!owns())
                 return;
             this.client.timeouts.delete(timer.name);
-            // don't burn the record on an outage, retry it next boot
-            if (outcome.ran || outcome.gone)
-                await this._forget(timer);
+            this._release(timer.kind, timer.name);
+            await this._settle(timer, outcome);
         });
     }
-    /** Self-arming rather than `setInterval`: handles ticks past node's cap, and resumes on time left */
     _armInterval(timer, run, owns) {
         this._schedule(timer.kind, timer.name, timer.timeLeft(), async () => {
             if (!owns())
                 return;
-            // bump first: a slow run mustn't drag the phase, a crash mustn't look pending
             await this._save(timer.advance());
             if (!owns()) {
                 // cancelled while that write was in flight, so take the row back out
@@ -186,8 +220,11 @@ class TimersManager {
             }
             this._armInterval(timer, run, owns);
             const outcome = await run();
+            if (outcome.ran)
+                this._report(types_1.TimerEvent.timerFire, timer);
             if (outcome.gone && owns()) {
-                logger_1.Logger.warn(`Stopping interval "${timer.name}": its target is gone`);
+                logger_1.Logger.warn(`Stopping interval "${timer.name}": ${TARGET_GONE}`);
+                this._report(types_1.TimerEvent.timerDrop, timer, { reason: TARGET_GONE });
                 this.clear(timer.kind, timer.name);
                 await this._forget(timer);
             }
@@ -212,25 +249,23 @@ class TimersManager {
         const keywords = (0, snapshotVars_1.restoreVars)(timer.vars?.keywords, version);
         const environment = (0, snapshotVars_1.restoreVars)(timer.vars?.environment, version);
         let resolved = null;
+        let command = null;
         const run = async () => {
             if (!resolved) {
-                const target = await this._rebuildTarget(timer);
-                if (!target.ok) {
-                    logger_1.Logger.warn(target.gone
-                        ? `${timer.kind} "${timer.name}" has nowhere to run: ${target.reason}`
-                        : `Could not run ${timer.kind} "${timer.name}" yet: ${target.reason}`);
-                    return { ran: false, gone: target.gone };
+                const attempt = await this._resolve(timer);
+                if (!attempt.ok) {
+                    logger_1.Logger.warn(attempt.gone
+                        ? `${timer.kind} "${timer.name}" has nowhere to run: ${attempt.reason}`
+                        : `Could not run ${timer.kind} "${timer.name}" yet: ${attempt.reason}`);
+                    return { ran: false, gone: attempt.gone };
                 }
-                const obj = target.obj;
-                const hasAuthor = "author" in obj || "user" in obj;
-                const host = timer.hostID && !hasAuthor ? await this.client.users.fetch(timer.hostID).catch(() => null) : null;
-                const guild = timer.guildID ? this.client.guilds.cache.get(timer.guildID) : undefined;
-                const hostMember = host && guild ? await guild.members.fetch(host.id).catch(() => null) : null;
-                resolved = { obj, host, hostMember };
+                resolved = attempt.resolved;
+                // the file a timer came from cannot move under it, so this is looked up with the target
+                command = this._commandFor(timer);
             }
             const ctx = new structures_1.TimerContext({
                 client: this.client,
-                command: this._commandFor(timer),
+                command,
                 data: compiled,
                 obj: resolved.obj,
                 doNotSend: true,
@@ -255,9 +290,20 @@ class TimersManager {
         if (!timer.path && !timer.commandName)
             return null;
         const commands = this.client.commands?.toArray() ?? [];
-        const found = commands.find((command) => (timer.path && command.data.path === timer.path) ||
-            (timer.commandName && command.data.name === timer.commandName));
-        return found ?? null;
+        return (commands.find((command) => (timer.path && command.data.path === timer.path) ||
+            (timer.commandName && command.data.name === timer.commandName)) ?? null);
+    }
+    /** Fetches everything a run needs from discord */
+    async _resolve(timer) {
+        const target = await this._rebuildTarget(timer);
+        if (!target.ok)
+            return target;
+        const obj = target.obj;
+        const hasAuthor = "author" in obj || "user" in obj;
+        const host = timer.hostID && !hasAuthor ? await this.client.users.fetch(timer.hostID).catch(() => null) : null;
+        const guild = timer.guildID ? this.client.guilds.cache.get(timer.guildID) : undefined;
+        const hostMember = host && guild ? await guild.members.fetch(host.id).catch(() => null) : null;
+        return { ok: true, resolved: { obj, host, hostMember } };
     }
     async _rebuildTarget(timer) {
         // no channel means empty target
@@ -295,6 +341,9 @@ class TimersManager {
             return true;
         if (!this.client.shard && this.timers.options.pruneUnknownGuilds) {
             logger_1.Logger.warn(`Dropping ${timer.kind} "${timer.name}": guild ${timer.guildID} is not visible to this process`);
+            this._report(types_1.TimerEvent.timerDrop, timer, {
+                reason: `guild ${timer.guildID} is not visible to this process`,
+            });
             await this._forget(timer);
         }
         return false;
@@ -320,6 +369,7 @@ class TimersManager {
             }
             const config = this.configOf(timer.kind);
             if (config.persist === false) {
+                this._report(types_1.TimerEvent.timerDrop, timer, { reason: `persist is off for ${timer.kind}s` });
                 await this._forget(timer);
                 continue;
             }
@@ -327,6 +377,7 @@ class TimersManager {
             if (!runner.ok) {
                 if (runner.gone) {
                     logger_1.Logger.warn(`Dropping ${timer.kind} "${timer.name}": ${runner.reason}`);
+                    this._report(types_1.TimerEvent.timerDrop, timer, { reason: runner.reason });
                     await this._forget(timer);
                 }
                 else {
@@ -354,9 +405,14 @@ class TimersManager {
     async _restoreTimeout(timer, timing, run, dueNow) {
         if (timing.late) {
             logger_1.Logger.warn(`Discarding timeout "${timer.name}": overdue by ${timing.overdueBy}ms (max ${timing.config.maxOverdue}ms)`);
+            this._report(types_1.TimerEvent.timerDrop, timer, {
+                reason: `overdue by ${timing.overdueBy}ms, more than the ${timing.config.maxOverdue}ms allowed`,
+                overdueBy: timing.overdueBy,
+            });
             await this._forget(timer);
             return;
         }
+        this._report(types_1.TimerEvent.timerRestore, timer, { overdueBy: timing.overdueBy });
         if (!timer.isOverdue())
             return this._arm(timer, run);
         dueNow.push(async () => {
@@ -366,21 +422,20 @@ class TimersManager {
             const outcome = await run();
             if (!owns())
                 return;
-            if (outcome.ran || outcome.gone)
-                await this._forget(timer);
+            this._release(timer.kind, timer.name);
+            await this._settle(timer, outcome);
         });
     }
     async _restoreInterval(timer, timing, run, dueNow) {
+        this._report(types_1.TimerEvent.timerRestore, timer, { overdueBy: timing.overdueBy });
         if (timing.late) {
             logger_1.Logger.warn(`Interval "${timer.name}": skipping tick overdue by ${timing.overdueBy}ms (max ${timing.config.maxOverdue}ms), resuming schedule`);
             await this._save(timer.scheduleNext());
             return this._arm(timer, run);
         }
-        // still on schedule, _arm picks up the time left on this tick
         if (!timer.isOverdue())
             return this._arm(timer, run);
         const missed = timer.missedTicks();
-        // arm inside the task, isLive would go true first and eat every replay
         dueNow.push(async () => {
             if (this.isLive(timer.kind, timer.name))
                 return;
@@ -400,7 +455,7 @@ class TimersManager {
         const limit = this.timers.options.intervalConfig?.restoredTicksLimit;
         if (!limit)
             return;
-        const toRun = limit < 0 ? missed : Math.min(missed, limit);
+        const toRun = Math.min(missed, limit);
         if (toRun <= 0)
             return;
         logger_1.Logger.warn(missed > toRun
@@ -411,6 +466,7 @@ class TimersManager {
             const outcome = await run();
             if (!outcome.ran)
                 return;
+            this._report(types_1.TimerEvent.timerFire, timer);
         }
     }
 }

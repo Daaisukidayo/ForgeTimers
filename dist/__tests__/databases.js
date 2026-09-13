@@ -83,14 +83,12 @@ function persistenceSuite(target) {
             strict_1.default.equal((await harness_1.Database.getAll()).length, 1);
             strict_1.default.equal((await harness_1.Database.get(harness_1.TimerKind.timeout, "n")).duration, 5000);
         });
-        (0, node_test_1.it)("filters by kind and by arbitrary fields", async () => {
+        (0, node_test_1.it)("filters by kind", async () => {
             await harness_1.Database.set(new harness_1.Timer({ name: "a", kind: harness_1.TimerKind.timeout, duration: 1, channelID: "c", guildID: "g1" }));
             await harness_1.Database.set(new harness_1.Timer({ name: "b", kind: harness_1.TimerKind.interval, duration: 1, channelID: "c", guildID: "g1" }));
             await harness_1.Database.set(new harness_1.Timer({ name: "c", kind: harness_1.TimerKind.interval, duration: 1, channelID: "c", guildID: "g2" }));
             strict_1.default.equal((await harness_1.Database.getAllOf(harness_1.TimerKind.interval)).length, 2);
             strict_1.default.equal((await harness_1.Database.getAllOf(harness_1.TimerKind.timeout)).length, 1);
-            strict_1.default.equal((await harness_1.Database.find({ guildID: "g1" })).length, 2);
-            strict_1.default.equal((await harness_1.Database.find({ guildID: "g2" }, 1)).length, 1);
         });
         (0, node_test_1.it)("deletes one timer and wipes the rest", async () => {
             await harness_1.Database.set(new harness_1.Timer({ name: "a", kind: harness_1.TimerKind.timeout, duration: 1, channelID: "c" }));

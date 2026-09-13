@@ -1,23 +1,9 @@
 import assert from "node:assert/strict"
-import { mkdtempSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { after, before, describe, it } from "node:test"
-import { ConfigSeed, Database, Timer, TimerKind } from "./harness"
+import { describe, it } from "node:test"
+import { Database, Timer, TimerKind, useTempHome } from "./harness"
 
-const home = process.cwd()
-const folder = mkdtempSync(join(tmpdir(), "forgetimers-forgedb-"))
-
-before(() => {
-    process.chdir(folder)
-    new ConfigSeed({ type: "better-sqlite3", folder: "forgedb" } as never)
-})
-
-after(async () => {
-    await Database.destroy().catch(() => undefined)
-    process.chdir(home)
-    rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
-})
+const folder = useTempHome("forgetimers-forgedb")
 
 const reminder = () =>
     new Timer({

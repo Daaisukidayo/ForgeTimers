@@ -238,13 +238,6 @@ export class Timer implements ITimer {
         this.fireAt += ticks * this.duration
         return this
     }
-
-    /**
-     * Clones this timer.
-     */
-    public clone() {
-        return Object.assign(Object.create(Object.getPrototypeOf(this)), this) as this
-    }
 }
 
 export class MongoTimer extends Timer {

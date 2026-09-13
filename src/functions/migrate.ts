@@ -1,5 +1,6 @@
 import { ForgeClient } from "@tryforge/forgescript"
-import { Database, TimerStorage } from "../structures/Database"
+import { Database } from "../structures/Database"
+import { TimerStorage } from "../types"
 import { Logger } from "./logger"
 
 /** What each backend needs loaded before its store can be opened */

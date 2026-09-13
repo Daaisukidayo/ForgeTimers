@@ -16,6 +16,13 @@ export enum TimerProperty {
     args = "args",
 }
 
+export function readProperties(timer: Timer) {
+    const out: Record<string, unknown> = {}
+    for (const [property, read] of Object.entries(TimerProperties)) out[property] = read(timer)
+
+    return out
+}
+
 export const TimerProperties: Record<TimerProperty, (timer: Timer) => unknown> = {
     [TimerProperty.id]: (t) => t.id,
     [TimerProperty.name]: (t) => t.name,

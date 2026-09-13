@@ -4,7 +4,7 @@ const forgescript_1 = require("@tryforge/forgescript");
 const __1 = require("../..");
 exports.default = new forgescript_1.NativeFunction({
     name: "$wipeTimers",
-    version: "1.0.0",
+    version: "1.1.0",
     description: "Cancels every stored timer and wipes them from the database",
     unwrap: true,
     output: forgescript_1.ArgType.Number,

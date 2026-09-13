@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const forgescript_1 = require("@tryforge/forgescript");
 const __1 = require("../..");
+const timer_1 = require("../../properties/timer");
 exports.default = new forgescript_1.NativeFunction({
     name: "$getAllTimers",
     version: "1.1.0",
@@ -21,7 +22,8 @@ exports.default = new forgescript_1.NativeFunction({
     async execute(ctx, [kind]) {
         if (!(await ctx.client.getExtension(__1.ForgeTimers, true).ready))
             return this.successJSON([]);
-        return this.successJSON(kind ? await __1.Database.getAllOf(kind) : await __1.Database.getAll());
+        const timers = kind ? await __1.Database.getAllOf(kind) : await __1.Database.getAll();
+        return this.successJSON(timers.map(timer_1.readProperties));
     }
 });
 //# sourceMappingURL=getAllTimers.js.map

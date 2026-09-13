@@ -3,7 +3,7 @@ import { ForgeTimers } from "../.."
 
 export default new NativeFunction({
     name: "$wipeTimers",
-    version: "1.0.0",
+    version: "1.1.0",
     description: "Cancels every stored timer and wipes them from the database",
     unwrap: true,
     output: ArgType.Number,

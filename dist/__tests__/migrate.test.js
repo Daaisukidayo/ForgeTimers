@@ -4,26 +4,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
-const node_fs_1 = require("node:fs");
-const node_os_1 = require("node:os");
-const node_path_1 = require("node:path");
 const node_test_1 = require("node:test");
 const harness_1 = require("./harness");
 const __1 = require("..");
-const home = process.cwd();
-const folder = (0, node_fs_1.mkdtempSync)((0, node_path_1.join)((0, node_os_1.tmpdir)(), "forgetimers-migrate-"));
+(0, harness_1.useTempHome)("forgetimers-migrate");
 const clientWith = (...extensions) => ({ options: { extensions: extensions.map((name) => ({ name })) } });
 const both = clientWith("forge.db", "QuorielDB");
-(0, node_test_1.before)(() => {
-    // quoriel hangs its store off the working directory, forge.db off its configured folder
-    process.chdir(folder);
-    new harness_1.ConfigSeed({ type: "better-sqlite3", folder: "forgedb" });
-});
-(0, node_test_1.after)(async () => {
-    await harness_1.Database.destroy().catch(() => undefined);
-    process.chdir(home);
-    (0, node_fs_1.rmSync)(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-});
 (0, node_test_1.beforeEach)(async () => {
     for (const storage of ["forgedb", "quorieldb"]) {
         await harness_1.Database.use(storage);
@@ -38,13 +24,6 @@ async function seed(from, to, timers) {
         await harness_1.Database.set(t);
     await harness_1.Database.use(to);
 }
-/** Reads a backend without leaving it in charge */
-async function contentsOf(storage) {
-    const store = await harness_1.Database.open(storage);
-    const all = await store.getAll();
-    await store.destroy();
-    return all.map((t) => t.id).sort();
-}
 (0, node_test_1.describe)("moving timers between backends", () => {
     for (const [from, to] of [
         ["forgedb", "quorieldb"],
@@ -55,8 +34,8 @@ async function contentsOf(storage) {
             await seed(from, to, [original, timer("beat", 60_000, harness_1.TimerKind.interval)]);
             const result = await (0, __1.migrateTimers)(both, from, to);
             strict_1.default.deepEqual(result, { moved: 2, skipped: [], drained: true });
-            strict_1.default.deepEqual(await contentsOf(to), ["interval:beat", "timeout:reminder"]);
-            strict_1.default.deepEqual(await contentsOf(from), [], "the source was not drained");
+            strict_1.default.deepEqual(await (0, harness_1.contentsOf)(to), ["interval:beat", "timeout:reminder"]);
+            strict_1.default.deepEqual(await (0, harness_1.contentsOf)(from), [], "the source was not drained");
         });
         (0, node_test_1.it)(`keeps the deadline intact from ${from} to ${to}`, async () => {
             const original = timer("reminder");
@@ -103,7 +82,7 @@ async function contentsOf(storage) {
         await (0, __1.migrateTimers)(both, "forgedb", "quorieldb");
         const again = await (0, __1.migrateTimers)(both, "forgedb", "quorieldb");
         strict_1.default.deepEqual(again, { moved: 0, skipped: [], drained: true });
-        strict_1.default.deepEqual(await contentsOf("quorieldb"), ["timeout:once"]);
+        strict_1.default.deepEqual(await (0, harness_1.contentsOf)("quorieldb"), ["timeout:once"]);
     });
     (0, node_test_1.it)("cannot resurrect a timer that already fired", async () => {
         await seed("forgedb", "quorieldb", [timer("spent")]);
@@ -111,7 +90,7 @@ async function contentsOf(storage) {
         // the timeout runs and clears itself, the way a restored one would
         await harness_1.Database.delete(harness_1.TimerKind.timeout, "spent");
         await (0, __1.migrateTimers)(both, "forgedb", "quorieldb");
-        strict_1.default.deepEqual(await contentsOf("quorieldb"), []);
+        strict_1.default.deepEqual(await (0, harness_1.contentsOf)("quorieldb"), []);
     });
 });
 (0, node_test_1.describe)("names already taken", () => {
@@ -124,7 +103,7 @@ async function contentsOf(storage) {
         strict_1.default.equal(result.drained, false, "a skipped timer means the source still holds something");
         const kept = await harness_1.Database.get(harness_1.TimerKind.timeout, "shared");
         strict_1.default.equal(kept.duration, 7_200_000, "the target's timer was overwritten");
-        strict_1.default.deepEqual(await contentsOf("forgedb"), ["timeout:shared"], "the skipped one must stay put");
+        strict_1.default.deepEqual(await (0, harness_1.contentsOf)("forgedb"), ["timeout:shared"], "the skipped one must stay put");
     });
 });
 (0, node_test_1.describe)("copying instead of moving", () => {
@@ -133,8 +112,8 @@ async function contentsOf(storage) {
         const result = await (0, __1.migrateTimers)(both, "forgedb", "quorieldb", true);
         strict_1.default.equal(result.moved, 1);
         strict_1.default.equal(result.drained, false);
-        strict_1.default.deepEqual(await contentsOf("forgedb"), ["timeout:kept"]);
-        strict_1.default.deepEqual(await contentsOf("quorieldb"), ["timeout:kept"]);
+        strict_1.default.deepEqual(await (0, harness_1.contentsOf)("forgedb"), ["timeout:kept"]);
+        strict_1.default.deepEqual(await (0, harness_1.contentsOf)("quorieldb"), ["timeout:kept"]);
     });
 });
 (0, node_test_1.describe)("a target that loses a write", () => {
@@ -149,7 +128,7 @@ async function contentsOf(storage) {
         finally {
             harness_1.Database.get = real;
         }
-        strict_1.default.ok((await contentsOf("forgedb")).includes("timeout:fragile"), "the source lost a timer the target never kept");
+        strict_1.default.ok((await (0, harness_1.contentsOf)("forgedb")).includes("timeout:fragile"), "the source lost a timer the target never kept");
     });
 });
 (0, node_test_1.describe)("refusing to run", () => {
@@ -157,7 +136,7 @@ async function contentsOf(storage) {
         await seed("forgedb", "quorieldb", [timer("stranded")]);
         const result = await (0, __1.migrateTimers)(clientWith("QuorielDB"), "forgedb", "quorieldb");
         strict_1.default.equal(result, null);
-        strict_1.default.deepEqual(await contentsOf("forgedb"), ["timeout:stranded"], "nothing may move");
+        strict_1.default.deepEqual(await (0, harness_1.contentsOf)("forgedb"), ["timeout:stranded"], "nothing may move");
     });
     (0, node_test_1.it)("says so when both ends are the same backend", async () => {
         await harness_1.Database.use("quorieldb");

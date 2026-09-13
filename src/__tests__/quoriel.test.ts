@@ -1,28 +1,14 @@
 import assert from "node:assert/strict"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { after, before, beforeEach, describe, it } from "node:test"
-import { boot, Database, marks, persist, run, Timer, TimerKind, waitFor } from "./harness"
+import { describe, it } from "node:test"
+import { Database, marks, persist, run, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./harness"
 import { ForgeTimers } from ".."
 import { QUORIEL_TYPE, QuorielDBStore } from "../structures"
 
-let harness: Awaited<ReturnType<typeof boot>>
+let harness: TestHarness
 
-before(async () => {
-    harness = await boot({}, "quoriel")
-    harness.channels.set("chan-1", { id: "chan-1" })
-})
-
-beforeEach(async () => {
-    harness.disarm()
-    await Database.wipe()
-    marks.length = 0
-})
-
-after(async () => {
-    harness.disarm()
-    await harness.cleanup()
-})
+useHarness((booted) => (harness = booted), { target: "quoriel" })
 
 const store = () => join(process.cwd(), "database")
 

@@ -1,6 +1,4 @@
-import { ITimer, Timer, TimerKind } from "../Timer";
-/** Fields to match on. The SQL backend also takes typeorm operators as values */
-export type ITimerFindOptions = Partial<Record<keyof ITimer, unknown>>;
+import { Timer, TimerKind } from "../Timer";
 /** How many rows a write touched. Only `delete` reports it, `stop` reads it */
 export interface IDeleteResult {
     affected: number;
@@ -14,7 +12,6 @@ export interface ITimerStore {
     get(kind: TimerKind, name: string): Promise<Timer | null>;
     getAll(): Promise<Timer[]>;
     getAllOf(kind: TimerKind): Promise<Timer[]>;
-    find(data?: ITimerFindOptions, amount?: number): Promise<Timer[]>;
     set(timer: Timer): Promise<void>;
     delete(kind: TimerKind, name: string): Promise<IDeleteResult>;
     wipe(): Promise<void>;

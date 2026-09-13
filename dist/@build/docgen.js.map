@@ -1,1 +1,1 @@
-{"version":3,"file":"docgen.js","sourceRoot":"","sources":["../../src/@build/docgen.ts"],"names":[],"mappings":";;AAAA,uDAAwD;AACxD,yCAAgC;AAEhC,IAAA,8BAAgB,EAAC,IAAA,gBAAI,EAAC,SAAS,EAAE,IAAI,EAAE,QAAQ,CAAC,EAAE,QAAQ,CAAC,CAAA"}
+{"version":3,"file":"docgen.js","sourceRoot":"","sources":["../../src/@build/docgen.ts"],"names":[],"mappings":";;AAAA,uDAAwD;AACxD,yCAAgC;AAChC,0CAAqC;AAErC,IAAA,8BAAgB,EACZ,IAAA,gBAAI,EAAC,SAAS,EAAE,IAAI,EAAE,QAAQ,CAAC,EAC/B,QAAQ,EACR,kBAAO,EACP,SAAS,EACT,SAAS,EACT,IAAA,gBAAI,EAAC,SAAS,EAAE,IAAI,EAAE,QAAQ,CAAC,CAClC,CAAA"}

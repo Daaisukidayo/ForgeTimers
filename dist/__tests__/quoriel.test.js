@@ -11,19 +11,7 @@ const harness_1 = require("./harness");
 const __1 = require("..");
 const structures_1 = require("../structures");
 let harness;
-(0, node_test_1.before)(async () => {
-    harness = await (0, harness_1.boot)({}, "quoriel");
-    harness.channels.set("chan-1", { id: "chan-1" });
-});
-(0, node_test_1.beforeEach)(async () => {
-    harness.disarm();
-    await harness_1.Database.wipe();
-    harness_1.marks.length = 0;
-});
-(0, node_test_1.after)(async () => {
-    harness.disarm();
-    await harness.cleanup();
-});
+(0, harness_1.useHarness)((booted) => (harness = booted), { target: "quoriel" });
 const store = () => (0, node_path_1.join)(process.cwd(), "database");
 (0, node_test_1.describe)("choosing a backend", () => {
     (0, node_test_1.it)("defaults to ForgeDB", () => {

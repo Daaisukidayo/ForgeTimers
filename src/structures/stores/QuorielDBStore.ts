@@ -1,26 +1,16 @@
+import type * as QuorielDB from "@quoriel/db"
 import { ITimer, Timer, TimerKind } from "../Timer"
-import { IDeleteResult, ITimerFindOptions, ITimerStore } from "./ITimerStore"
+import { IDeleteResult, ITimerStore } from "./ITimerStore"
 
 /** The QuorielDB record type timers live under */
 export const QUORIEL_TYPE = "timers"
 
 /** No entity to derive a key from, so the id is the key */
-const SCHEMA = { type: null, guild: false }
-
-interface IQuorielDB {
-    registerDB(name: string, schema: typeof SCHEMA): unknown
-    activeDB(): string[]
-    closeDB(types: string[]): Promise<void>
-    rangeDB(type: string): Array<{ key: string; value: unknown }>
-    getRecord(type: string, key: string): Record<string, unknown>
-    putRecord(type: string, key: string, data: object): Promise<boolean>
-    removeRecord(type: string, key: string): Promise<void>
-    existsRecord(type: string, key: string): boolean
-}
+const SCHEMA: QuorielDB.TypeSchema = { type: null, guild: false }
 
 /** Keeps timers in QuorielDB's LMDB store, under its own record type */
 export class QuorielDBStore implements ITimerStore {
-    private db!: IQuorielDB
+    private db!: typeof QuorielDB
 
     public async init() {
         this.db = load()
@@ -37,9 +27,9 @@ export class QuorielDBStore implements ITimerStore {
     }
 
     public async get(kind: TimerKind, name: string) {
-        // a missing record reads back as {}, so the id is what says it was really there
+        // a missing record reads back as {}
         const row = this.db.getRecord(QUORIEL_TYPE, Timer.idOf(kind, name))
-        return row?.id ? Timer.from(row as unknown as ITimer) : null
+        return row?.id ? Timer.from(row as ITimer) : null
     }
 
     public async getAll() {
@@ -48,15 +38,6 @@ export class QuorielDBStore implements ITimerStore {
 
     public async getAllOf(kind: TimerKind) {
         return (await this.getAll()).filter((timer) => timer.kind === kind)
-    }
-
-    public async find(data?: ITimerFindOptions, amount?: number) {
-        const wanted = Object.entries(data ?? {})
-        const found = (await this.getAll()).filter((timer) =>
-            wanted.every(([key, value]) => timer[key as keyof Timer] === value)
-        )
-
-        return amount === undefined ? found : found.slice(0, amount)
     }
 
     public async set(timer: Timer) {
@@ -79,10 +60,9 @@ export class QuorielDBStore implements ITimerStore {
     }
 }
 
-/** Kept out of the import graph so ForgeDB users never need @quoriel/db installed */
-function load(): IQuorielDB {
+function load(): typeof QuorielDB {
     try {
-        return require("@quoriel/db") as IQuorielDB
+        return require("@quoriel/db") as typeof QuorielDB
     } catch {
         throw new Error('storage: "quorieldb" needs the QuorielDB extension. Install it with `npm i @quoriel/db lmdb`.')
     }

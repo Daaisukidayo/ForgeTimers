@@ -60,14 +60,6 @@ class Database {
         return await this.current.getAllOf(kind);
     }
     /**
-     * Finds existing timers matching the provided data.
-     * @param data The data to use for searching.
-     * @param amount The amount of results to return.
-     */
-    static async find(data, amount) {
-        return await this.current.find(data, amount);
-    }
-    /**
      * Saves a timer in the database.
      * @param timer The timer to save.
      */

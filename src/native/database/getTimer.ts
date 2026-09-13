@@ -1,5 +1,5 @@
 import { ArgType, NativeFunction } from "@tryforge/forgescript"
-import { TimerProperties, TimerProperty } from "../../properties/timer"
+import { readProperties, TimerProperties, TimerProperty } from "../../properties/timer"
 import { Database, ForgeTimers, TimerKind } from "../.."
 
 export default new NativeFunction({
@@ -48,6 +48,6 @@ export default new NativeFunction({
                 ? this.successJSON(value)
                 : this.success(value)
         }
-        return this.successJSON(timer)
+        return this.successJSON(readProperties(timer))
     }
 })

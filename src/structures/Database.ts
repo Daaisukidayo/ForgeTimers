@@ -1,8 +1,6 @@
 import { Timer, TimerKind } from "./Timer"
-import { ITimerFindOptions, ITimerStore } from "./stores"
-
-/** Which extension holds the timers */
-export type TimerStorage = "forgedb" | "quorieldb"
+import { ITimerStore } from "./stores"
+import { TimerStorage } from "../types"
 
 /**
  * The database, whichever one was picked. Everything reads and writes timers through here,
@@ -69,15 +67,6 @@ export class Database {
      */
     public static async getAllOf(kind: TimerKind) {
         return await this.current.getAllOf(kind)
-    }
-
-    /**
-     * Finds existing timers matching the provided data.
-     * @param data The data to use for searching.
-     * @param amount The amount of results to return.
-     */
-    public static async find(data?: ITimerFindOptions, amount?: number) {
-        return await this.current.find(data, amount)
     }
 
     /**

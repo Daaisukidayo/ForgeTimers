@@ -93,7 +93,7 @@ export function persistenceSuite(target: TestDatabase) {
             assert.equal((await Database.get(TimerKind.timeout, "n"))!.duration, 5000)
         })
 
-        it("filters by kind and by arbitrary fields", async () => {
+        it("filters by kind", async () => {
             await Database.set(
                 new Timer({ name: "a", kind: TimerKind.timeout, duration: 1, channelID: "c", guildID: "g1" })
             )
@@ -106,8 +106,6 @@ export function persistenceSuite(target: TestDatabase) {
 
             assert.equal((await Database.getAllOf(TimerKind.interval)).length, 2)
             assert.equal((await Database.getAllOf(TimerKind.timeout)).length, 1)
-            assert.equal((await Database.find({ guildID: "g1" })).length, 2)
-            assert.equal((await Database.find({ guildID: "g2" }, 1)).length, 1)
         })
 
         it("deletes one timer and wipes the rest", async () => {

@@ -7,31 +7,18 @@ const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
 const harness_1 = require("./harness");
 let harness;
+(0, harness_1.useHarness)((booted) => (harness = booted));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-(0, node_test_1.before)(async () => {
-    harness = await (0, harness_1.boot)();
-    harness.channels.set("chan-1", { id: "chan-1" });
-});
-(0, node_test_1.beforeEach)(async () => {
-    harness.disarm();
-    await harness_1.Database.wipe();
-    harness_1.marks.length = 0;
-});
-(0, node_test_1.after)(async () => {
-    harness.disarm();
-    await harness.cleanup();
-});
 async function withSlowWrites(delay, fn) {
-    const real = harness_1.Database.set.bind(harness_1.Database);
-    harness_1.Database.set = async (timer) => {
+    (0, harness_1.patchDatabase)("set", (real) => async (timer) => {
         await sleep(delay);
         return real(timer);
-    };
+    });
     try {
         return await fn();
     }
     finally {
-        harness_1.Database.set = real;
+        (0, harness_1.restoreDatabase)();
     }
 }
 (0, node_test_1.describe)("cancelling while a tick is in flight", () => {
@@ -115,6 +102,29 @@ async function withSlowWrites(delay, fn) {
         finally {
             clearTimeout(handle);
         }
+    });
+});
+(0, node_test_1.describe)("the claim a name is on", () => {
+    const claims = () => harness.ext.timersManager["generations"];
+    (0, node_test_1.it)("is dropped once the name is cancelled", async () => {
+        for (let i = 0; i < 20; i++)
+            await (0, harness_1.run)(harness, `$setTimeout[$testMark[x];1h;t${i}]`);
+        strict_1.default.equal(claims().size, 20, "an armed name has to be tracked");
+        for (let i = 0; i < 20; i++)
+            await (0, harness_1.run)(harness, `$clearTimeout[t${i}]`);
+        strict_1.default.equal(claims().size, 0, "a cancelled name must not be tracked for the life of the process");
+    });
+    (0, node_test_1.it)("is dropped once a timeout has run", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[ran];50;quick]");
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.includes("ran")), "the timer never ran");
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => claims().size === 0), `${claims().size} left behind`);
+    });
+    (0, node_test_1.it)("is kept while an interval is still ticking", async () => {
+        await (0, harness_1.run)(harness, "$setInterval[$testMark[tick];50;beat]");
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.filter((mark) => mark === "tick").length >= 2));
+        strict_1.default.equal(claims().size, 1, "an interval owns its name until it is cancelled");
+        await (0, harness_1.run)(harness, "$clearInterval[beat]");
+        strict_1.default.equal(claims().size, 0);
     });
 });
 //# sourceMappingURL=races.test.js.map
