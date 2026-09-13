@@ -56,7 +56,18 @@ async function waitFor(condition, timeout = 5000) {
     }
     return await condition();
 }
+let nativesLoaded = false;
 let markRegistered = false;
+function quietly(work) {
+    const warn = forgescript_1.Logger.warn;
+    forgescript_1.Logger.warn = () => undefined;
+    try {
+        work();
+    }
+    finally {
+        forgescript_1.Logger.warn = warn;
+    }
+}
 function registerMark() {
     if (markRegistered)
         return;
@@ -177,9 +188,13 @@ function attach(ext) {
         once: (_event, handler) => handlers.push(handler),
     };
     harness.client.events = new forgescript_1.EventManager(harness.client);
-    ext.init(harness.client);
-    // after init, or the extension's own natives lose to the stock ones
-    forgescript_1.FunctionManager.loadNative();
+    quietly(() => {
+        ext.init(harness.client);
+        if (!nativesLoaded) {
+            forgescript_1.FunctionManager.loadNative();
+            nativesLoaded = true;
+        }
+    });
     registerMark();
     return harness;
 }

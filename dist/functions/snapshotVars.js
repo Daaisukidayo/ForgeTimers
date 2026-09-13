@@ -167,6 +167,14 @@ function encodeRecord(source) {
     }
     return { kept, dropped };
 }
+/**
+ * Writes a timer's variables down so a restart can hand them back. Whatever a function left in them
+ * travels - strings, numbers, arrays, plain objects, and the tagged dates, maps, sets, regexps and
+ * bigints that `$js` or another extension may have put there. Functions, class instances and live
+ * discord structures cannot survive a restart, so they are dropped and named in the log instead.
+ * @param runtime The variables to write down.
+ * @param label What to call this timer in that log.
+ */
 function snapshotVars(runtime, label) {
     const keywords = encodeRecord(runtime.keywords ?? {});
     const environment = encodeRecord(runtime.environment ?? {});

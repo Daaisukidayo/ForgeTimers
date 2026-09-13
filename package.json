@@ -16,10 +16,12 @@
     "smoke": "tsc && node dist/__tests__/client/smokeRun.js",
     "eslint": "eslint ./src --fix",
     "prettier": "prettier --write ./src/**/*",
-    "tidy": "npm run eslint && npm run prettier && tsc",
-    "docgen": "npm run tidy && typedoc src/index.ts && node dist/@build/docgen",
+    "lint": "eslint ./src && prettier --check ./src/**/*",
+    "tidy": "npm run eslint && npm run prettier",
+    "docgen": "npm run tidy && tsc && typedoc src/index.ts && node dist/@build/docgen",
     "commit": "npm run docgen && node dist/@build/commit",
-    "prepublishOnly": "rimraf dist && npm run build && node .github/scripts/checkpack.js"
+    "prepublishOnly": "npm run lint && npm test && rimraf dist && npm run build && node .github/scripts/checkpack.js",
+    "postpublish": "tsc"
   },
   "keywords": [
     "forgescript",
@@ -40,17 +42,6 @@
     "dbd.js",
     "bdscript"
   ],
-  "author": {
-    "name": "Daaisukidayo",
-    "url": "https://github.com/Daaisukidayo/"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Daaisukidayo/ForgeTimers.git"
-  },
-  "bugs": {
-    "url": "https://github.com/Daaisukidayo/ForgeTimers/issues"
-  },
   "license": "GPL-3.0-only",
   "type": "commonjs",
   "engines": {
@@ -94,5 +85,16 @@
     "typedoc": "^0.28.20",
     "typeorm": "^0.3.27",
     "typescript": "^6.0.3"
+  },
+  "author": {
+    "name": "Daaisukidayo",
+    "url": "https://github.com/Daaisukidayo/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Daaisukidayo/ForgeTimers.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Daaisukidayo/ForgeTimers/issues"
   }
 }

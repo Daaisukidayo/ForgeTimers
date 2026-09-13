@@ -53,7 +53,7 @@ function clearPlan() {
     (0, node_fs_1.rmSync)(MARKER, { force: true });
 }
 exports.TIMEOUT_CODE = exports.CHANNEL
-    ? `$let[sent;$sendMessage[${exports.CHANNEL};ForgeTimers restart check;true]]$smokeReport[timeout:$get[sent]]`
+    ? `$smokeReport[timeout]$let[sent;$sendMessage[${exports.CHANNEL};ForgeTimers restart check;true]]$smokeReport[sent:$get[sent]]`
     : `$smokeReport[timeout]`;
 exports.SEED_CODE = `$let[carried;${exports.CARRIED}]` +
     `$setTimeout[${exports.TIMEOUT_CODE};${exports.TIMEOUT_DELAY};${exports.TIMEOUT_NAME}]` +
@@ -119,11 +119,23 @@ async function waitForTheBeat() {
     console.log((0, exports.grey)(`waiting ${Math.round(untilTick / 1000)}s more for the interval's first tick`));
     await wait(untilTick + exports.TOLERANCE);
 }
+/**
+ * The timers report the moment they run, and only then send their messages. Discord answering slowly
+ * is not the timer being late, so the round trips are waited for separately instead of being measured.
+ */
+async function waitForDiscord() {
+    if (!exports.CHANNEL)
+        return;
+    const arrived = await until(() => !!seen("sent", bootedAt) && !!seen("event-message", bootedAt), 20_000);
+    if (!arrived)
+        console.log((0, exports.grey)("discord never answered one of the two messages"));
+}
 async function verify(plan) {
     const left = plan.timeoutDueAt - Date.now();
     console.log((0, exports.grey)(`waiting ${Math.round(left / 1000)}s for the deadline set before the restart`));
     await wait(left + exports.TOLERANCE + 1000);
     await waitForTheBeat();
+    await waitForDiscord();
     const fired = seen("timeout", bootedAt);
     const drift = fired ? fired.at - plan.timeoutDueAt : null;
     const ticked = seen("interval", bootedAt);
@@ -135,7 +147,7 @@ async function verify(plan) {
     const restoreEvent = seen(`event-timerRestore:${exports.TIMEOUT_NAME}`, bootedAt);
     const fireEvent = seen(`event-timerFire:${exports.TIMEOUT_NAME}`, bootedAt);
     // a snowflake back from $sendMessage is discord saying it accepted the message
-    const sent = fired?.label.split(":")[1];
+    const sent = seen("sent", bootedAt)?.label.split(":")[1];
     const eventSent = seen("event-message", bootedAt)?.label.split(":")[1];
     const checks = [
         ["the timeout ran after the restart", !!fired],

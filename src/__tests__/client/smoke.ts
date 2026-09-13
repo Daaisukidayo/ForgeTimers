@@ -68,7 +68,7 @@ export function clearPlan() {
 }
 
 export const TIMEOUT_CODE = CHANNEL
-    ? `$let[sent;$sendMessage[${CHANNEL};ForgeTimers restart check;true]]$smokeReport[timeout:$get[sent]]`
+    ? `$smokeReport[timeout]$let[sent;$sendMessage[${CHANNEL};ForgeTimers restart check;true]]$smokeReport[sent:$get[sent]]`
     : `$smokeReport[timeout]`
 
 export const SEED_CODE =
@@ -154,12 +154,24 @@ async function waitForTheBeat() {
     await wait(untilTick + TOLERANCE)
 }
 
+/**
+ * The timers report the moment they run, and only then send their messages. Discord answering slowly
+ * is not the timer being late, so the round trips are waited for separately instead of being measured.
+ */
+async function waitForDiscord() {
+    if (!CHANNEL) return
+
+    const arrived = await until(() => !!seen("sent", bootedAt) && !!seen("event-message", bootedAt), 20_000)
+    if (!arrived) console.log(grey("discord never answered one of the two messages"))
+}
+
 async function verify(plan: ISmokePlan) {
     const left = plan.timeoutDueAt - Date.now()
     console.log(grey(`waiting ${Math.round(left / 1000)}s for the deadline set before the restart`))
 
     await wait(left + TOLERANCE + 1000)
     await waitForTheBeat()
+    await waitForDiscord()
 
     const fired = seen("timeout", bootedAt)
     const drift = fired ? fired.at - plan.timeoutDueAt : null
@@ -175,7 +187,7 @@ async function verify(plan: ISmokePlan) {
     const fireEvent = seen(`event-timerFire:${TIMEOUT_NAME}`, bootedAt)
 
     // a snowflake back from $sendMessage is discord saying it accepted the message
-    const sent = fired?.label.split(":")[1]
+    const sent = seen("sent", bootedAt)?.label.split(":")[1]
     const eventSent = seen("event-message", bootedAt)?.label.split(":")[1]
 
     const checks = [

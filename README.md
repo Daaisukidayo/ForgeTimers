@@ -22,22 +22,38 @@ ForgeTimers is an extension that makes `$setTimeout` and `$setInterval` survive 
 
 <h3 align="center">Installation</h3><hr>
 
-> ⚠️ **Warning**\
-> **ForgeTimers** stores its timers in another extension's database, so it needs one of [**ForgeDB**](https://github.com/tryforge/ForgeDB) or [**QuorielDB**](https://github.com/quoriel/db) installed, plus **ForgeScript 2.7.0** or newer.
+1. Install the package.
 
-1. Run the following command to install the required `npm` package:
-
+   **From npm** - the stable release:
    ```bash
-   npm i github:Daaisukidayo/ForgeTimers @tryforge/forge.db
+   npm i forge.timers
    ```
 
-   Or, to keep timers in QuorielDB's LMDB store instead:
-
+   **From GitHub** - `main` carries that same release:
    ```bash
-   npm i github:Daaisukidayo/ForgeTimers @quoriel/db
+   npm i github:Daaisukidayo/ForgeTimers#main
    ```
 
-2. Here's an example of how your main file should look:
+   And `dev` is where the next version is put together - take it to try what is coming, and expect it to break:
+   ```bash
+   npm i github:Daaisukidayo/ForgeTimers#dev
+   ```
+
+
+2. Install a database for the timers to live in.
+
+   One of these has to be installed and listed in `extensions` next to it:
+
+   ```bash
+   npm i @tryforge/forge.db   # sqlite, mongodb, mysql or postgres
+   ```
+   ```bash
+   npm i @quoriel/db          # lmdb
+   ```
+
+   Either will do, and [Storage](#storage) says how to pick between them. **ForgeScript 2.7.0** or newer is required in both cases.
+
+3. Here's an example of how your main file should look:
 
    ```js
    const { ForgeClient } = require("@tryforge/forgescript")
@@ -146,13 +162,11 @@ const timers = new ForgeTimers({
 })
 ```
 
-Both extensions have to be in `extensions` for that boot - the old one is what the timers are read through. Once the log says the migration is done, remove `migrateFrom` and the old extension.
+Both extensions have to be in `extensions` for that boot - the old one is what the timers are read through. Drop `migrateFrom` and the old extension once the log says it is done.
 
-The move happens before anything is restored, so deadlines carry over untouched: a timeout due tomorrow is still due tomorrow. Timers whose name is already taken in the new backend are left where they are and named in the log - what is already live there wins.
+The move happens before anything is restored, so deadlines carry over untouched. A name already taken in the new backend wins, and the timer that lost it is named in the log.
 
-Each timer is written, read back, and only then dropped from the old backend. Draining it is what makes a rerun harmless: a timer that has since fired cannot come back from a source nobody cleared. Pass `keepSource: true` to copy instead of move - then the old timers stay, and the migration repeats every boot until you remove `migrateFrom`.
-
-Variables are stored alongside the timer. Strings, numbers, booleans, arrays and plain objects survive, and so do dates, maps, sets, regular expressions and bigints. Anything with no meaning after a restart - a function, a class instance, a live Discord structure - is dropped, and the names that were dropped are logged when the timer is scheduled.
+Each timer is written, read back, and only then dropped from the old backend, so a rerun cannot bring back one that has since fired. `keepSource: true` copies instead, and the migration then repeats every boot until `migrateFrom` goes.
 
 <h3 align="center">Reading timers</h3><hr>
 
@@ -207,7 +221,7 @@ timers.commands.add({
     code: `$sendMessage[$env[channelID];Lost the $env[kind] "$env[name]": $env[reason]]`
 })
 
-// or from a folder, one file per command
+// or from a folder
 timers.commands.load("events")
 ```
 
@@ -222,5 +236,3 @@ The events:
 | **`timerDrop`** | A stored timer was thrown away without running. | `reason` — why it was thrown away. |
 
 Every event reads its timer through `$env`, under the same names `$getTimer` uses. See [Properties](#properties).
-
-Events cost nothing until they are asked for: without `events`, nothing listens and nothing is built.

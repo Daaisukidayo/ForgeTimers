@@ -7,6 +7,7 @@ import {
     FunctionManager,
     ForgeClient,
     Interpreter,
+    Logger,
     NativeFunction,
 } from "@tryforge/forgescript"
 import { DiscordAPIError } from "discord.js"
@@ -93,7 +94,19 @@ export async function waitFor(condition: () => boolean | Promise<boolean>, timeo
     return await condition()
 }
 
+let nativesLoaded = false
 let markRegistered = false
+
+function quietly(work: () => void) {
+    const warn = Logger.warn
+    Logger.warn = () => undefined
+
+    try {
+        work()
+    } finally {
+        Logger.warn = warn
+    }
+}
 
 function registerMark() {
     if (markRegistered) return
@@ -228,10 +241,15 @@ export function attach(ext: ForgeTimers): ITestClient {
 
     harness.client.events = new EventManager(harness.client as unknown as ForgeClient)
 
-    ext.init(harness.client as unknown as ForgeClient)
+    quietly(() => {
+        ext.init(harness.client as unknown as ForgeClient)
 
-    // after init, or the extension's own natives lose to the stock ones
-    FunctionManager.loadNative()
+        if (!nativesLoaded) {
+            FunctionManager.loadNative()
+            nativesLoaded = true
+        }
+    })
+
     registerMark()
 
     return harness
