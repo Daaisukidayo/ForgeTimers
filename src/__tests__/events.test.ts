@@ -39,6 +39,16 @@ const overdue = (name: string, code = "$testMark[ran]", extra: Record<string, un
         Date.now() - 100
     )
 
+describe("an event named as a plain string", () => {
+    it("is listened to, and its command runs", async () => {
+        harness.ext.commands.add({ type: "timerStart", code: "$testMark[from-a-string]" })
+
+        await run(harness, "$setTimeout[$testMark[x];1h;plain]")
+
+        assert.ok(await marked("from-a-string"), "a command registered with a string never ran")
+    })
+})
+
 describe("a timer being scheduled", () => {
     it("reports the timer it just took on", async () => {
         await run(harness, "$setTimeout[$testMark[ran];1h;reminder]")

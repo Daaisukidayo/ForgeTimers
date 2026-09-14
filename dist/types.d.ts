@@ -26,7 +26,7 @@ export interface IForgeTimersOptions {
     /**
      * Which timer events to listen to.
      */
-    events?: TimerEvent[];
+    events?: TimerEventName[];
 }
 export interface IBaseTimerConfig {
     /**
@@ -58,6 +58,6 @@ export declare enum TimerEvent {
     /** A stored timer was thrown away without running, with `$env[reason]` saying why */
     timerDrop = "timerDrop"
 }
-/** Every timer event hands its command the timer's properties, so they all take the same argument */
-export type ITimerEvents = Record<TimerEvent, [environment: Record<string, unknown>]>;
+export type TimerEventName = `${TimerEvent}`;
+export type ITimerEvents = Record<TimerEventName, [environment: Record<string, unknown>]>;
 //# sourceMappingURL=types.d.ts.map
