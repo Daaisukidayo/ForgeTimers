@@ -21,6 +21,13 @@ const QUIET = 250;
 const droppedBecause = () => harness_1.marks.find((mark) => mark.startsWith("why:"))?.slice("why:".length);
 /** A row already past due when the restore reaches it, but inside the maxOverdue this suite boots with */
 const overdue = (name, code = "$testMark[ran]", extra = {}) => (0, harness_1.persist)(new harness_1.Timer({ name, kind: harness_1.TimerKind.timeout, code, duration: 3_600_000, channelID: "chan-1", ...extra }), Date.now() - 100);
+(0, node_test_1.describe)("an event named as a plain string", () => {
+    (0, node_test_1.it)("is listened to, and its command runs", async () => {
+        harness.ext.commands.add({ type: "timerStart", code: "$testMark[from-a-string]" });
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[x];1h;plain]");
+        strict_1.default.ok(await (0, harness_1.marked)("from-a-string"), "a command registered with a string never ran");
+    });
+});
 (0, node_test_1.describe)("a timer being scheduled", () => {
     (0, node_test_1.it)("reports the timer it just took on", async () => {
         await (0, harness_1.run)(harness, "$setTimeout[$testMark[ran];1h;reminder]");
