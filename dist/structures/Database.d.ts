@@ -1,14 +1,11 @@
 import { Timer, TimerKind } from "./Timer";
 import { ITimerStore } from "./stores";
-import { TimerStorage } from "../types";
-/**
- * The database, whichever one was picked. Everything reads and writes timers through here,
- * so the backend is a single decision made at startup rather than a shape the rest has to know.
- */
+/** Which extension holds the timers */
+export type TimerStorage = "forgedb" | "quorieldb";
 export declare class Database {
     private static store?;
     /**
-     * Opens a storage without putting it in charge, so two can be read at once.
+     * Opens a storage without putting it in charge.
      * @param storage Which backend to open.
      */
     static open(storage?: TimerStorage): Promise<ITimerStore>;
@@ -17,10 +14,10 @@ export declare class Database {
      * @param storage Which backend to keep timers in.
      */
     static use(storage?: TimerStorage): Promise<ITimerStore>;
-    /** The open store. Reaching it before {@link use} means an ordering bug, not a missing timer */
+    /** The open store. */
     private static get current();
     /**
-     * Closes the storage. For a graceful shutdown.
+     * Closes the storage.
      */
     static destroy(): Promise<void>;
     /**

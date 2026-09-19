@@ -14,6 +14,12 @@ class TimerContext extends forgescript_1.Context {
     get member() {
         return super.member ?? this.runtime.hostMember ?? null;
     }
+    get timer() {
+        return this.runtime.timer ?? null;
+    }
+    get event() {
+        return this.runtime.event ?? null;
+    }
 }
 exports.TimerContext = TimerContext;
 //# sourceMappingURL=Context.js.map

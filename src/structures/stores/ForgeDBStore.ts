@@ -20,13 +20,17 @@ const columns: Record<string, EntitySchemaColumnOptions> = {
     commandName: { type: "text", nullable: true },
     version: { type: "int", nullable: true },
     duration: { type: "bigint", transformer: numeric },
+    cron: { type: "text", nullable: true },
+    timezone: { type: "varchar", nullable: true },
     timestamp: { type: "bigint", transformer: numeric },
     fireAt: { type: "bigint", transformer: numeric },
+    pausedAt: { type: "bigint", nullable: true, transformer: numeric },
     guildID: { type: "varchar", nullable: true },
     channelID: { type: "varchar", nullable: true },
     hostID: { type: "varchar", nullable: true },
     messageID: { type: "varchar", nullable: true },
     args: { type: "simple-json", nullable: true },
+    config: { type: "simple-json", nullable: true },
     vars: { type: "simple-json", nullable: true },
 }
 

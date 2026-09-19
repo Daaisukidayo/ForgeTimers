@@ -5,6 +5,7 @@ import {
     clearPlan,
     cyan,
     DOWNTIME,
+    CRON_SECONDS,
     FAIL,
     green,
     grey,
@@ -160,8 +161,9 @@ async function main() {
 
     console.log(
         grey(
-            `clock x${SPEED}: ${TIMEOUT_DELAY} deadline, ${INTERVAL_TICK} tick, ${OVERDUE_DELAY} while down, ` +
-                `${Math.round(DOWNTIME / 1000)}s down, ${scenarios.length} of ${SCENARIOS.length} scenarios`
+            `clock x${SPEED}: ${TIMEOUT_DELAY} deadline, ${INTERVAL_TICK} tick, ${CRON_SECONDS}s cron, ` +
+                `${OVERDUE_DELAY} while down, ${Math.round(DOWNTIME / 1000)}s down, ` +
+                `${scenarios.length} of ${SCENARIOS.length} scenarios`
         )
     )
 

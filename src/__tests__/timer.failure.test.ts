@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { Database, marks, persist, run, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./harness"
+import { Database, marks, persist, run, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./support/harness"
 
 let harness: TestHarness
 

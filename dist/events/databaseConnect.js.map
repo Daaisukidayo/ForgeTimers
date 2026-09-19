@@ -1,0 +1,1 @@
+{"version":3,"file":"databaseConnect.js","sourceRoot":"","sources":["../../src/events/databaseConnect.ts"],"names":[],"mappings":";;AAAA,0CAA4D;AAE5D,kBAAe,IAAI,4BAAiB,CAAC;IACjC,IAAI,EAAE,iBAAiB;IACvB,OAAO,EAAE,OAAO;IAChB,WAAW,EAAE,wCAAwC;IACrD,QAAQ,CAAC,WAAW;QAChB,IAAA,sBAAW,EAAC,IAAI,EAAE,iBAAiB,EAAE,WAAW,CAAC,CAAA;IACrD,CAAC;CACJ,CAAC,CAAA"}

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { marks, run, TestHarness, useHarness, waitFor } from "./harness"
+import { marks, run, TestHarness, useHarness, waitFor } from "./support/harness"
 import { TimerEvent } from "../types"
 
 let harness: TestHarness

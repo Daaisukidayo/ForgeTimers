@@ -2,10 +2,11 @@ import { ForgeClient, ForgeExtension, LogPriority, FunctionManager } from "@tryf
 import { config } from "dotenv"
 import { Events } from "discord.js"
 import { ForgeTimers } from "../../index"
-import { TimerEvent, TimerStorage } from "../../types"
+import { TimerEvent } from "../../types"
+import { TimerStorage } from "../../structures"
 import { join } from "node:path"
 import { ForgeDB } from "@tryforge/forge.db"
-import { CHANNEL, eventCode, EVENT_MESSAGE_CODE, readPlan, runSmoke, SEED_CODE } from "./smoke"
+import { CHANNEL, eventCode, EVENT_MESSAGE_CODE, readPlan, runSmoke, SEED_CODE, VERIFY_CODE } from "./smoke"
 config()
 
 /** Set by the restart check. Without it this file is the playground it has always been */
@@ -92,7 +93,7 @@ if (smoke) {
 
     client.commands.add({
         type: Events.ClientReady,
-        code: plan ? `$smokeReport[booted]` : SEED_CODE,
+        code: plan ? VERIFY_CODE : SEED_CODE,
     })
 
     for (const event of WATCHED) timer.commands.add({ type: event, code: eventCode(event) })

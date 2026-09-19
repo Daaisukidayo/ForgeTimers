@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { beforeEach, describe, it } from "node:test"
 import { ForgeClient } from "@tryforge/forgescript"
-import { contentsOf, Database, Timer, TimerKind, useTempHome } from "./harness"
+import { contentsOf, Database, GapKind, Timer, TimerKind, useTempHome } from "./support/harness"
 import { migrateTimers, TimerStorage } from ".."
 
 useTempHome("forgetimers-migrate")
@@ -18,7 +18,7 @@ beforeEach(async () => {
     }
 })
 
-const timer = (name: string, dueIn = 3_600_000, kind = TimerKind.timeout) =>
+const timer = (name: string, dueIn = 3_600_000, kind: GapKind = TimerKind.timeout) =>
     new Timer({ name, kind, code: `$testMark[${name}]`, duration: dueIn, channelID: "chan-1" })
 
 /** Fills `from` with timers, then opens `to` ready for a migration */
@@ -72,6 +72,7 @@ describe("moving timers between backends", () => {
             hostID: "user-1",
             messageID: "msg-1",
             args: ["a", "b"],
+            config: { persist: false, restoredTicksLimit: "Infinity" },
             vars: { keywords: { k: "v" }, environment: { n: 1 }, localFunctions: {} },
         })
 
@@ -85,6 +86,7 @@ describe("moving timers between backends", () => {
         assert.equal(back!.commandName, "cmd")
         assert.equal(back!.path, "/cmd.js")
         assert.deepEqual(back!.args, ["a", "b"])
+        assert.deepEqual(back!.config, original.config)
         assert.deepEqual(back!.vars, original.vars)
         assert.equal(back!.version, Timer.SCHEMA_VERSION)
     })

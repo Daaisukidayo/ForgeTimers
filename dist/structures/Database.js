@@ -1,14 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Database = void 0;
-/**
- * The database, whichever one was picked. Everything reads and writes timers through here,
- * so the backend is a single decision made at startup rather than a shape the rest has to know.
- */
 class Database {
     static store;
     /**
-     * Opens a storage without putting it in charge, so two can be read at once.
+     * Opens a storage without putting it in charge.
      * @param storage Which backend to open.
      */
     static async open(storage = "forgedb") {
@@ -22,17 +18,18 @@ class Database {
      */
     static async use(storage = "forgedb") {
         await this.store?.destroy().catch(() => undefined);
+        this.store = undefined;
         this.store = await this.open(storage);
         return this.store;
     }
-    /** The open store. Reaching it before {@link use} means an ordering bug, not a missing timer */
+    /** The open store. */
     static get current() {
         if (!this.store)
             throw new Error("The timer database has not been opened yet.");
         return this.store;
     }
     /**
-     * Closes the storage. For a graceful shutdown.
+     * Closes the storage.
      */
     static async destroy() {
         await this.store?.destroy();
@@ -88,6 +85,16 @@ const INSTALL = {
     quorieldb: "@quoriel/db",
 };
 /**
+ * The module a load actually tripped over.
+ * @param err Whatever the require threw.
+ * @returns The missing module's name, or null when the load failed for some other reason.
+ */
+function missingModule(err) {
+    if (!(err instanceof Error) || err.code !== "MODULE_NOT_FOUND")
+        return null;
+    return /Cannot find module '([^']+)'/.exec(err.message)?.[1] ?? null;
+}
+/**
  * Required on the way in, so a backend's dependencies only cost whoever picked it.
  */
 function load(storage) {
@@ -100,8 +107,9 @@ function load(storage) {
         return new ForgeDBStore();
     }
     catch (err) {
-        throw new Error(`storage: "${storage}" could not be opened. If ${INSTALL[storage]} is not installed, ` +
-            `run \`npm i ${INSTALL[storage]}\`.\nThe loader said: ` +
+        const wanted = missingModule(err) ?? INSTALL[storage] ?? INSTALL.forgedb;
+        throw new Error(`storage: "${storage}" could not be opened. If ${wanted} is not installed, ` +
+            `run \`npm i ${wanted}\`.\nThe loader said: ` +
             (err instanceof Error ? err.message : String(err)), { cause: err });
     }
 }

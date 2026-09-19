@@ -11,7 +11,7 @@ import {
     TimerKind,
     useHarness,
     waitFor,
-} from "./harness"
+} from "./support/harness"
 
 let harness: TestHarness
 

@@ -7,7 +7,7 @@ const strict_1 = __importDefault(require("node:assert/strict"));
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
 const node_test_1 = require("node:test");
-const harness_1 = require("./harness");
+const harness_1 = require("./support/harness");
 const __1 = require("..");
 const structures_1 = require("../structures");
 let harness;

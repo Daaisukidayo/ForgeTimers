@@ -1,5 +1,35 @@
-import { Compiler, IExtendedCompiledFunctionField, ILocalFunctionData } from "@tryforge/forgescript"
+import { Compiler, Context, IExtendedCompiledFunctionField, ILocalFunctionData } from "@tryforge/forgescript"
 import { Logger } from "./logger"
+
+/**
+ * Builds the runner for a timer that fires more than once.
+ *
+ * @param ctx The context the timer was scheduled from.
+ * @param resolve What to run, given the context built for that run.
+ * @returns The cloned runtime the snapshot was taken from, and the runner itself.
+ */
+export function repeatingRunner(ctx: Context, resolve: (tick: Context) => Promise<unknown>) {
+    const runtime = ctx.cloneRuntime()
+
+    const vars = {
+        keywords: { ...runtime.keywords },
+        environment: { ...runtime.environment },
+        localFunctions: { ...runtime.localFunctions },
+    }
+
+    const run = async () => {
+        const tick = new Context({
+            ...runtime,
+            keywords: { ...vars.keywords },
+            environment: { ...vars.environment },
+            localFunctions: { ...vars.localFunctions },
+        })
+
+        await resolve(tick)
+    }
+
+    return { runtime, run }
+}
 
 export interface IPersistedLocalFunction {
     code: string
@@ -110,6 +140,7 @@ function applyCodec(tag: string, value: unknown, walk: Walk): Encoded {
 
 /**
  * Rewrites a value into something JSON can hold without losing its type.
+ *
  * @param value The value to encode.
  * @param seen The objects currently being walked, to break cycles.
  */
@@ -213,10 +244,10 @@ function encodeRecord(source: Record<string, unknown>) {
 }
 
 /**
- * Writes a timer's variables down so a restart can hand them back. Whatever a function left in them
- * travels - strings, numbers, arrays, plain objects, and the tagged dates, maps, sets, regexps and
- * bigints that `$js` or another extension may have put there. Functions, class instances and live
- * discord structures cannot survive a restart, so they are dropped and named in the log instead.
+ * Writes a timer's variables down so a restart can hand them back.
+ * Whatever a function left in them travels - strings, numbers, arrays, plain objects, and the tagged dates, maps, sets, regexps and bigints that `$js` or another extension may have put there.
+ * Functions, class instances and live discord structures cannot survive a restart, so they are dropped and named in the log instead.
+ *
  * @param runtime The variables to write down.
  * @param label What to call this timer in that log.
  */
@@ -252,6 +283,7 @@ export function snapshotVars(
 
 /**
  * Reads back a record written by {@link snapshotVars}.
+ *
  * @param source The stored record.
  * @param version The schema the timer was written under.
  */

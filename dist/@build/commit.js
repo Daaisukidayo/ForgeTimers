@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const child_process_1 = require("child_process");
 const fs_1 = require("fs");
-const prompt_1 = __importDefault(require("./prompt"));
+const prompt_1 = __importDefault(require("../functions/prompt"));
 const path_1 = require("path");
 const path = "./metadata";
 if (!(0, fs_1.existsSync)(path))
@@ -14,18 +14,17 @@ const version = require("../../package.json").version;
 async function main() {
     let skip = false;
     const msg = (await (0, prompt_1.default)("Please write the commit message: "))
-        .replace(/(--?(\w+))/gim, (match) => {
-        const name = /(\w+)/.exec(match)[1].toLowerCase();
-        switch (name) {
+        .replace(/(^|\s)--(\w+)/g, (_, before, flag) => {
+        switch (flag.toLowerCase()) {
             case "hide": {
                 skip = true;
                 break;
             }
             default: {
-                throw new Error(`--${name} is not a valid flag.`);
+                throw new Error(`--${flag} is not a valid flag.`);
             }
         }
-        return "";
+        return before;
     })
         .trim();
     const fileName = (0, path_1.join)(path, "changelogs.json");

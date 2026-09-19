@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_path_1 = require("node:path");
 const node_test_1 = require("node:test");
-const harness_1 = require("./harness");
+const harness_1 = require("./support/harness");
 const folder = (0, harness_1.useTempHome)("forgetimers-forgedb");
 const reminder = () => new harness_1.Timer({
     name: "reminder",

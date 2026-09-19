@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { Database, marks, persist, run, TestHarness, Timer, TimerKind, useHarness } from "./harness"
+import { Database, marks, persist, run, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./support/harness"
 import { TimerProperty } from "../properties/timer"
 
 let harness: TestHarness
@@ -145,15 +145,15 @@ describe("$clearTimeout and $clearInterval", () => {
         const manager = harness.ext.timersManager
 
         await run(harness, "$setTimeout[x;1h;both]")
-        assert.deepEqual(await manager.stop(TimerKind.timeout, "both"), [true, true])
+        assert.deepEqual(await manager.stop(TimerKind.timeout, "both"), { cleared: true, forgotten: true })
 
         await persist(
             new Timer({ name: "stored", kind: TimerKind.timeout, duration: 1000, channelID: "chan-1" }),
             Date.now() + 60_000
         )
-        assert.deepEqual(await manager.stop(TimerKind.timeout, "stored"), [false, true])
+        assert.deepEqual(await manager.stop(TimerKind.timeout, "stored"), { cleared: false, forgotten: true })
 
-        assert.deepEqual(await manager.stop(TimerKind.timeout, "neither"), [false, false])
+        assert.deepEqual(await manager.stop(TimerKind.timeout, "neither"), { cleared: false, forgotten: false })
     })
 })
 
@@ -175,6 +175,14 @@ describe("a name used by both kinds at once", () => {
         assert.equal(await run(harness, "$wipeTimers"), "2")
         assert.equal(harness.client.timeouts.size, 0)
         assert.equal(harness.client.intervals.size, 0)
+        assert.equal((await Database.getAll()).length, 0)
+    })
+
+    it("stands a cron down too, rather than leaving it armed", async () => {
+        await run(harness, "$setTimeout[$testMark[t];1h;n]$setCron[$testMark[c];0 9 * * *;n]")
+
+        assert.equal(await run(harness, "$wipeTimers"), "2", "the cron went uncounted")
+        assert.equal(await run(harness, "$timerRunning[cron;n]"), "false", "the cron was left running")
         assert.equal((await Database.getAll()).length, 0)
     })
 })
@@ -229,5 +237,117 @@ describe("reading timers back", () => {
         assert.equal((await Database.getAll()).length, 0)
         assert.equal(harness.client.timeouts.size, 0)
         assert.equal(harness.client.intervals.size, 0)
+    })
+
+    it("returns one property of every timer as a list", async () => {
+        await run(harness, "$setInterval[x;5m;a]")
+        await run(harness, "$setInterval[x;5m;b]")
+
+        const listed = JSON.parse((await run(harness, "$getAllTimers[interval;name]")) as string)
+        assert.deepEqual(listed.sort(), ["a", "b"], "a property without a separator stays a list")
+    })
+
+    it("joins that list only when given a separator", async () => {
+        await run(harness, "$setInterval[x;5m;a]")
+        await run(harness, "$setInterval[x;5m;b]")
+
+        const joined = `${await run(harness, "$getAllTimers[interval;name;|]")}`
+        assert.deepEqual(joined.split("|").sort(), ["a", "b"])
+    })
+
+    it("keeps a json property readable when joining", async () => {
+        await run(harness, "$setTimeout[x;1h;a;false]")
+
+        const joined = `${await run(harness, "$getAllTimers[timeout;config;|]")}`
+        assert.equal(joined, '{"persist":false}', "an object must not join as [object Object]")
+    })
+})
+
+describe("$timerRunning", () => {
+    it("sees a running timer, and only of the kind asked for", async () => {
+        await run(harness, "$setTimeout[x;1h;a]")
+
+        assert.equal(await run(harness, "$timerRunning[timeout;a]"), "true")
+        assert.equal(await run(harness, "$timerRunning[interval;a]"), "false", "the name is per kind")
+    })
+
+    it("says no once it has been cleared", async () => {
+        await run(harness, "$setInterval[x;5m;beat]")
+        assert.equal(await run(harness, "$timerRunning[interval;beat]"), "true")
+
+        await run(harness, "$clearInterval[beat]")
+        assert.equal(await run(harness, "$timerRunning[interval;beat]"), "false")
+    })
+
+    it("says no for a name nothing was ever scheduled under", async () => {
+        assert.equal(await run(harness, "$timerRunning[timeout;never]"), "false")
+    })
+
+    it("answers from the live map, not from the database", async () => {
+        await persist(new Timer({ name: "stored", kind: TimerKind.timeout, duration: 1000, channelID: "c" }))
+
+        assert.ok(await Database.get(TimerKind.timeout, "stored"), "the row is there")
+        assert.equal(await run(harness, "$timerRunning[timeout;stored]"), "false", "but nothing is armed under it")
+    })
+
+    it("says yes to a timer asking about itself, however that run was started", async () => {
+        await run(harness, "$setTimeout[$testMark[live:$timerRunning[timeout;live]];50;live]")
+        assert.ok(await waitFor(() => marks.includes("live:true"), 3000), `a fired timeout saw ${marks}`)
+
+        marks.length = 0
+
+        // a restored overdue run holds its name with nothing scheduled, and used to read as false
+        await persist(
+            new Timer({
+                name: "late",
+                kind: TimerKind.timeout,
+                code: "$testMark[late:$timerRunning[timeout;late]]",
+                duration: 1000,
+                channelID: "chan-1",
+            }),
+            Date.now() - 100
+        )
+
+        await harness.ready()
+        assert.ok(await waitFor(() => marks.includes("late:true"), 3000), `a restored run saw ${marks}`)
+    })
+})
+
+describe("$timerExists", () => {
+    it("counts a record nothing re-armed, which the other says no to", async () => {
+        await persist(new Timer({ name: "stored", kind: TimerKind.timeout, duration: 1000, channelID: "c" }))
+
+        assert.equal(await run(harness, "$timerExists[timeout;stored]"), "true")
+        assert.equal(await run(harness, "$timerRunning[timeout;stored]"), "false", "the two are not the same question")
+    })
+
+    it("counts one armed with no record, which is how a database outage leaves it", async () => {
+        await run(harness, "$setTimeout[x;1h;n]")
+        await Database.delete(TimerKind.timeout, "n")
+
+        assert.equal(await run(harness, "$timerRunning[timeout;n]"), "true", "it is still armed")
+        assert.equal(await run(harness, "$timerExists[timeout;n]"), "true", "so there is a timer, record or not")
+    })
+
+    it("counts a paused timer, which is exactly the one the other says no to", async () => {
+        await run(harness, "$setTimeout[x;1h;n]")
+        await run(harness, "$pauseTimer[timeout;n]")
+
+        assert.equal(await run(harness, "$timerExists[timeout;n]"), "true")
+        assert.equal(await run(harness, "$timerRunning[timeout;n]"), "false")
+    })
+
+    it("says no once the record is gone, and only for the kind asked for", async () => {
+        await run(harness, "$setTimeout[x;1h;a]")
+
+        assert.equal(await run(harness, "$timerExists[timeout;a]"), "true")
+        assert.equal(await run(harness, "$timerExists[interval;a]"), "false", "the name is per kind")
+
+        await run(harness, "$clearTimeout[a]")
+        assert.equal(await run(harness, "$timerExists[timeout;a]"), "false")
+    })
+
+    it("says no for a name nothing was ever scheduled under", async () => {
+        assert.equal(await run(harness, "$timerExists[timeout;never]"), "false")
     })
 })

@@ -1,9 +1,9 @@
 import { EventManager, ForgeClient, ForgeExtension } from "@tryforge/forgescript"
 import { EventEmitter } from "node:events"
 import { HANDLER, TimerCommandManager, TimersManager } from "./managers"
-import { Database } from "./structures"
+import { Database, TimerKind, TimerStorage } from "./structures"
 import { migrateTimers } from "./functions/migrate"
-import { IForgeTimersOptions, ITimerEvents, TimerEvent, TimerStorage } from "./types"
+import { IForgeTimersOptions, ITimerEvents, ITimerOverrides, TimerEvent } from "./types"
 import { Logger } from "./functions/logger"
 import { description, version } from "../package.json"
 import path from "path"
@@ -47,8 +47,13 @@ export class ForgeTimers extends ForgeExtension {
             await Database.use(storage)
         } catch (err) {
             Logger.error(err)
+            const reason = err instanceof Error ? err.message : String(err)
+
+            this.emitter.emit(TimerEvent.databaseFail, { event: { failReason: reason } })
             return false
         }
+
+        this.emitter.emit(TimerEvent.databaseConnect, {})
 
         const { migrateFrom, keepSource } = this.options
         if (migrateFrom) await migrateTimers(client, migrateFrom, storage, keepSource)
@@ -57,7 +62,7 @@ export class ForgeTimers extends ForgeExtension {
     }
 
     private _reviewOptions() {
-        const { storage, migrateFrom, timeoutConfig, intervalConfig, events } = this.options
+        const { storage, migrateFrom, timeoutConfig, intervalConfig, cronConfig, events } = this.options
         const backends: TimerStorage[] = ["forgedb", "quorieldb"]
 
         for (const [option, value] of Object.entries({ storage, migrateFrom })) {
@@ -68,24 +73,39 @@ export class ForgeTimers extends ForgeExtension {
             }
         }
 
-        for (const [kind, config] of Object.entries({ timeout: timeoutConfig, interval: intervalConfig })) {
+        const configs: Record<TimerKind, ITimerOverrides | undefined> = {
+            [TimerKind.timeout]: timeoutConfig,
+            [TimerKind.interval]: intervalConfig,
+            [TimerKind.cron]: cronConfig,
+        }
+
+        for (const kind of Object.values(TimerKind)) {
+            const config = configs[kind]
+
             const max = config?.maxOverdue
             if (max !== undefined && max < 0) {
                 Logger.warn(
                     `${kind}Config.maxOverdue is ${max}, which throws away every ${kind} that comes back late. Use 0, or leave it out, for no limit.`
                 )
             }
-        }
 
-        const limit = intervalConfig?.restoredTicksLimit
-        if (limit !== undefined && limit < 0) {
-            Logger.warn(
-                `intervalConfig.restoredTicksLimit is ${limit}, which replays nothing. Use Infinity to replay every missed tick.`
-            )
+            if (kind === TimerKind.timeout) continue
+
+            const limit = config?.restoredTicksLimit
+            if (limit !== undefined && limit < 0) {
+                Logger.warn(
+                    `${kind}Config.restoredTicksLimit is ${limit}, which replays nothing. Use Infinity to replay everything it missed.`
+                )
+            }
         }
 
         for (const event of events ?? []) {
-            if (!(event in TimerEvent)) Logger.warn(`"${event}" is not a timer event, so nothing will listen to it.`)
+            if (!(event in TimerEvent)) {
+                Logger.warn(
+                    `"${event}" is not a timer event, so loading them will fail. ` +
+                        `The ones there are: ${Object.keys(TimerEvent).join(", ")}.`
+                )
+            }
         }
     }
 }

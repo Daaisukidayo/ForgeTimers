@@ -1,12 +1,23 @@
 import assert from "node:assert/strict"
 import { beforeEach, describe, it } from "node:test"
-import { apiError, Database, marks, persist, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./harness"
+import {
+    apiError,
+    Database,
+    marks,
+    persist,
+    TestHarness,
+    Timer,
+    GapKind,
+    TimerKind,
+    useHarness,
+    waitFor,
+} from "./support/harness"
 
 let harness: TestHarness
 
 useHarness((booted) => (harness = booted))
 
-const stored = (kind: TimerKind, duration: number, dueIn: number, name = "n") =>
+const stored = (kind: GapKind, duration: number, dueIn: number, name = "n") =>
     persist(new Timer({ name, kind, code: `$testMark[${name}]`, duration, channelID: "chan-1" }), Date.now() + dueIn)
 
 describe("when a timer cannot be rebuilt", () => {
@@ -30,12 +41,14 @@ describe("when a timer cannot be rebuilt", () => {
         }
     })
 
-    it("drops the record once a due timer finds its channel gone", async () => {
+    it("runs a due timer whose channel is gone, rather than throwing its code away", async () => {
         await stored(TimerKind.timeout, 3_600_000, -60_000)
         harness.channelError = apiError(404, 10003, "Unknown Channel")
 
         await harness.ready()
-        assert.equal(await Database.get(TimerKind.timeout, "n"), null)
+
+        assert.ok(await waitFor(() => marks.includes("n"), 2000), "a missing channel stopped code that never used it")
+        assert.equal(await Database.get(TimerKind.timeout, "n"), null, "and a spent timeout still gives up its record")
     })
 
     it("drops the record when the code no longer compiles", async () => {
@@ -47,15 +60,15 @@ describe("when a timer cannot be rebuilt", () => {
         assert.equal(await Database.get(TimerKind.timeout, "n"), null)
     })
 
-    it("stops an interval whose target turns out to be gone", async () => {
+    it("keeps an interval ticking once its target is gone, since the code decides what it needs", async () => {
         await stored(TimerKind.interval, 60, -1000)
         harness.channelError = apiError(404, 10003, "Unknown Channel")
 
         await harness.ready()
-        await waitFor(async () => (await Database.get(TimerKind.interval, "n")) === null)
 
-        assert.equal(await Database.get(TimerKind.interval, "n"), null)
-        assert.equal(harness.client.intervals.has("n"), false)
+        assert.ok(await waitFor(() => marks.length >= 2, 2000), `it ticked ${marks.length} times`)
+        assert.ok(await Database.get(TimerKind.interval, "n"), "its record was thrown away anyway")
+        assert.equal(harness.client.intervals.has("n"), true, "it was stood down anyway")
     })
 })
 

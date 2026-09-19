@@ -1,13 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const managers_1 = require("../managers");
-const types_1 = require("../types");
 exports.default = new managers_1.TimerEventHandler({
-    name: types_1.TimerEvent.timerFire,
-    description: "Triggered when a timer's code runs: a timeout going off, or an interval ticking",
+    name: "timerFire",
     version: "1.3.0",
+    description: "Triggered when a timer's code runs: a timeout going off, or an interval ticking",
     listener(environment) {
-        (0, managers_1.runCommands)(this, types_1.TimerEvent.timerFire, environment);
+        (0, managers_1.runCommands)(this, "timerFire", environment);
     },
 });
 //# sourceMappingURL=timerFire.js.map

@@ -1,11 +1,37 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VARS_SCHEMA_VERSION = void 0;
+exports.repeatingRunner = repeatingRunner;
 exports.snapshotVars = snapshotVars;
 exports.restoreVars = restoreVars;
 exports.rehydrateLocalFunctions = rehydrateLocalFunctions;
 const forgescript_1 = require("@tryforge/forgescript");
 const logger_1 = require("./logger");
+/**
+ * Builds the runner for a timer that fires more than once.
+ *
+ * @param ctx The context the timer was scheduled from.
+ * @param resolve What to run, given the context built for that run.
+ * @returns The cloned runtime the snapshot was taken from, and the runner itself.
+ */
+function repeatingRunner(ctx, resolve) {
+    const runtime = ctx.cloneRuntime();
+    const vars = {
+        keywords: { ...runtime.keywords },
+        environment: { ...runtime.environment },
+        localFunctions: { ...runtime.localFunctions },
+    };
+    const run = async () => {
+        const tick = new forgescript_1.Context({
+            ...runtime,
+            keywords: { ...vars.keywords },
+            environment: { ...vars.environment },
+            localFunctions: { ...vars.localFunctions },
+        });
+        await resolve(tick);
+    };
+    return { runtime, run };
+}
 /** v0 was plain json. v1 tags dates, maps, sets, regexps and bigints, and drops per value instead of per key */
 exports.VARS_SCHEMA_VERSION = 1;
 const TAG = "$forge";
@@ -74,6 +100,7 @@ function applyCodec(tag, value, walk) {
 }
 /**
  * Rewrites a value into something JSON can hold without losing its type.
+ *
  * @param value The value to encode.
  * @param seen The objects currently being walked, to break cycles.
  */
@@ -168,10 +195,10 @@ function encodeRecord(source) {
     return { kept, dropped };
 }
 /**
- * Writes a timer's variables down so a restart can hand them back. Whatever a function left in them
- * travels - strings, numbers, arrays, plain objects, and the tagged dates, maps, sets, regexps and
- * bigints that `$js` or another extension may have put there. Functions, class instances and live
- * discord structures cannot survive a restart, so they are dropped and named in the log instead.
+ * Writes a timer's variables down so a restart can hand them back.
+ * Whatever a function left in them travels - strings, numbers, arrays, plain objects, and the tagged dates, maps, sets, regexps and bigints that `$js` or another extension may have put there.
+ * Functions, class instances and live discord structures cannot survive a restart, so they are dropped and named in the log instead.
+ *
  * @param runtime The variables to write down.
  * @param label What to call this timer in that log.
  */
@@ -194,6 +221,7 @@ function snapshotVars(runtime, label) {
 }
 /**
  * Reads back a record written by {@link snapshotVars}.
+ *
  * @param source The stored record.
  * @param version The schema the timer was written under.
  */

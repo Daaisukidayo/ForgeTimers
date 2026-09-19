@@ -10,7 +10,6 @@ const EXTENSION = {
 };
 /**
  * Moves every stored timer from one backend to the other.
- *
  * First copies, second reads the copy back, and only then drops the original.
  *
  * @param client The client both extensions are loaded on.

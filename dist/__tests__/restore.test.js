@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
-const harness_1 = require("./harness");
+const harness_1 = require("./support/harness");
 const snapshotVars_1 = require("../functions/snapshotVars");
 let harness;
 (0, harness_1.useHarness)((booted) => (harness = booted));
@@ -75,6 +75,34 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
         await stored(harness_1.TimerKind.interval, 10_000, -35_000);
         await harness.ready();
         strict_1.default.equal(harness_1.marks.length, 2);
+    });
+    (0, node_test_1.it)("stops a replay $wipeTimers reaches, which finds nothing scheduled to cancel", async () => {
+        configure({}, { restoredTicksLimit: Infinity });
+        await (0, harness_1.persist)(new harness_1.Timer({
+            name: "n",
+            kind: harness_1.TimerKind.interval,
+            code: "$testMark[n]$wipeTimers",
+            duration: 10_000,
+            channelID: "chan-1",
+        }), Date.now() - 35_000);
+        await harness.ready();
+        strict_1.default.equal(harness_1.marks.length, 1, `4 ticks were due, the replay ran ${harness_1.marks.length} past the wipe`);
+        strict_1.default.equal(harness.client.intervals.has("n"), false, "a wiped interval must not be re-armed");
+        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.interval, "n"), null, "the wiped record was written back");
+    });
+    (0, node_test_1.it)("stops a replay the script cancels partway through", async () => {
+        configure({}, { restoredTicksLimit: Infinity });
+        await (0, harness_1.persist)(new harness_1.Timer({
+            name: "n",
+            kind: harness_1.TimerKind.interval,
+            code: "$testMark[n]$clearInterval[n]",
+            duration: 10_000,
+            channelID: "chan-1",
+        }), Date.now() - 35_000);
+        await harness.ready();
+        strict_1.default.equal(harness_1.marks.length, 1, `4 ticks were due, the replay ran ${harness_1.marks.length} past the cancel`);
+        strict_1.default.equal(harness.client.intervals.has("n"), false, "a cancelled interval must not be re-armed");
+        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.interval, "n"), null, "the cancelled record was written back");
     });
     (0, node_test_1.it)("resumes on the time left rather than a whole fresh tick", { timeout: 60_000 }, async () => {
         await stored(harness_1.TimerKind.interval, 30_000, 5_000);
@@ -153,7 +181,7 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
     (0, node_test_1.it)("leaves a kind this build has no map for alone", async () => {
         const future = new harness_1.Timer({
             name: "later",
-            kind: "cron",
+            kind: "weekly",
             code: "$testMark[later]",
             duration: 1000,
             channelID: "chan-1",
@@ -165,7 +193,7 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
         strict_1.default.deepEqual(harness_1.marks, ["n"], "a kind with no map behind it must not be run");
         strict_1.default.equal(harness.client.timeouts.has("later"), false);
         strict_1.default.equal(harness.client.intervals.has("later"), false);
-        strict_1.default.ok(await harness_1.Database.get("cron", "later"), "the row was thrown away rather than left alone");
+        strict_1.default.ok(await harness_1.Database.get("weekly", "later"), "the row was thrown away rather than left alone");
     });
 });
 //# sourceMappingURL=restore.test.js.map

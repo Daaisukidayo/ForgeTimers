@@ -78,7 +78,7 @@ if (smoke) {
     const plan = (0, smoke_1.readPlan)();
     client.commands.add({
         type: discord_js_1.Events.ClientReady,
-        code: plan ? `$smokeReport[booted]` : smoke_1.SEED_CODE,
+        code: plan ? smoke_1.VERIFY_CODE : smoke_1.SEED_CODE,
     });
     for (const event of WATCHED)
         timer.commands.add({ type: event, code: (0, smoke_1.eventCode)(event) });

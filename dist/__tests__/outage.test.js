@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
-const harness_1 = require("./harness");
+const harness_1 = require("./support/harness");
 let harness;
 (0, harness_1.useHarness)((booted) => (harness = booted));
 /** Takes a call away the way a connection dropped after startup would */
@@ -38,7 +38,7 @@ const timer = (name, kind = harness_1.TimerKind.timeout, duration = 50) => new h
     (0, node_test_1.it)("cancels a timer it cannot forget, and says the row is still there", async () => {
         await harness.ext.timersManager.start(timer("n", harness_1.TimerKind.timeout, 60_000), async () => void 0);
         breaks("delete");
-        strict_1.default.deepEqual(await harness.ext.timersManager.stop(harness_1.TimerKind.timeout, "n"), [true, false], "a failed delete must not be reported as a forgotten timer");
+        strict_1.default.deepEqual(await harness.ext.timersManager.stop(harness_1.TimerKind.timeout, "n"), { cleared: true, forgotten: false }, "a failed delete must not be reported as a forgotten timer");
         strict_1.default.equal(harness.client.timeouts.has("n"), false, "the live timer was left armed");
     });
     (0, node_test_1.it)("reports a clear as done when only the live timer could be cancelled", async () => {

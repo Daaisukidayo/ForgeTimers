@@ -1,6 +1,5 @@
 import { ForgeClient } from "@tryforge/forgescript"
-import { Database } from "../structures/Database"
-import { TimerStorage } from "../types"
+import { Database, TimerStorage } from "../structures/Database"
 import { Logger } from "./logger"
 
 /** What each backend needs loaded before its store can be opened */
@@ -19,7 +18,6 @@ export interface IMigrationResult {
 
 /**
  * Moves every stored timer from one backend to the other.
- *
  * First copies, second reads the copy back, and only then drops the original.
  *
  * @param client The client both extensions are loaded on.

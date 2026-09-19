@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { after, before, beforeEach, describe, it } from "node:test"
+import { before, describe, it } from "node:test"
 import {
     apiError,
     Database,
@@ -12,7 +12,7 @@ import {
     TimerKind,
     useHarness,
     waitFor,
-} from "./harness"
+} from "./support/harness"
 import { TimerEvent } from "../types"
 
 let harness: TestHarness
@@ -21,10 +21,10 @@ useHarness((booted) => (harness = booted), {
     options: { events: Object.values(TimerEvent), timeoutConfig: { maxOverdue: 1000 } },
     setup: (booted) => {
         for (const event of Object.values(TimerEvent)) {
-            booted.ext.commands.add({ type: event, code: `$testMark[${event}:$env[name]:$env[kind]]` })
+            booted.ext.commands.add({ type: event, code: `$testMark[${event}:$timerData[name]:$timerData[kind]]` })
         }
 
-        booted.ext.commands.add({ type: TimerEvent.timerDrop, code: "$testMark[why:$env[reason]]" })
+        booted.ext.commands.add({ type: TimerEvent.timerDrop, code: "$testMark[why:$timerDropReason]" })
     },
 })
 
@@ -46,6 +46,131 @@ describe("an event named as a plain string", () => {
         await run(harness, "$setTimeout[$testMark[x];1h;plain]")
 
         assert.ok(await marked("from-a-string"), "a command registered with a string never ran")
+    })
+})
+
+describe("startup finishing", () => {
+    it("counts what it kept and what it threw away", async () => {
+        harness.ext.commands.add({
+            type: TimerEvent.timersReady,
+            code: "$testMark[ready:$timersRestored:$timersDropped]",
+        })
+
+        // inside the 1000ms maxOverdue this suite boots with, so it is kept
+        await overdue("kept")
+        // an hour past it, so it is discarded instead
+        await persist(
+            new Timer({ name: "stale", kind: TimerKind.timeout, code: "x", duration: 3_600_000, channelID: "chan-1" }),
+            Date.now() - 3_600_000
+        )
+
+        await harness.ready()
+
+        assert.ok(await marked("ready:1:1"), `wrong tally: ${marks.filter((mark) => mark.startsWith("ready:"))}`)
+    })
+
+    it("still fires when there was nothing stored at all", async () => {
+        harness.ext.commands.add({
+            type: TimerEvent.timersReady,
+            code: "$testMark[ready:$timersRestored:$timersDropped]",
+        })
+
+        await harness.ready()
+
+        assert.ok(await marked("ready:0:0"), "a first boot has to reach the event too")
+    })
+})
+
+describe("the options a timer carries", () => {
+    it("reaches a listening command through $timerData", async () => {
+        harness.ext.commands.add({ type: TimerEvent.timerStart, code: "$testMark[cfg:$timerData[config]]" })
+
+        await run(harness, "$setInterval[$testMark[x];1h;beat;false;;5]")
+        assert.ok(await waitFor(() => marks.some((mark) => mark.startsWith("cfg:"))), "no event carried the options")
+
+        const cfg = marks.find((mark) => mark.startsWith("cfg:"))!.slice("cfg:".length)
+        assert.deepEqual(JSON.parse(cfg), { persist: false, restoredTicksLimit: 5 })
+    })
+})
+
+describe("$timerData", () => {
+    const readingWith = (code: string) => {
+        harness.ext.commands.add({ type: TimerEvent.timerStart, code: `$testMark[read:${code}]` })
+        return async () => {
+            await run(harness, "$setTimeout[$testMark[x];1h;reminder]")
+            await waitFor(() => marks.some((mark) => mark.startsWith("read:")))
+            return marks.find((mark) => mark.startsWith("read:"))!.slice("read:".length)
+        }
+    }
+
+    it("reads one property of the timer the event is about", async () => {
+        assert.equal(
+            await readingWith("$timerData[name]/$timerData[kind]/$timerData[channelID]")(),
+            "reminder/timeout/chan-1"
+        )
+    })
+
+    it("hands back every property at once when asked for none", async () => {
+        const whole = JSON.parse(await readingWith("$timerData")())
+        assert.equal(whole.name, "reminder")
+        assert.equal(whole.kind, "timeout")
+        assert.ok(whole.fireAt > Date.now(), "the deadline has to be carried too")
+    })
+
+    it("keeps the timer off the environment entirely", async () => {
+        harness.ext.commands.add({ type: TimerEvent.timerStart, code: "$testMark[env:<$env[timer]>]" })
+
+        await run(harness, "$setTimeout[$testMark[x];1h;reminder]")
+
+        // it rides the context, so a command can never reach its code or its variable snapshot through $env
+        assert.ok(await marked("env:<>"), `the timer leaked into the environment: ${marks}`)
+    })
+
+    it("reads empty inside a timer's own code, which is not an event", async () => {
+        // a live timer runs in a plain clone of the scheduling context, so promising it here
+        // would work only for restored ones - blank before a restart, filled in after
+        await run(harness, "$setTimeout[$testMark[self:<$timerData[name]>];60;mine]")
+
+        assert.ok(await marked("self:<>"), `$timerData is for events, not for the timer itself: ${marks}`)
+    })
+
+    it("keeps an event's own values out of the timer's names", async () => {
+        harness.ext.commands.add({
+            type: TimerEvent.timerDrop,
+            code: "$testMark[both:$timerData[name]:$timerDropReason]",
+        })
+
+        await persist(
+            new Timer({ name: "expired", kind: TimerKind.timeout, code: "x", duration: 1000, channelID: "chan-1" }),
+            Date.now() - 60_000
+        )
+        await harness.ready()
+
+        assert.ok(
+            await waitFor(() => marks.some((mark) => mark.startsWith("both:expired:") && mark.includes("overdue"))),
+            `the timer and the reason must both come through: ${marks.filter((m) => m.startsWith("both:"))}`
+        )
+    })
+
+    it("reads how late a restored timer was, alongside the timer itself", async () => {
+        harness.ext.commands.add({
+            type: TimerEvent.timerRestore,
+            code: "$testMark[late:$timerData[name]:$timerOverdueBy]",
+        })
+
+        await overdue("tardy")
+        await harness.ready()
+
+        const seen = await waitFor(() => marks.some((mark) => /^late:tardy:\d+$/.test(mark)))
+        assert.ok(seen, `no overdue reading came through: ${marks.filter((mark) => mark.startsWith("late:"))}`)
+    })
+
+    it("reads empty in an event that is about no single timer", async () => {
+        harness.ext.commands.add({ type: TimerEvent.timersReady, code: "$testMark[noTimer:<$timerData[name]>]" })
+
+        await harness.ready()
+
+        assert.ok(await marked("noTimer:<>"), `timersReady carries no timer: ${marks}`)
     })
 })
 
@@ -156,29 +281,16 @@ describe("a restart", () => {
     })
 })
 
+// harness.reset() already puts timeoutConfig, pruneUnknownGuilds and channelError back before every test
 describe("the reason a timer was dropped", () => {
-    const timeoutConfig = harness?.ext.options.timeoutConfig
-
-    beforeEach(() => {
-        harness.ext.options.timeoutConfig = timeoutConfig ?? { maxOverdue: 1000 }
-        harness.ext.options.pruneUnknownGuilds = false
-        harness.channelError = undefined
-    })
-
-    after(() => {
-        harness.ext.options.timeoutConfig = timeoutConfig ?? { maxOverdue: 1000 }
-        harness.ext.options.pruneUnknownGuilds = false
-        harness.channelError = undefined
-    })
-
-    it("says the target is gone", async () => {
+    it("says nothing about a gone target, because that one fires instead of dropping", async () => {
         await overdue("orphaned")
         harness.channelError = apiError(404, 10003, "Unknown Channel")
 
         await harness.ready()
 
-        assert.ok(await marked(`${TimerEvent.timerDrop}:orphaned:timeout`))
-        assert.match(droppedBecause() ?? "", /target is gone/)
+        assert.ok(await marked(`${TimerEvent.timerFire}:orphaned:timeout`), "a missing channel stopped the run")
+        assert.equal(droppedBecause(), undefined, `it was dropped after all: ${droppedBecause()}`)
     })
 
     it("says the code no longer compiles", async () => {
@@ -212,7 +324,9 @@ describe("the reason a timer was dropped", () => {
 })
 
 describe("a cancelled timer with no record behind it", () => {
-    before(() => harness.ext.commands.add({ type: TimerEvent.timerCancel, code: "$testMark[left:$env[timeLeft]]" }))
+    before(() =>
+        harness.ext.commands.add({ type: TimerEvent.timerCancel, code: "$testMark[left:$timerData[timeLeft]]" })
+    )
 
     it("hands the command every property while the row is there", async () => {
         await run(harness, "$setTimeout[$testMark[ran];1h;full]")
@@ -221,7 +335,7 @@ describe("a cancelled timer with no record behind it", () => {
         assert.ok(await waitFor(() => marks.some((mark) => /^left:\d+$/.test(mark))), `no timeLeft: ${marks}`)
     })
 
-    it("still reports one whose row is already gone, with nothing but its name", async () => {
+    it("still reports one whose row is already gone, by name alone", async () => {
         await run(harness, "$setTimeout[$testMark[ran];1h;orphan]")
         await Database.delete(TimerKind.timeout, "orphan")
         marks.length = 0
@@ -229,6 +343,7 @@ describe("a cancelled timer with no record behind it", () => {
         await run(harness, "$clearTimeout[orphan]")
 
         assert.ok(await marked(`${TimerEvent.timerCancel}:orphan:timeout`), "the cancel went unreported")
-        assert.ok(await marked("left:"), `the payload carried more than the name: ${marks}`)
+        // nothing was stored, so there is no schedule left to report: only which name went away is true
+        assert.ok(await marked("left:0"), `it claimed to know a deadline it never read: ${marks}`)
     })
 })

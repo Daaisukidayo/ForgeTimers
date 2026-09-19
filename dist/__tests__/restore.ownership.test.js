@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
-const harness_1 = require("./harness");
+const harness_1 = require("./support/harness");
 let harness;
 (0, harness_1.useHarness)((booted) => (harness = booted));
 (0, node_test_1.describe)("ownership across processes", () => {

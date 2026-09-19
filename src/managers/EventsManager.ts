@@ -1,7 +1,8 @@
 import { BaseCommandManager, BaseEventHandler, ForgeClient, Interpreter } from "@tryforge/forgescript"
 import { ForgeTimers } from ".."
+import { TimerContext } from "../structures"
 import { Logger } from "../functions/logger"
-import { ITimerEvents, TimerEventName } from "../types"
+import { ITimerEventPayload, ITimerEvents, TimerEventName } from "../types"
 
 export const HANDLER = "ForgeTimersEvents"
 
@@ -15,16 +16,22 @@ export class TimerEventHandler extends BaseEventHandler<ITimerEvents, TimerEvent
     }
 }
 
-export function runCommands(client: ForgeClient, event: TimerEventName, environment: Record<string, unknown>) {
+export function runCommands(client: ForgeClient, event: TimerEventName, payload: ITimerEventPayload) {
     const commands = client.getExtension(ForgeTimers, true).commands?.get(event) ?? []
+    if (!commands.length) return
+
+    const { timer, event: data } = payload
 
     for (const command of commands) {
-        Interpreter.run({
-            client,
-            command,
-            data: command.compiled.code,
-            obj: {},
-            environment,
-        }).catch(Logger.error)
+        Interpreter.run(
+            new TimerContext({
+                client,
+                command,
+                data: command.compiled.code,
+                obj: {},
+                timer: timer ?? null,
+                event: data ?? null,
+            })
+        ).catch(Logger.error)
     }
 }

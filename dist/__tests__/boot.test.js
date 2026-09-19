@@ -5,11 +5,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
-const harness_1 = require("./harness");
+const harness_1 = require("./support/harness");
 const __1 = require("..");
 (0, harness_1.useTempHome)("forgetimers-boot");
-/** Runs `fn` against an extension whose backend could not be required at all */
-async function withoutForgeDB(fn) {
+/** Makes forge.db unresolvable, and hands back the undo */
+function blockForgeDB() {
     const resolve = require("module")._resolveFilename;
     require("module")._resolveFilename = function (request, ...rest) {
         if (request === "@tryforge/forge.db") {
@@ -17,13 +17,20 @@ async function withoutForgeDB(fn) {
         }
         return resolve.call(this, request, ...rest);
     };
+    return () => {
+        require("module")._resolveFilename = resolve;
+    };
+}
+/** Runs `fn` against an extension whose backend could not be required at all */
+async function withoutForgeDB(fn) {
+    const restore = blockForgeDB();
     const harness = (0, harness_1.attach)(new __1.ForgeTimers());
     try {
         strict_1.default.equal(await harness.ext.ready, false, "a missing backend must not reject the boot");
         await fn(harness);
     }
     finally {
-        require("module")._resolveFilename = resolve;
+        restore();
         harness.disarm();
     }
 }

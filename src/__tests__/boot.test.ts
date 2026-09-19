@@ -11,13 +11,13 @@ import {
     TimerKind,
     useTempHome,
     waitFor,
-} from "./harness"
+} from "./support/harness"
 import { ForgeTimers } from ".."
 
 useTempHome("forgetimers-boot")
 
-/** Runs `fn` against an extension whose backend could not be required at all */
-async function withoutForgeDB(fn: (harness: ITestClient) => Promise<void>) {
+/** Makes forge.db unresolvable, and hands back the undo */
+function blockForgeDB() {
     const resolve = require("module")._resolveFilename
 
     require("module")._resolveFilename = function (request: string, ...rest: unknown[]) {
@@ -27,13 +27,21 @@ async function withoutForgeDB(fn: (harness: ITestClient) => Promise<void>) {
         return resolve.call(this, request, ...rest)
     }
 
+    return () => {
+        require("module")._resolveFilename = resolve
+    }
+}
+
+/** Runs `fn` against an extension whose backend could not be required at all */
+async function withoutForgeDB(fn: (harness: ITestClient) => Promise<void>) {
+    const restore = blockForgeDB()
     const harness = attach(new ForgeTimers())
 
     try {
         assert.equal(await harness.ext.ready, false, "a missing backend must not reject the boot")
         await fn(harness)
     } finally {
-        require("module")._resolveFilename = resolve
+        restore()
         harness.disarm()
     }
 }

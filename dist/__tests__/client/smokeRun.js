@@ -106,8 +106,9 @@ async function main() {
         console.error((0, smoke_1.red)(`No scenario called "${wanted.join(", ")}". Pick from: ${SCENARIOS.map((s) => s.id).join(", ")}`));
         process.exit(1);
     }
-    console.log((0, smoke_1.grey)(`clock x${smoke_1.SPEED}: ${smoke_1.TIMEOUT_DELAY} deadline, ${smoke_1.INTERVAL_TICK} tick, ${smoke_1.OVERDUE_DELAY} while down, ` +
-        `${Math.round(smoke_1.DOWNTIME / 1000)}s down, ${scenarios.length} of ${SCENARIOS.length} scenarios`));
+    console.log((0, smoke_1.grey)(`clock x${smoke_1.SPEED}: ${smoke_1.TIMEOUT_DELAY} deadline, ${smoke_1.INTERVAL_TICK} tick, ${smoke_1.CRON_SECONDS}s cron, ` +
+        `${smoke_1.OVERDUE_DELAY} while down, ${Math.round(smoke_1.DOWNTIME / 1000)}s down, ` +
+        `${scenarios.length} of ${SCENARIOS.length} scenarios`));
     const failed = [];
     for (const scenario of scenarios) {
         if (!(await check(scenario)))

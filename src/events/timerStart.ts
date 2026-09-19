@@ -1,11 +1,10 @@
 import { TimerEventHandler, runCommands } from "../managers"
-import { TimerEvent } from "../types"
 
 export default new TimerEventHandler({
-    name: TimerEvent.timerStart,
-    description: "Triggered when a timer is scheduled",
+    name: "timerStart",
     version: "1.3.0",
+    description: "Triggered when a timer is scheduled",
     listener(environment) {
-        runCommands(this, TimerEvent.timerStart, environment)
+        runCommands(this, "timerStart", environment)
     },
 })

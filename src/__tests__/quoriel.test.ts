@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, it } from "node:test"
-import { Database, marks, persist, run, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./harness"
+import { Database, marks, persist, run, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./support/harness"
 import { ForgeTimers } from ".."
 import { QUORIEL_TYPE, QuorielDBStore } from "../structures"
 

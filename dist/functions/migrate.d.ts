@@ -1,5 +1,5 @@
 import { ForgeClient } from "@tryforge/forgescript";
-import { TimerStorage } from "../types";
+import { TimerStorage } from "../structures/Database";
 export interface IMigrationResult {
     moved: number;
     /** Names already taken in the target, left where they were */
@@ -9,7 +9,6 @@ export interface IMigrationResult {
 }
 /**
  * Moves every stored timer from one backend to the other.
- *
  * First copies, second reads the copy back, and only then drops the original.
  *
  * @param client The client both extensions are loaded on.

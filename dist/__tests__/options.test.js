@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
-const harness_1 = require("./harness");
+const harness_1 = require("./support/harness");
 const __1 = require("..");
 const logger_1 = require("../functions/logger");
 (0, harness_1.useTempHome)("forgetimers-options");
@@ -64,6 +64,12 @@ const ticks = () => harness_1.marks.filter((mark) => mark === "tick").length;
         });
         strict_1.default.ok(said.some((line) => line.includes("restoredTicksLimit") && line.includes("Infinity")), `nothing was said about it: ${said}`);
         strict_1.default.ok(!(await (0, harness_1.waitFor)(() => ticks() > 0, 200)), "a negative limit replayed ticks");
+        harness.disarm();
+    });
+    (0, node_test_1.it)("reviews a cron's config too, which it used to skip over entirely", async () => {
+        const { said, harness } = await boots({ cronConfig: { maxOverdue: -5, restoredTicksLimit: -1 } });
+        strict_1.default.ok(said.some((line) => line.includes("cronConfig.maxOverdue") && line.includes("throws away")), `a negative maxOverdue went unmentioned: ${said}`);
+        strict_1.default.ok(said.some((line) => line.includes("cronConfig.restoredTicksLimit") && line.includes("Infinity")), `a negative tick limit went unmentioned: ${said}`);
         harness.disarm();
     });
     (0, node_test_1.it)("replays every missed tick at Infinity", async () => {

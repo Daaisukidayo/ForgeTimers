@@ -7,7 +7,7 @@ const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
 const structures_1 = require("../structures");
 const schedule_1 = require("../functions/schedule");
-const harness_1 = require("./harness");
+const harness_1 = require("./support/harness");
 const make = (duration, kind = structures_1.TimerKind.interval) => new structures_1.Timer({ name: "t", kind, duration, channelID: "c" });
 (0, node_test_1.describe)("Timer arithmetic", () => {
     (0, node_test_1.it)("starts due one duration out", () => {

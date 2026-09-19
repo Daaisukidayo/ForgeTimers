@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { join } from "node:path"
 import { describe, it } from "node:test"
-import { Database, Timer, TimerKind, useTempHome } from "./harness"
+import { Database, Timer, TimerKind, useTempHome } from "./support/harness"
 
 const folder = useTempHome("forgetimers-forgedb")
 

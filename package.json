@@ -1,7 +1,7 @@
 {
   "name": "forge.timers",
-  "version": "1.3.1",
-  "description": "Persists $setTimeout and $setInterval in ForgeDB or QuorielDB, restores them on restart, and exposes them through functions and events.",
+  "version": "2.0.0",
+  "description": "Persists $setTimeout, $setInterval and $setCron in ForgeDB or QuorielDB, restores them on restart, and exposes them through functions and events.",
   "main": "dist/index.js",
   "files": [
     "dist",
@@ -15,8 +15,8 @@
     "client": "tsc && node dist/__tests__/client/client.js",
     "smoke": "tsc && node dist/__tests__/client/smokeRun.js",
     "eslint": "eslint ./src --fix",
-    "prettier": "prettier --write ./src/**/*",
-    "lint": "eslint ./src && prettier --check ./src/**/*",
+    "prettier": "prettier --write \"./src/**/*\"",
+    "lint": "eslint ./src && prettier --check \"./src/**/*\"",
     "tidy": "npm run eslint && npm run prettier",
     "docgen": "npm run tidy && tsc && typedoc src/index.ts && node dist/@build/docgen",
     "commit": "npm run docgen && node dist/@build/commit",
@@ -31,6 +31,7 @@
     "timers",
     "setTimeout",
     "setInterval",
+    "cron",
     "persistence",
     "tryforge",
     "scheduler",
@@ -96,5 +97,8 @@
   },
   "bugs": {
     "url": "https://github.com/Daaisukidayo/ForgeTimers/issues"
+  },
+  "dependencies": {
+    "cron-parser": "^5.10.1"
   }
 }

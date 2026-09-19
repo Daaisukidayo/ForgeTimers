@@ -10,6 +10,8 @@ export declare const FAIL = "SMOKE:FAIL";
 export declare const TIMEOUT_NAME = "smoke-timeout";
 export declare const INTERVAL_NAME = "smoke-interval";
 export declare const OVERDUE_NAME = "smoke-overdue";
+export declare const CRON_NAME = "smoke-cron";
+export declare const PAUSED_NAME = "smoke-paused";
 export declare const CHANNEL: string | undefined;
 export declare const SPEED: number;
 /** How long the bot stays down between the two runs */
@@ -17,6 +19,14 @@ export declare const DOWNTIME: number;
 /** Still ahead of the second boot whatever the speed, or the timer would come due before anyone looks */
 export declare const TIMEOUT_DELAY: string;
 export declare const INTERVAL_TICK: string;
+/**
+ * Seconds between cron runs, kept to a divisor of 60 so every occurrence lands on a whole
+ * multiple of it and the restart can be checked against the expression's own beat.
+ */
+export declare const CRON_SECONDS: number;
+export declare const CRON_EXPRESSION: string;
+/** A hold freezes what is left, so this only has to be short enough to wait out once resumed */
+export declare const PAUSED_DELAY: string;
 /** Shorter than the downtime, so this one comes due while the bot is off */
 export declare const OVERDUE_DELAY: string;
 /** Set before the timers are scheduled, and read back by one of them after the restart */
@@ -31,6 +41,11 @@ export declare function readPlan(): ISmokePlan | null;
 export declare function clearPlan(): void;
 export declare const TIMEOUT_CODE: string;
 export declare const SEED_CODE: string;
+/**
+ * What the second boot runs. The held timer is read before it is let go of, so the restart is
+ * caught leaving it alone rather than only the resume being caught working.
+ */
+export declare const VERIFY_CODE: string;
 /** Every event reports under the name of the timer it is about */
 export declare const eventCode: (event: string) => string;
 /** An event command runs with no target of its own, so this checks one can still reach discord */

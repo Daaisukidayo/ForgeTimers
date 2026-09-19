@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { Database, marked, marks, run, TestHarness, TimerKind, useHarness, waitFor } from "./harness"
+import { Database, marked, marks, run, TestHarness, TimerKind, useHarness, waitFor } from "./support/harness"
 import { TimerEvent } from "../types"
 
 const WATCHED = [TimerEvent.timerStart, TimerEvent.timerFire, TimerEvent.timerCancel]

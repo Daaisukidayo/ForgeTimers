@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
-const harness_1 = require("./harness");
+const harness_1 = require("./support/harness");
 const __1 = require("..");
 (0, harness_1.useTempHome)("forgetimers-migrate");
 const clientWith = (...extensions) => ({ options: { extensions: extensions.map((name) => ({ name })) } });
@@ -61,6 +61,7 @@ async function seed(from, to, timers) {
             hostID: "user-1",
             messageID: "msg-1",
             args: ["a", "b"],
+            config: { persist: false, restoredTicksLimit: "Infinity" },
             vars: { keywords: { k: "v" }, environment: { n: 1 }, localFunctions: {} },
         });
         await seed("forgedb", "quorieldb", [original]);
@@ -72,6 +73,7 @@ async function seed(from, to, timers) {
         strict_1.default.equal(back.commandName, "cmd");
         strict_1.default.equal(back.path, "/cmd.js");
         strict_1.default.deepEqual(back.args, ["a", "b"]);
+        strict_1.default.deepEqual(back.config, original.config);
         strict_1.default.deepEqual(back.vars, original.vars);
         strict_1.default.equal(back.version, harness_1.Timer.SCHEMA_VERSION);
     });

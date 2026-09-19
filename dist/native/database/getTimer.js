@@ -12,7 +12,7 @@ exports.default = new forgescript_1.NativeFunction({
     args: [
         {
             name: "kind",
-            description: "Whether to look for a timeout or an interval",
+            description: "The kind of the timer to look for",
             rest: false,
             required: true,
             type: forgescript_1.ArgType.Enum,

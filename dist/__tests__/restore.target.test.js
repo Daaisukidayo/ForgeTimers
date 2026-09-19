@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
-const harness_1 = require("./harness");
+const harness_1 = require("./support/harness");
 let harness;
 (0, harness_1.useHarness)((booted) => (harness = booted));
 const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new harness_1.Timer({ name, kind, code: `$testMark[${name}]`, duration, channelID: "chan-1" }), Date.now() + dueIn);
@@ -25,24 +25,25 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
             strict_1.default.deepEqual(harness_1.marks, []);
         }
     });
-    (0, node_test_1.it)("drops the record once a due timer finds its channel gone", async () => {
+    (0, node_test_1.it)("runs a due timer whose channel is gone, rather than throwing its code away", async () => {
         await stored(harness_1.TimerKind.timeout, 3_600_000, -60_000);
         harness.channelError = (0, harness_1.apiError)(404, 10003, "Unknown Channel");
         await harness.ready();
-        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), null);
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.includes("n"), 2000), "a missing channel stopped code that never used it");
+        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), null, "and a spent timeout still gives up its record");
     });
     (0, node_test_1.it)("drops the record when the code no longer compiles", async () => {
         await (0, harness_1.persist)(new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.timeout, code: "$if[", duration: 1000, channelID: "chan-1" }), Date.now() + 60_000);
         await harness.ready();
         strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), null);
     });
-    (0, node_test_1.it)("stops an interval whose target turns out to be gone", async () => {
+    (0, node_test_1.it)("keeps an interval ticking once its target is gone, since the code decides what it needs", async () => {
         await stored(harness_1.TimerKind.interval, 60, -1000);
         harness.channelError = (0, harness_1.apiError)(404, 10003, "Unknown Channel");
         await harness.ready();
-        await (0, harness_1.waitFor)(async () => (await harness_1.Database.get(harness_1.TimerKind.interval, "n")) === null);
-        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.interval, "n"), null);
-        strict_1.default.equal(harness.client.intervals.has("n"), false);
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.length >= 2, 2000), `it ticked ${harness_1.marks.length} times`);
+        strict_1.default.ok(await harness_1.Database.get(harness_1.TimerKind.interval, "n"), "its record was thrown away anyway");
+        strict_1.default.equal(harness.client.intervals.has("n"), true, "it was stood down anyway");
     });
 });
 (0, node_test_1.describe)("rebuilding lazily", () => {

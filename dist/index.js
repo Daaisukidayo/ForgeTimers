@@ -59,34 +59,47 @@ class ForgeTimers extends forgescript_1.ForgeExtension {
         }
         catch (err) {
             logger_1.Logger.error(err);
+            const reason = err instanceof Error ? err.message : String(err);
+            this.emitter.emit(types_1.TimerEvent.databaseFail, { event: { failReason: reason } });
             return false;
         }
+        this.emitter.emit(types_1.TimerEvent.databaseConnect, {});
         const { migrateFrom, keepSource } = this.options;
         if (migrateFrom)
             await (0, migrate_1.migrateTimers)(client, migrateFrom, storage, keepSource);
         return true;
     }
     _reviewOptions() {
-        const { storage, migrateFrom, timeoutConfig, intervalConfig, events } = this.options;
+        const { storage, migrateFrom, timeoutConfig, intervalConfig, cronConfig, events } = this.options;
         const backends = ["forgedb", "quorieldb"];
         for (const [option, value] of Object.entries({ storage, migrateFrom })) {
             if (value !== undefined && !backends.includes(value)) {
                 logger_1.Logger.warn(`${option}: "${value}" is not a backend. ForgeDB is used instead. Pick one of: ${backends.join(", ")}.`);
             }
         }
-        for (const [kind, config] of Object.entries({ timeout: timeoutConfig, interval: intervalConfig })) {
+        const configs = {
+            [structures_1.TimerKind.timeout]: timeoutConfig,
+            [structures_1.TimerKind.interval]: intervalConfig,
+            [structures_1.TimerKind.cron]: cronConfig,
+        };
+        for (const kind of Object.values(structures_1.TimerKind)) {
+            const config = configs[kind];
             const max = config?.maxOverdue;
             if (max !== undefined && max < 0) {
                 logger_1.Logger.warn(`${kind}Config.maxOverdue is ${max}, which throws away every ${kind} that comes back late. Use 0, or leave it out, for no limit.`);
             }
-        }
-        const limit = intervalConfig?.restoredTicksLimit;
-        if (limit !== undefined && limit < 0) {
-            logger_1.Logger.warn(`intervalConfig.restoredTicksLimit is ${limit}, which replays nothing. Use Infinity to replay every missed tick.`);
+            if (kind === structures_1.TimerKind.timeout)
+                continue;
+            const limit = config?.restoredTicksLimit;
+            if (limit !== undefined && limit < 0) {
+                logger_1.Logger.warn(`${kind}Config.restoredTicksLimit is ${limit}, which replays nothing. Use Infinity to replay everything it missed.`);
+            }
         }
         for (const event of events ?? []) {
-            if (!(event in types_1.TimerEvent))
-                logger_1.Logger.warn(`"${event}" is not a timer event, so nothing will listen to it.`);
+            if (!(event in types_1.TimerEvent)) {
+                logger_1.Logger.warn(`"${event}" is not a timer event, so loading them will fail. ` +
+                    `The ones there are: ${Object.keys(types_1.TimerEvent).join(", ")}.`);
+            }
         }
     }
 }
