@@ -29,7 +29,7 @@ let harness;
         const row = await harness_1.Database.get(harness_1.TimerKind.timeout, "n");
         strict_1.default.equal(row.channelID, "chan-9");
         strict_1.default.equal(row.guildID, "guild-9");
-        strict_1.default.equal(row.hostID, "user-9");
+        strict_1.default.equal(row.authorID, "user-9");
     });
     (0, node_test_1.it)("leaves an unnamed timeout out of the database", async () => {
         await (0, harness_1.run)(harness, "$setTimeout[x;1s]");
@@ -247,11 +247,11 @@ let harness;
         strict_1.default.equal(await (0, harness_1.run)(harness, "$timerExists[timeout;stored]"), "true");
         strict_1.default.equal(await (0, harness_1.run)(harness, "$timerRunning[timeout;stored]"), "false", "the two are not the same question");
     });
-    (0, node_test_1.it)("counts one armed with no record, which is how a database outage leaves it", async () => {
+    (0, node_test_1.it)("says no to one armed with no record, which is how a database outage leaves it", async () => {
         await (0, harness_1.run)(harness, "$setTimeout[x;1h;n]");
         await harness_1.Database.delete(harness_1.TimerKind.timeout, "n");
         strict_1.default.equal(await (0, harness_1.run)(harness, "$timerRunning[timeout;n]"), "true", "it is still armed");
-        strict_1.default.equal(await (0, harness_1.run)(harness, "$timerExists[timeout;n]"), "true", "so there is a timer, record or not");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$timerExists[timeout;n]"), "false", "but the two answer for one place each");
     });
     (0, node_test_1.it)("counts a paused timer, which is exactly the one the other says no to", async () => {
         await (0, harness_1.run)(harness, "$setTimeout[x;1h;n]");

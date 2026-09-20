@@ -63,7 +63,7 @@ const reminder = () => new harness_1.Timer({
         strict_1.default.equal(back.fireAt, 1_700_003_600_000);
         strict_1.default.equal(back.duration, 3_600_000);
         strict_1.default.equal(back.channelID, "chan-1");
-        strict_1.default.equal(back.hostID, "user-1");
+        strict_1.default.equal(back.authorID, "user-1");
         strict_1.default.deepEqual(back.args, ["first", "second"]);
         strict_1.default.deepEqual(back.vars?.keywords, { k: "v" });
         await harness_1.Database.wipe();

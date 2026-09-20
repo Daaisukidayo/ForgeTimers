@@ -4,7 +4,7 @@ import { ForgeTimers, TimerKind } from "../.."
 export default new NativeFunction({
     name: "$timerExists",
     version: "2.0.0",
-    description: "Checks whether there is a timer under this name at all, armed or stored, returns bool",
+    description: "Checks whether a timer is stored under this name, running or not, returns bool",
     unwrap: true,
     brackets: true,
     args: [

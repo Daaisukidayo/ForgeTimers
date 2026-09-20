@@ -1,6 +1,7 @@
 import { ArgType, IExtendedCompiledFunctionField, NativeFunction } from "@tryforge/forgescript"
 import { ForgeTimers, Timer, TimerKind } from "../.."
 import { snapshotVars } from "../../functions/snapshotVars"
+import { snapshotRunner } from "../../structures"
 import { setLongTimeout } from "../../functions/schedule"
 import { overridesOf } from "../../functions/overrides"
 
@@ -63,9 +64,7 @@ export default new NativeFunction({
             return this.customError("maxOverdue cannot be negative. Leave it out for no limit at all.")
         }
 
-        const runtime = ctx.cloneRuntime()
-        const runner = ctx.clone(runtime)
-        const run = async () => void (await this["resolveCode"](runner, code).catch(ctx.noop))
+        const { runtime, run, carries } = snapshotRunner(ctx, (tick) => this["resolveCode"](tick, code).catch(ctx.noop))
 
         if (!name) {
             setLongTimeout(duration, run)
@@ -88,13 +87,14 @@ export default new NativeFunction({
             duration,
             guildID: ctx.guild?.id ?? null,
             channelID: ctx.channel?.id ?? null,
-            hostID: ctx.user?.id ?? null,
+            authorID: ctx.user?.id ?? null,
             messageID: ctx.message?.id ?? null,
             args: ctx.args.length ? [...ctx.args] : undefined,
             config: overridesOf({ persist, maxOverdue }),
             vars: snapshotVars(runtime, this.fn.name),
         })
 
+        carries(timer)
         await ctx.client.getExtension(ForgeTimers, true).timersManager.start(timer, run)
 
         return this.success()

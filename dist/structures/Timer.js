@@ -82,7 +82,7 @@ class Timer {
     /**
      * The id of the user that scheduled this timer.
      */
-    hostID;
+    authorID;
     /**
      * The id of the message this timer was scheduled from.
      */
@@ -109,7 +109,7 @@ class Timer {
         this.version = Timer.SCHEMA_VERSION;
         this.guildID = options?.guildID ?? null;
         this.channelID = options?.channelID ?? null;
-        this.hostID = options?.hostID ?? null;
+        this.authorID = options?.authorID ?? null;
         this.messageID = options?.messageID ?? null;
         this.args = options?.args;
         this.config = options?.config ?? null;
@@ -166,7 +166,11 @@ class Timer {
      * @param data The row to rebuild from.
      */
     static from(data) {
-        return Object.assign(Object.create(Timer.prototype), data);
+        const timer = Object.assign(Object.create(Timer.prototype), data);
+        if (timer.authorID === undefined)
+            timer.authorID = timer.hostID ?? null;
+        delete timer.hostID;
+        return timer;
     }
     /**
      * Builds the primary key for a timer.

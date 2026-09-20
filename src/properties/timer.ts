@@ -14,10 +14,55 @@ export enum TimerProperty {
     paused = "paused",
     guildID = "guildID",
     channelID = "channelID",
-    hostID = "hostID",
+    authorID = "authorID",
     messageID = "messageID",
     args = "args",
     config = "config",
+}
+
+export type ITimerFilter = [TimerProperty, string]
+
+export type IFilterResult = { ok: true; pairs: ITimerFilter[] } | { ok: false; reason: string }
+
+/** How a property reads as text, so every one of them can be matched the same way */
+export function textOf(timer: Timer, property: TimerProperty) {
+    const value = TimerProperties[property](timer)
+
+    if (value === null || value === undefined) return ""
+    return typeof value === "object" ? JSON.stringify(value) : String(value)
+}
+
+/**
+ * Reads a flat list of property and value pairs.
+ * @param filters The arguments as they were given, each property followed by what it has to read as.
+ * @returns The pairs, or why the list could not be read.
+ */
+export function readFilters(filters: string[]): IFilterResult {
+    if (filters.length % 2) {
+        const reason = `Every filter needs a property and a value, and "${filters.at(-1)}" was left without one.`
+        return { ok: false, reason }
+    }
+
+    const pairs: ITimerFilter[] = []
+
+    for (let i = 0; i < filters.length; i += 2) {
+        const named = filters[i] as TimerProperty
+
+        if (!(named in TimerProperties)) return { ok: false, reason: `"${named}" is not a timer property.` }
+
+        pairs.push([named, filters[i + 1]])
+    }
+
+    return { ok: true, pairs }
+}
+
+/**
+ * Whether a timer answers to every pair.
+ * @param timer The timer to look at.
+ * @param pairs What it has to match, all of them.
+ */
+export function matches(timer: Timer, pairs: ITimerFilter[]) {
+    return pairs.every(([named, wanted]) => textOf(timer, named) === wanted)
 }
 
 export function readProperties(timer: Timer) {
@@ -41,7 +86,7 @@ export const TimerProperties: Record<TimerProperty, (timer: Timer) => unknown> =
     [TimerProperty.paused]: (t) => t.isPaused(),
     [TimerProperty.guildID]: (t) => t.guildID,
     [TimerProperty.channelID]: (t) => t.channelID,
-    [TimerProperty.hostID]: (t) => t.hostID,
+    [TimerProperty.authorID]: (t) => t.authorID,
     [TimerProperty.messageID]: (t) => t.messageID,
     [TimerProperty.args]: (t) => t.args ?? [],
     [TimerProperty.config]: (t) => t.config ?? {},

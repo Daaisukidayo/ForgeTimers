@@ -30,7 +30,12 @@ export declare class TimersManager {
     private _forget;
     /** Reports how a one-shot ended, and spends its record only once the run is really over */
     private _settle;
+    /**
+     * @param previous The timer as it was before this event changed it, for `$oldTimer`.
+     */
     private _report;
+    /** A copy of a timer as it stands, to hand to an event once the original has moved on */
+    private _snapshot;
     private _reportCancel;
     /**
      * Runs a task that holds a name outright, with nothing scheduled to hold it for them.
@@ -123,10 +128,7 @@ export declare class TimersManager {
      */
     standDown(): void;
     /**
-     * Whether there is a timer under this name at all: armed, stored, or both.
-     *
-     * A paused timer is stored with nothing armed, and one scheduled while the database was
-     * unreachable is armed with nothing stored. Either way it is a timer that exists.
+     * Whether a record is stored under this name, whatever is or is not armed for it.
      *
      * @param kind The kind of the timer.
      * @param name The name of the timer.
@@ -160,7 +162,11 @@ export declare class TimersManager {
     /** Fetches everything a run needs from discord */
     private _resolve;
     private _rebuildTarget;
-    /** What it can't see is left alone — it's a sibling shard or an outage. Deleting is opt-in */
+    /**
+     * Whether this process is the one meant to run a timer.
+     *
+     * @param timer The timer being restored.
+     */
     private _owns;
     private _restore;
     /**

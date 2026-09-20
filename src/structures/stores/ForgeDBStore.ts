@@ -27,7 +27,7 @@ const columns: Record<string, EntitySchemaColumnOptions> = {
     pausedAt: { type: "bigint", nullable: true, transformer: numeric },
     guildID: { type: "varchar", nullable: true },
     channelID: { type: "varchar", nullable: true },
-    hostID: { type: "varchar", nullable: true },
+    authorID: { type: "varchar", nullable: true, name: "hostID" },
     messageID: { type: "varchar", nullable: true },
     args: { type: "simple-json", nullable: true },
     config: { type: "simple-json", nullable: true },

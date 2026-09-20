@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const forgescript_1 = require("@tryforge/forgescript");
 const __1 = require("../..");
 const snapshotVars_1 = require("../../functions/snapshotVars");
+const structures_1 = require("../../structures");
 const schedule_1 = require("../../functions/schedule");
 const overrides_1 = require("../../functions/overrides");
 exports.default = new forgescript_1.NativeFunction({
@@ -69,7 +70,7 @@ exports.default = new forgescript_1.NativeFunction({
         if (restoredTicksLimit !== undefined && restoredTicksLimit < 0) {
             return this.customError("restoredTicksLimit cannot be negative. Use 0 to replay nothing, or Infinity to replay every missed tick.");
         }
-        const { runtime, run } = (0, snapshotVars_1.repeatingRunner)(ctx, (tick) => this["resolveCode"](tick, code).catch(ctx.noop));
+        const { runtime, run, carries } = (0, structures_1.snapshotRunner)(ctx, (tick) => this["resolveCode"](tick, code).catch(ctx.noop));
         if (!name) {
             (0, schedule_1.setLongInterval)(duration, run);
             return this.success();
@@ -87,12 +88,13 @@ exports.default = new forgescript_1.NativeFunction({
             duration,
             guildID: ctx.guild?.id ?? null,
             channelID: ctx.channel?.id ?? null,
-            hostID: ctx.user?.id ?? null,
+            authorID: ctx.user?.id ?? null,
             messageID: ctx.message?.id ?? null,
             args: ctx.args.length ? [...ctx.args] : undefined,
             config: (0, overrides_1.overridesOf)({ persist, maxOverdue, restoredTicksLimit }),
             vars: (0, snapshotVars_1.snapshotVars)(runtime, this.fn.name),
         });
+        carries(timer);
         await ctx.client.getExtension(__1.ForgeTimers, true).timersManager.start(timer, run);
         return this.success();
     },

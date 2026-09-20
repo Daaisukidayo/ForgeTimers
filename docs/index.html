@@ -10,7 +10,7 @@
 <h1>forge.timers</h1></div>
 <div class="tsd-panel tsd-typography"><div align="center">
 <h1 id="forgetimers" class="tsd-anchor-link">ForgeTimers<a href="#forgetimers" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<p>ForgeTimers is an extension that makes <code>$setTimeout</code>, <code>$setInterval</code> and <code>$setCron</code> survive a restart. Timers are persisted in ForgeDB or QuorielDB when scheduled, re-armed automatically the next time your app starts, and can be read with functions or reacted to through events.</p>
+<p>ForgeTimers is an extension that makes <code>$setTimeout</code>, <code>$setInterval</code> and <code>$setCron</code> survive a restart. Timers are stored in ForgeDB or QuorielDB when scheduled and re-armed on the next start, and can be read with functions or reacted to through events.</p>
 <p><a href="https://github.com/Daaisukidayo/ForgeTimers/"><img src="https://img.shields.io/github/package-json/v/Daaisukidayo/ForgeTimers/main?label=forge.timers&color=5c16d4" alt="forge.timers"></a>
 <a href="https://github.com/tryforge/ForgeScript/"><img src="https://img.shields.io/github/package-json/v/tryforge/ForgeScript/main?label=@tryforge/forgescript&color=5c16d4" alt="@tryforge/forgescript"></a>
 <a href="https://discord.gg/yFW5Ju6JP8"><img src="https://img.shields.io/discord/997899472610795580?logo=discord" alt="Discord"></a></p>
@@ -38,8 +38,11 @@
 <pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">i</span><span class="hl-1"> </span><span class="hl-2">github:Daaisukidayo/ForgeTimers#main</span>
 </code><button type="button">Copy</button></pre>
 
-<p>And <code>dev</code> is where the next version is put together - take it to try what is coming, and expect it to break:</p>
+<p>And <code>dev</code> is where the next version is put together - take it to try what is coming, and expect it to break. It is also on npm under the <code>dev</code> tag:</p>
 <pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">i</span><span class="hl-1"> </span><span class="hl-2">github:Daaisukidayo/ForgeTimers#dev</span>
+</code><button type="button">Copy</button></pre>
+
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">i</span><span class="hl-1"> </span><span class="hl-2">forge.timers@dev</span>
 </code><button type="button">Copy</button></pre>
 
 </li>
@@ -52,7 +55,7 @@
 <pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">i</span><span class="hl-1"> </span><span class="hl-2">@quoriel/db</span><span class="hl-1">          </span><span class="hl-3"># lmdb</span>
 </code><button type="button">Copy</button></pre>
 
-<p>Either will do, and <a href="#storage">Storage</a> says how to pick between them. <strong>ForgeScript 2.7.0</strong> or newer is required in both cases.</p>
+<p>Either will do, and <a href="#storage">Storage</a> says how to pick between them. Both need <strong>ForgeScript 2.7.0</strong> or newer.</p>
 </li>
 <li>
 <p>Here's an example of how your main file should look:</p>
@@ -124,13 +127,13 @@ Only <strong>named</strong> timers are persisted. <code>$setTimeout[...;1h]</cod
 <td><strong><code>pruneUnknownGuilds</code></strong></td>
 <td><code>boolean</code></td>
 <td><code>false</code></td>
-<td>Deletes timers belonging to a guild this process can't see, on startup.</td>
+<td>Deletes timers belonging to a guild the bot is no longer in, on startup.</td>
 </tr>
 </tbody>
 </table>
-<p>An invisible guild is far more often a Discord outage or another process's shard than a kick, and the deletion can't be undone. Turn <code>pruneUnknownGuilds</code> on only on a single unsharded process, where a missing guild really does mean the bot was removed.</p>
-<p>Startup only compiles what it restores. Channels, messages and users are fetched when a timer actually fires, so booting with thousands of stored timers costs nothing extra, and a timer due next month is never discarded over an outage happening today. A timeout that could not reach Discord keeps its record and is retried on the next boot.</p>
-<p>A channel that is really gone is a different matter: the timer runs anyway, with the same empty target a timer scheduled outside a channel already gets. Code that needed the channel fails on its own terms and says so in the console, and code that never touched it is not thrown away over a channel it never used.</p>
+<p>A timer is never held back by a guild it may never touch, and under sharding each one runs on exactly one shard.</p>
+<p>A guild can go missing because of a Discord outage rather than a kick, and the deletion cannot be undone, so leave <code>pruneUnknownGuilds</code> off unless stale records are a real problem for you.</p>
+<p>Booting with thousands of stored timers costs nothing extra, and a timer that could not reach Discord keeps its record and is retried on the next boot.</p>
 <p><code>timeoutConfig</code>, <code>intervalConfig</code> and <code>cronConfig</code> accept:</p>
 <table>
 <thead>
@@ -170,7 +173,7 @@ Only <strong>named</strong> timers are persisted. <code>$setTimeout[...;1h]</cod
 <p>⚠️ <strong>Warning</strong><br>
 <code>restoredTicksLimit: Infinity</code> on a 1-minute interval that was down for a day means 1440 executions on boot. Pair it with <code>maxOverdue</code> to bound the damage.</p>
 </blockquote>
-<p><code>maxOverdue</code> is measured against the timer's <em>due time</em> - a timer due next week is never affected by a week of downtime. What happens past the limit differs by kind: an overdue <strong>timeout</strong> is discarded, while an <strong>interval</strong> or a <strong>cron</strong> only skips the stale tick and resumes.</p>
+<p><code>maxOverdue</code> counts from the timer's <em>due time</em>, so a timer due next week is never affected by a week of downtime. Past the limit a <strong>timeout</strong> is discarded, while an <strong>interval</strong> or a <strong>cron</strong> skips the stale run and carries on.</p>
 <p>Any of them can also be set on one timer, as arguments:</p>
 <pre><code class="js"><span class="hl-6">$setTimeout</span><span class="hl-1">[</span><span class="hl-6">code</span><span class="hl-1">;</span><span class="hl-6">time</span><span class="hl-1">;</span><span class="hl-6">name</span><span class="hl-1">;</span><span class="hl-6">persist</span><span class="hl-1">;</span><span class="hl-6">maxOverdue</span><span class="hl-1">]</span><br/><span class="hl-6">$setInterval</span><span class="hl-1">[</span><span class="hl-6">code</span><span class="hl-1">;</span><span class="hl-6">time</span><span class="hl-1">;</span><span class="hl-6">name</span><span class="hl-1">;</span><span class="hl-6">persist</span><span class="hl-1">;</span><span class="hl-6">maxOverdue</span><span class="hl-1">;</span><span class="hl-6">restoredTicksLimit</span><span class="hl-1">]</span><br/><span class="hl-6">$setCron</span><span class="hl-1">[</span><span class="hl-6">code</span><span class="hl-1">;</span><span class="hl-6">expression</span><span class="hl-1">;</span><span class="hl-6">name</span><span class="hl-1">;</span><span class="hl-6">timezone</span><span class="hl-1">;</span><span class="hl-6">persist</span><span class="hl-1">;</span><span class="hl-6">maxOverdue</span><span class="hl-1">;</span><span class="hl-6">restoredTicksLimit</span><span class="hl-1">]</span>
 </code><button type="button">Copy</button></pre>
@@ -179,8 +182,8 @@ Only <strong>named</strong> timers are persisted. <code>$setTimeout[...;1h]</cod
 <pre><code class="js"><span class="hl-6">$setInterval</span><span class="hl-1">[...;1</span><span class="hl-6">m</span><span class="hl-1">;</span><span class="hl-6">example</span><span class="hl-1">;;;</span><span class="hl-4">Infinity</span><span class="hl-1">]</span>
 </code><button type="button">Copy</button></pre>
 
-<p>That interval replays every tick it missed no matter what <code>intervalConfig.restoredTicksLimit</code> says, while still taking <code>persist</code> and <code>maxOverdue</code> from the config.</p>
-<p>There is no upper bound on a duration: waits past node's own ~24.8 day limit are re-armed in chunks. An interval that survives a restart resumes on the time left on its current tick, so restarts don't push its schedule later.</p>
+<p>That interval replays every missed tick whatever <code>intervalConfig.restoredTicksLimit</code> says, and still takes <code>persist</code> and <code>maxOverdue</code> from the config.</p>
+<p>A duration has no upper bound - months are fine. An interval that survives a restart resumes on the time left on its current tick, so restarts don't push its schedule later.</p>
 <h3 align="center">Storage</h3><hr>
 <p>Timers go wherever you already keep your data. Pick the extension with <code>storage</code>:</p>
 <pre><code class="js"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">timers</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-0">ForgeTimers</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-6">storage:</span><span class="hl-1"> </span><span class="hl-2">&quot;quorieldb&quot;</span><span class="hl-1"> </span><span class="hl-3">// &quot;forgedb&quot; by default</span><br/><span class="hl-1">})</span>
@@ -211,7 +214,7 @@ Only <strong>named</strong> timers are persisted. <code>$setTimeout[...;1h]</cod
 </tbody>
 </table>
 <p><strong>ForgeDB</strong> needs nothing extra: set it up as usual and the timers follow. On sqlite that means a <code>timers.db</code> file next to ForgeDB's own database.</p>
-<p><strong>QuorielDB</strong> keeps them in its own store folder - <code>database</code>, unless you gave QuorielDB another <code>path</code>. The record type is registered on startup and your <code>config.json</code> is left alone, so there is nothing to add by hand, and the timers can be read with QuorielDB's own functions:</p>
+<p><strong>QuorielDB</strong> keeps them in its own store folder - <code>database</code>, unless you gave QuorielDB another <code>path</code>. The record type is registered on startup and your <code>config.json</code> is left alone, so there is nothing to set up. The timers can be read with QuorielDB's own functions:</p>
 <pre><code class="js"><span class="hl-6">$getRecord</span><span class="hl-1">[</span><span class="hl-6">timers</span><span class="hl-1">;</span><span class="hl-6">timeout</span><span class="hl-1">:</span><span class="hl-6">reminder</span><span class="hl-1">]</span>
 </code><button type="button">Copy</button></pre>
 
@@ -223,11 +226,11 @@ Only one of the two is used. Whichever you pick must be installed and listed in 
 <pre><code class="js"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">timers</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-0">ForgeTimers</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-6">storage:</span><span class="hl-1"> </span><span class="hl-2">&quot;quorieldb&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-6">migrateFrom:</span><span class="hl-1"> </span><span class="hl-2">&quot;forgedb&quot;</span><br/><span class="hl-1">})</span>
 </code><button type="button">Copy</button></pre>
 
-<p>Both extensions have to be in <code>extensions</code> for that boot - the old one is what the timers are read through. Drop <code>migrateFrom</code> and the old extension once the log says it is done.</p>
-<p>The move happens before anything is restored, so deadlines carry over untouched. A name already taken in the new backend wins, and the timer that lost it is named in the log.</p>
-<p>Each timer is written, read back, and only then dropped from the old backend, so a rerun cannot bring back one that has since fired. <code>keepSource: true</code> copies instead, and the migration then repeats every boot until <code>migrateFrom</code> goes.</p>
+<p>Both extensions have to be in <code>extensions</code> for that boot, since the old one is what the timers are read through. Drop <code>migrateFrom</code> and the old extension once the log says it is done.</p>
+<p>Deadlines carry over untouched. If a name is already taken in the new backend, the one already there wins and the other is named in the log.</p>
+<p>Running the migration twice is safe: it cannot bring back a timer that has since fired. <code>keepSource: true</code> copies instead of moving, which means it repeats every boot until <code>migrateFrom</code> goes.</p>
 <h3 align="center">Cron</h3><hr>
-<p>An interval keeps a gap. A cron keeps the <strong>wall clock</strong>, which is not the same thing: a 24 hour interval drifts by an hour twice a year, while <code>0 9 * * *</code> stays at nine in the morning through every daylight saving change.</p>
+<p>An interval keeps a gap, a cron keeps the <strong>wall clock</strong>. A 24 hour interval drifts by an hour twice a year, while <code>0 9 * * *</code> stays at nine in the morning through every daylight saving change.</p>
 <pre><code class="js"><span class="hl-6">$setCron</span><span class="hl-1">[</span><span class="hl-6">$sendMessage</span><span class="hl-1">[</span><span class="hl-6">$channelID</span><span class="hl-1">;</span><span class="hl-6">standup</span><span class="hl-1">];</span><span class="hl-7">0</span><span class="hl-1"> </span><span class="hl-7">9</span><span class="hl-1"> * * </span><span class="hl-7">1</span><span class="hl-1">-</span><span class="hl-7">5</span><span class="hl-1">;</span><span class="hl-6">standup</span><span class="hl-1">;</span><span class="hl-6">Europe</span><span class="hl-1">/</span><span class="hl-6">Kyiv</span><span class="hl-1">]</span>
 </code><button type="button">Copy</button></pre>
 
@@ -279,9 +282,19 @@ Only one of the two is used. Whichever you pick must be installed and listed in 
 <td>Every stored timer whose properties all match. Aliased as <code>$findTimers</code>.</td>
 </tr>
 <tr>
+<td><strong><code>$clearTimers[property;value;...]</code></strong></td>
+<td>number</td>
+<td>Cancels and forgets every one of those, and says how many. Aliased as <code>$stopTimers</code> and <code>$deleteTimers</code>.</td>
+</tr>
+<tr>
+<td><strong><code>$timersCount[kind?]</code></strong></td>
+<td>number</td>
+<td>How many timers are stored, of one kind or of every kind.</td>
+</tr>
+<tr>
 <td><strong><code>$timerExists[kind;name]</code></strong></td>
 <td>boolean</td>
-<td>Whether there is a timer under that name <strong>at all</strong>, armed or stored.</td>
+<td>Whether a timer is <strong>stored</strong> under that name, running or not.</td>
 </tr>
 <tr>
 <td><strong><code>$timerRunning[kind;name]</code></strong></td>
@@ -309,6 +322,11 @@ Only one of the two is used. Whichever you pick must be installed and listed in 
 <td>Runs a stored timer's code now, leaving the timer itself untouched. Aliased as <code>$runTimer</code>.</td>
 </tr>
 <tr>
+<td><strong><code>$clearTimer[kind;name]</code></strong></td>
+<td>boolean</td>
+<td>Cancels a timer of any kind and forgets it. Aliased as <code>$stopTimer</code> and <code>$deleteTimer</code>.</td>
+</tr>
+<tr>
 <td><strong><code>$wipeTimers</code></strong></td>
 <td>number</td>
 <td>Cancels every running timer and clears the stored ones. Returns how many were running.</td>
@@ -323,22 +341,23 @@ Only one of the two is used. Whichever you pick must be installed and listed in 
 <pre><code class="js"><span class="hl-6">$getTimer</span><span class="hl-1">[</span><span class="hl-6">timeout</span><span class="hl-1">;</span><span class="hl-6">reminder</span><span class="hl-1">;</span><span class="hl-6">timeLeft</span><span class="hl-1">]</span><br/><span class="hl-6">$getAllTimers</span><span class="hl-1">[</span><span class="hl-6">interval</span><span class="hl-1">]</span>
 </code><button type="button">Copy</button></pre>
 
-<p><code>$getAllTimers</code> gives the whole of every timer by default. Name a property and you get just that one, as a list - add a separator to get it as plain text instead:</p>
+<p><code>$getAllTimers</code> gives the whole of every timer by default. Name a property to get just that one as a list, and add a separator to get plain text instead:</p>
 <pre><code class="js"><span class="hl-6">$getAllTimers</span><span class="hl-1">[</span><span class="hl-6">interval</span><span class="hl-1">;</span><span class="hl-6">name</span><span class="hl-1">]        </span><span class="hl-3">// [&quot;beat&quot;,&quot;daily&quot;]</span><br/><span class="hl-6">$getAllTimers</span><span class="hl-1">[</span><span class="hl-6">interval</span><span class="hl-1">;</span><span class="hl-6">name</span><span class="hl-1">;, ]     </span><span class="hl-3">// beat, daily</span>
 </code><button type="button">Copy</button></pre>
 
-<p><code>$findTimer</code> takes <a href="#properties">properties</a> and values in pairs, and hands back the whole of every timer where <strong>all</strong> of them match:</p>
-<pre><code class="js"><span class="hl-6">$findTimer</span><span class="hl-1">[</span><span class="hl-6">channelID</span><span class="hl-1">;</span><span class="hl-6">$channelID</span><span class="hl-1">]            </span><span class="hl-3">// everything waiting on this channel</span><br/><span class="hl-6">$findTimer</span><span class="hl-1">[</span><span class="hl-6">hostID</span><span class="hl-1">;</span><span class="hl-6">$authorID</span><span class="hl-1">;</span><span class="hl-6">kind</span><span class="hl-1">;</span><span class="hl-6">cron</span><span class="hl-1">]      </span><span class="hl-3">// this user&#39;s crons</span><br/><span class="hl-6">$findTimer</span><span class="hl-1">[</span><span class="hl-6">paused</span><span class="hl-1">;</span><span class="hl-4">true</span><span class="hl-1">]                     </span><span class="hl-3">// everything on hold</span>
+<p><code>$findTimer</code> takes <a href="#properties">properties</a> and values in pairs, and returns every timer where <strong>all</strong> of them match:</p>
+<pre><code class="js"><span class="hl-6">$findTimer</span><span class="hl-1">[</span><span class="hl-6">channelID</span><span class="hl-1">;</span><span class="hl-6">$channelID</span><span class="hl-1">]            </span><span class="hl-3">// everything waiting on this channel</span><br/><span class="hl-6">$findTimer</span><span class="hl-1">[</span><span class="hl-6">authorID</span><span class="hl-1">;</span><span class="hl-6">$authorID</span><span class="hl-1">;</span><span class="hl-6">kind</span><span class="hl-1">;</span><span class="hl-6">cron</span><span class="hl-1">]      </span><span class="hl-3">// this user&#39;s crons</span><br/><span class="hl-6">$findTimer</span><span class="hl-1">[</span><span class="hl-6">paused</span><span class="hl-1">;</span><span class="hl-4">true</span><span class="hl-1">]                     </span><span class="hl-3">// everything on hold</span>
 </code><button type="button">Copy</button></pre>
 
-<p><code>$executeTimer</code> runs the code as the timer itself would, with the variables it was scheduled with, and then changes nothing - the deadline stays put, the record is not spent, an interval does not count it as a tick, and no <a href="#events">event</a> is reported. A paused timer runs too.</p>
-<p>The two answer different questions, and the gap between them is where paused and un-rearmed timers live:</p>
-<pre><code class="js"><span class="hl-6">$timerExists</span><span class="hl-1">[</span><span class="hl-6">timeout</span><span class="hl-1">;</span><span class="hl-6">reminder</span><span class="hl-1">]    </span><span class="hl-3">// there is one under that name, somehow</span><br/><span class="hl-6">$timerRunning</span><span class="hl-1">[</span><span class="hl-6">timeout</span><span class="hl-1">;</span><span class="hl-6">reminder</span><span class="hl-1">]   </span><span class="hl-3">// and something is counting down for it</span>
+<p><code>$clearTimers</code> takes the same pairs and cancels everything they match, returning how many. <code>$clearTimer[kind;name]</code> cancels one of any kind.</p>
+<p><code>$executeTimer</code> runs the timer's code now and changes nothing else: the deadline stays, the record stays, an interval does not count it as a tick, and no <a href="#events">event</a> is reported. It runs a paused timer too.</p>
+<p>These two ask about different places, and either can be true on its own:</p>
+<pre><code class="js"><span class="hl-6">$timerExists</span><span class="hl-1">[</span><span class="hl-6">timeout</span><span class="hl-1">;</span><span class="hl-6">reminder</span><span class="hl-1">]    </span><span class="hl-3">// there is a record in the database</span><br/><span class="hl-6">$timerRunning</span><span class="hl-1">[</span><span class="hl-6">timeout</span><span class="hl-1">;</span><span class="hl-6">reminder</span><span class="hl-1">]   </span><span class="hl-3">// something is counting down in this process</span>
 </code><button type="button">Copy</button></pre>
 
-<p><code>$timerExists</code> looks in both places - a record in the database, or a timer armed right now - so a paused one, or one a boot decided not to re-arm, still counts, and so does one scheduled while the database was unreachable and never written down. <code>$timerRunning</code> asks only whether it is armed, which is what a paused timer is not.</p>
-<p>A paused timer is one of those: it keeps its record and its remaining wait, but nothing is armed for it until <code>$resumeTimer</code>, and a restart leaves it that way. <code>$rescheduleTimer</code> leaves it paused too, with the whole new wait ahead of it. Resuming rebuilds the run from the stored record, the same as a restart does, so it reads the variables it was scheduled with.</p>
-<p>What <code>$rescheduleTimer</code> takes as a schedule is whatever that kind runs on - a duration for a timeout or an interval, an expression for a cron:</p>
+<p>A paused timer is stored but not armed. One scheduled while the database was down is armed but not stored.</p>
+<p>Pausing keeps the record and the time left, and a restart leaves the timer paused. <code>$resumeTimer</code> starts it again from where it stopped, rebuilt from the record, so it reads the variables it was scheduled with. <code>$rescheduleTimer</code> leaves it paused too, with the whole new wait ahead.</p>
+<p>The schedule <code>$rescheduleTimer</code> takes is whatever that kind runs on: a duration for a timeout or an interval, an expression for a cron.</p>
 <pre><code class="js"><span class="hl-6">$rescheduleTimer</span><span class="hl-1">[</span><span class="hl-6">timeout</span><span class="hl-1">;</span><span class="hl-6">reminder</span><span class="hl-1">;30</span><span class="hl-6">m</span><span class="hl-1">]</span><br/><span class="hl-6">$rescheduleTimer</span><span class="hl-1">[</span><span class="hl-6">cron</span><span class="hl-1">;</span><span class="hl-6">standup</span><span class="hl-1">;</span><span class="hl-7">0</span><span class="hl-1"> </span><span class="hl-7">17</span><span class="hl-1"> * * </span><span class="hl-7">1</span><span class="hl-1">-</span><span class="hl-7">5</span><span class="hl-1">]</span><br/><span class="hl-6">$rescheduleTimer</span><span class="hl-1">[</span><span class="hl-6">cron</span><span class="hl-1">;</span><span class="hl-6">standup</span><span class="hl-1">;</span><span class="hl-7">0</span><span class="hl-1"> </span><span class="hl-7">9</span><span class="hl-1"> * * </span><span class="hl-7">1</span><span class="hl-1">-</span><span class="hl-7">5</span><span class="hl-1">;</span><span class="hl-6">Europe</span><span class="hl-1">/</span><span class="hl-6">London</span><span class="hl-1">]   </span><span class="hl-3">// and a new zone with it</span>
 </code><button type="button">Copy</button></pre>
 
@@ -419,7 +438,7 @@ Only one of the two is used. Whichever you pick must be installed and listed in 
 <td>The channel it answers in, empty when it was scheduled outside one.</td>
 </tr>
 <tr>
-<td><strong><code>hostID</code></strong></td>
+<td><strong><code>authorID</code></strong></td>
 <td>snowflake</td>
 <td>Who scheduled it.</td>
 </tr>
@@ -441,9 +460,9 @@ Only one of the two is used. Whichever you pick must be installed and listed in 
 </tbody>
 </table>
 <h3 align="center">Events</h3><hr>
-<p>A timer's own code says what it does. Events say what happened to it - useful for logging, for telling a channel that a reminder was lost, or for watching what a restart picked up.</p>
+<p>A timer's own code says what it does. Events say what happened to it - for logging, for telling a channel that a reminder was lost, or for watching what a restart picked up.</p>
 <p>Name the ones you want, then write commands for them:</p>
-<pre><code class="js"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">timers</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-0">ForgeTimers</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-6">events:</span><span class="hl-1"> [</span><span class="hl-2">&quot;timerFire&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;timerDrop&quot;</span><span class="hl-1">]</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">client</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-0">ForgeClient</span><span class="hl-1">({ </span><span class="hl-6">extensions:</span><span class="hl-1"> [</span><span class="hl-6">db</span><span class="hl-1">, </span><span class="hl-6">timers</span><span class="hl-1">] })</span><br/><br/><span class="hl-6">timers</span><span class="hl-1">.</span><span class="hl-6">commands</span><span class="hl-1">.</span><span class="hl-0">add</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-6">type:</span><span class="hl-1"> </span><span class="hl-2">&quot;timerDrop&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-6">code:</span><span class="hl-1"> </span><span class="hl-2">`$sendMessage[$timerData[channelID];Lost the $timerData[kind] &quot;$timerData[name]&quot;: $timerDropReason]`</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-3">// or from a folder</span><br/><span class="hl-6">timers</span><span class="hl-1">.</span><span class="hl-6">commands</span><span class="hl-1">.</span><span class="hl-0">load</span><span class="hl-1">(</span><span class="hl-2">&quot;events&quot;</span><span class="hl-1">)</span>
+<pre><code class="js"><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">timers</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-0">ForgeTimers</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-6">events:</span><span class="hl-1"> [</span><span class="hl-2">&quot;timerFire&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;timerDrop&quot;</span><span class="hl-1">]</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">client</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-0">ForgeClient</span><span class="hl-1">({ </span><span class="hl-6">extensions:</span><span class="hl-1"> [</span><span class="hl-6">db</span><span class="hl-1">, </span><span class="hl-6">timers</span><span class="hl-1">] })</span><br/><br/><span class="hl-6">timers</span><span class="hl-1">.</span><span class="hl-6">commands</span><span class="hl-1">.</span><span class="hl-0">add</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-6">type:</span><span class="hl-1"> </span><span class="hl-2">&quot;timerDrop&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-6">code:</span><span class="hl-1"> </span><span class="hl-2">`$sendMessage[$timerData[channelID];Lost the $timerData[kind] &quot;$timerData[name]&quot;: $eventData[dropReason]]`</span><br/><span class="hl-1">})</span><br/><br/><span class="hl-3">// or from a folder</span><br/><span class="hl-6">timers</span><span class="hl-1">.</span><span class="hl-6">commands</span><span class="hl-1">.</span><span class="hl-0">load</span><span class="hl-1">(</span><span class="hl-2">&quot;events&quot;</span><span class="hl-1">)</span>
 </code><button type="button">Copy</button></pre>
 
 <p>The events:</p>
@@ -463,28 +482,38 @@ Only one of the two is used. Whichever you pick must be installed and listed in 
 </tr>
 <tr>
 <td><strong><code>timerFire</code></strong></td>
-<td>A timer's code ran: a timeout going off, or an interval ticking.</td>
+<td>A timer's code ran: a timeout going off, an interval ticking, or a cron coming round.</td>
 <td>—</td>
 </tr>
 <tr>
 <td><strong><code>timerCancel</code></strong></td>
-<td>A timer was cancelled by hand, with <code>$clearTimeout</code>, <code>$clearInterval</code>, <code>$clearCron</code> or <code>$wipeTimers</code>.</td>
+<td>A timer was cancelled by hand, with any of the <code>$clear</code> functions or <code>$wipeTimers</code>.</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong><code>timerPause</code></strong></td>
+<td>A timer was put on hold.</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong><code>timerResume</code></strong></td>
+<td>A timer on hold was started again.</td>
 <td>—</td>
 </tr>
 <tr>
 <td><strong><code>timerRestore</code></strong></td>
 <td>A stored timer was picked back up after a restart.</td>
-<td><code>$timerOverdueBy</code> — how late it was, in ms.</td>
+<td><code>overdueBy</code> — how late it was, in ms.</td>
 </tr>
 <tr>
 <td><strong><code>timerDrop</code></strong></td>
 <td>A stored timer was thrown away without running - too late, unreadable, or its code no longer compiles.</td>
-<td><code>$timerDropReason</code>, and <code>$timerOverdueBy</code> when that was the reason.</td>
+<td><code>dropReason</code>, and <code>overdueBy</code> when that was the reason.</td>
 </tr>
 <tr>
 <td><strong><code>timersReady</code></strong></td>
 <td>Startup finished dealing with every stored timer.</td>
-<td><code>$timersRestored</code> and <code>$timersDropped</code>.</td>
+<td><code>restored</code> and <code>dropped</code>.</td>
 </tr>
 <tr>
 <td><strong><code>databaseConnect</code></strong></td>
@@ -494,16 +523,22 @@ Only one of the two is used. Whichever you pick must be installed and listed in 
 <tr>
 <td><strong><code>databaseFail</code></strong></td>
 <td>The storage could not be opened, and nothing will be persisted.</td>
-<td><code>$databaseFailReason</code>.</td>
+<td><code>failReason</code>.</td>
 </tr>
 </tbody>
 </table>
-<p>Every event reads its timer with <code>$timerData</code>, under the same names <code>$getTimer</code> uses. See <a href="#properties">Properties</a>.</p>
-<pre><code class="js"><span class="hl-6">$timerData</span><span class="hl-1">[</span><span class="hl-6">channelID</span><span class="hl-1">]   </span><span class="hl-3">// one property</span><br/><span class="hl-6">$timerData</span><span class="hl-1">              </span><span class="hl-3">// all of them, as JSON</span>
+<p>Every event reads its timer with <code>$timerData</code>, under the same names <code>$getTimer</code> uses. See <a href="#properties">Properties</a>. A timer's own code reads itself the same way, so an interval can log its own name.</p>
+<p>Whatever the event adds on top of its timer is read with <code>$eventData</code>, under the names in the last column:</p>
+<pre><code class="js"><span class="hl-6">$timerData</span><span class="hl-1">[</span><span class="hl-6">channelID</span><span class="hl-1">]       </span><span class="hl-3">// one property of the timer</span><br/><span class="hl-6">$timerData</span><span class="hl-1">                  </span><span class="hl-3">// all of them, as JSON</span><br/><br/><span class="hl-6">$eventData</span><span class="hl-1">[</span><span class="hl-6">dropReason</span><span class="hl-1">]      </span><span class="hl-3">// one thing the event added</span><br/><span class="hl-6">$eventData</span><span class="hl-1">                  </span><span class="hl-3">// all of them, as JSON</span>
 </code><button type="button">Copy</button></pre>
 
+<p>An event that <strong>changed</strong> a timer also carries what it looked like before, read with <code>$oldTimer</code> and <code>$newTimer</code> the way <code>$oldMessage</code> and <code>$newMessage</code> work in ForgeScript:</p>
+<pre><code class="js"><span class="hl-6">$oldTimer</span><span class="hl-1">[</span><span class="hl-6">fireAt</span><span class="hl-1">]    </span><span class="hl-3">// when it was due before this</span><br/><span class="hl-6">$newTimer</span><span class="hl-1">[</span><span class="hl-6">fireAt</span><span class="hl-1">]    </span><span class="hl-3">// when it is due now</span>
+</code><button type="button">Copy</button></pre>
+
+<p>An interval or cron tick carries both, as do <code>timerPause</code> and <code>timerResume</code>. Everything else carries only <code>$newTimer</code>: a timeout fires once, a replayed tick has nothing to compare against, and a timer being scheduled, cancelled or thrown away has no before. This is the one way to compare a tick with the one before it: a timer's own code cannot remember anything between runs.</p>
 <p>The last three are about the boot, so <code>$timerData</code> is empty in them.</p>
-<p><code>timersReady</code> does not fire when the storage could not be opened: <code>databaseFail</code> fires instead, and exactly one of the two database events happens on every boot.</p>
+<p><code>timersReady</code> does not fire when the storage could not be opened - <code>databaseFail</code> fires instead. Exactly one of the two database events happens on every boot.</p>
 <h3 align="center">Thanks</h3><hr>
 <p>Cron support here follows the trail <a href="https://github.com/Tape490/ForgeCron">ForgeCron</a> blazed for ForgeScript, with thanks to <a href="https://github.com/Tape490">Tape</a> for waving it on.</p>
 </div></div>

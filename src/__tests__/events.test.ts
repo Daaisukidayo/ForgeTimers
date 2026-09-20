@@ -24,7 +24,7 @@ useHarness((booted) => (harness = booted), {
             booted.ext.commands.add({ type: event, code: `$testMark[${event}:$timerData[name]:$timerData[kind]]` })
         }
 
-        booted.ext.commands.add({ type: TimerEvent.timerDrop, code: "$testMark[why:$timerDropReason]" })
+        booted.ext.commands.add({ type: TimerEvent.timerDrop, code: "$testMark[why:$eventData[dropReason]]" })
     },
 })
 
@@ -53,7 +53,7 @@ describe("startup finishing", () => {
     it("counts what it kept and what it threw away", async () => {
         harness.ext.commands.add({
             type: TimerEvent.timersReady,
-            code: "$testMark[ready:$timersRestored:$timersDropped]",
+            code: "$testMark[ready:$eventData[restored]:$eventData[dropped]]",
         })
 
         // inside the 1000ms maxOverdue this suite boots with, so it is kept
@@ -72,7 +72,7 @@ describe("startup finishing", () => {
     it("still fires when there was nothing stored at all", async () => {
         harness.ext.commands.add({
             type: TimerEvent.timersReady,
-            code: "$testMark[ready:$timersRestored:$timersDropped]",
+            code: "$testMark[ready:$eventData[restored]:$eventData[dropped]]",
         })
 
         await harness.ready()
@@ -90,6 +90,75 @@ describe("the options a timer carries", () => {
 
         const cfg = marks.find((mark) => mark.startsWith("cfg:"))!.slice("cfg:".length)
         assert.deepEqual(JSON.parse(cfg), { persist: false, restoredTicksLimit: 5 })
+    })
+})
+
+describe("holding a timer", () => {
+    it("reports the hold and the release, each about its own timer", async () => {
+        await run(harness, "$setTimeout[x;1h;held]")
+
+        assert.equal(await run(harness, "$pauseTimer[timeout;held]"), "true")
+        assert.ok(await marked(`${TimerEvent.timerPause}:held:timeout`), "pausing went unreported")
+
+        assert.equal(await run(harness, "$resumeTimer[timeout;held]"), "true")
+        assert.ok(await marked(`${TimerEvent.timerResume}:held:timeout`), "resuming went unreported")
+    })
+
+    it("reports nothing when there was nothing to hold or release", async () => {
+        await run(harness, "$setTimeout[x;1h;running]")
+
+        assert.equal(await run(harness, "$resumeTimer[timeout;running]"), "false", "it was never held")
+        assert.equal(await run(harness, "$pauseTimer[timeout;missing]"), "false", "and this one does not exist")
+
+        assert.ok(!marks.some((mark) => mark.startsWith(TimerEvent.timerResume)), `it said ${marks}`)
+        assert.ok(!marks.some((mark) => mark.startsWith(TimerEvent.timerPause)), `it said ${marks}`)
+    })
+})
+
+describe("$oldTimer and $newTimer", () => {
+    it("show a tick moving the deadline on", async () => {
+        harness.ext.commands.add({
+            type: TimerEvent.timerFire,
+            code: "$testMark[tick:$oldTimer[fireAt]:$newTimer[fireAt]]",
+        })
+
+        await run(harness, "$setInterval[x;60;beat]")
+
+        assert.ok(await waitFor(() => marks.some((mark) => mark.startsWith("tick:"))), `nothing ticked: ${marks}`)
+
+        const [, before, after] = marks.find((mark) => mark.startsWith("tick:"))!.split(":")
+        assert.ok(Number(after) > Number(before), `the deadline did not move: ${before} then ${after}`)
+        assert.equal(Number(after) - Number(before), 60, "it moved by something other than the tick length")
+    })
+
+    it("show a hold freezing the timer and a release starting it again", async () => {
+        harness.ext.commands.add({
+            type: TimerEvent.timerPause,
+            code: "$testMark[held:$oldTimer[paused]:$newTimer[paused]]",
+        })
+        harness.ext.commands.add({
+            type: TimerEvent.timerResume,
+            code: "$testMark[freed:$oldTimer[paused]:$newTimer[paused]]",
+        })
+
+        await run(harness, "$setTimeout[x;1h;n]")
+
+        await run(harness, "$pauseTimer[timeout;n]")
+        assert.ok(await marked("held:false:true"), `the hold read wrong: ${marks}`)
+
+        await run(harness, "$resumeTimer[timeout;n]")
+        assert.ok(await marked("freed:true:false"), `the release read wrong: ${marks}`)
+    })
+
+    it("say nothing for an event that changed no timer", async () => {
+        harness.ext.commands.add({
+            type: TimerEvent.timerStart,
+            code: "$testMark[fresh:<$oldTimer[name]>:$newTimer[name]]",
+        })
+
+        await run(harness, "$setTimeout[x;1h;born]")
+
+        assert.ok(await marked("fresh:<>:born"), `a timer with no before read wrong: ${marks}`)
     })
 })
 
@@ -126,18 +195,16 @@ describe("$timerData", () => {
         assert.ok(await marked("env:<>"), `the timer leaked into the environment: ${marks}`)
     })
 
-    it("reads empty inside a timer's own code, which is not an event", async () => {
-        // a live timer runs in a plain clone of the scheduling context, so promising it here
-        // would work only for restored ones - blank before a restart, filled in after
-        await run(harness, "$setTimeout[$testMark[self:<$timerData[name]>];60;mine]")
+    it("reads the same inside a timer's own code as it does in an event", async () => {
+        await run(harness, "$setTimeout[$testMark[self:$timerData[name]];60;mine]")
 
-        assert.ok(await marked("self:<>"), `$timerData is for events, not for the timer itself: ${marks}`)
+        assert.ok(await marked("self:mine"), `a timer could not read itself: ${marks}`)
     })
 
     it("keeps an event's own values out of the timer's names", async () => {
         harness.ext.commands.add({
             type: TimerEvent.timerDrop,
-            code: "$testMark[both:$timerData[name]:$timerDropReason]",
+            code: "$testMark[both:$timerData[name]:$eventData[dropReason]]",
         })
 
         await persist(
@@ -155,7 +222,7 @@ describe("$timerData", () => {
     it("reads how late a restored timer was, alongside the timer itself", async () => {
         harness.ext.commands.add({
             type: TimerEvent.timerRestore,
-            code: "$testMark[late:$timerData[name]:$timerOverdueBy]",
+            code: "$testMark[late:$timerData[name]:$eventData[overdueBy]]",
         })
 
         await overdue("tardy")
@@ -312,14 +379,14 @@ describe("the reason a timer was dropped", () => {
         assert.match(droppedBecause() ?? "", /persist is off/)
     })
 
-    it("says the guild is out of sight", async () => {
+    it("says the guild is not one this process is in", async () => {
         harness.ext.options.pruneUnknownGuilds = true
         await overdue("elsewhere", "$testMark[ran]", { guildID: "g-gone" })
 
         await harness.ready()
 
         assert.ok(await marked(`${TimerEvent.timerDrop}:elsewhere:timeout`))
-        assert.match(droppedBecause() ?? "", /not visible/)
+        assert.match(droppedBecause() ?? "", /not one this process is in/)
     })
 })
 

@@ -12,7 +12,7 @@ const sample = () =>
         duration: NINETY_DAYS,
         channelID: "chan-1",
         guildID: "guild-1",
-        hostID: "user-1",
+        authorID: "user-1",
         messageID: "msg-1",
         args: ["first", "second"],
         config: { persist: false, maxOverdue: 1000, restoredTicksLimit: "Infinity" },
@@ -49,7 +49,7 @@ export function persistenceSuite(target: TestDatabase) {
             assert.equal(back.code, "$sendMessage[$channelID;now]")
             assert.equal(back.channelID, "chan-1")
             assert.equal(back.guildID, "guild-1")
-            assert.equal(back.hostID, "user-1")
+            assert.equal(back.authorID, "user-1")
             assert.equal(back.messageID, "msg-1")
             assert.deepEqual(back.args, ["first", "second"])
             assert.deepEqual(back.config, original.config)
@@ -137,7 +137,7 @@ export function persistenceSuite(target: TestDatabase) {
 
             const back = await Database.get(TimerKind.timeout, "bare")
             assert.equal(back!.guildID, null)
-            assert.equal(back!.hostID, null)
+            assert.equal(back!.authorID, null)
             assert.equal(back!.messageID, null)
             assert.equal(back!.path, null)
         })

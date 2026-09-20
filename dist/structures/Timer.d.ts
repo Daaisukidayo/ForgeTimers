@@ -29,7 +29,7 @@ export interface IBaseTimerOptions {
     commandName?: string | null;
     guildID?: Snowflake | null;
     channelID?: Snowflake | null;
-    hostID?: Snowflake | null;
+    authorID?: Snowflake | null;
     messageID?: Snowflake | null;
     /**
      * The command arguments present when the timer was scheduled.
@@ -185,7 +185,7 @@ export declare class Timer implements ITimer {
     /**
      * The id of the user that scheduled this timer.
      */
-    hostID?: Snowflake | null;
+    authorID?: Snowflake | null;
     /**
      * The id of the message this timer was scheduled from.
      */

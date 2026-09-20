@@ -73,7 +73,7 @@ describe("a row an older version wrote", () => {
         assert.equal(back.fireAt, 1_700_003_600_000)
         assert.equal(back.duration, 3_600_000)
         assert.equal(back.channelID, "chan-1")
-        assert.equal(back.hostID, "user-1")
+        assert.equal(back.authorID, "user-1")
         assert.deepEqual(back.args, ["first", "second"])
         assert.deepEqual(back.vars?.keywords, { k: "v" })
 

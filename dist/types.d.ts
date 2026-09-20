@@ -61,39 +61,49 @@ export type IStoredOverrides = Omit<ITimerOverrides, "restoredTicksLimit"> & {
 export declare enum TimerEvent {
     /** A timer was scheduled */
     timerStart = "timerStart",
-    /** A timer's code ran: a timeout going off, or an interval ticking */
+    /** A timer's code ran: a timeout going off, an interval ticking, or a cron coming round */
     timerFire = "timerFire",
     /** A timer was cancelled by hand */
     timerCancel = "timerCancel",
-    /** A stored timer was picked back up after a restart, with `$timerOverdueBy` saying how late */
+    /** A timer was put on hold, keeping its record and what was left of its wait */
+    timerPause = "timerPause",
+    /** A timer on hold was started again, from where its wait was left */
+    timerResume = "timerResume",
+    /** A stored timer was picked back up after a restart, with `$eventData[overdueBy]` saying how late */
     timerRestore = "timerRestore",
-    /** A stored timer was thrown away without running, with `$timerDropReason` saying why */
+    /** A stored timer was thrown away without running, with `$eventData[dropReason]` saying why */
     timerDrop = "timerDrop",
     /**
-     * Startup finished dealing with every stored timer, counted by `$timersRestored` and
-     * `$timersDropped`. Does not fire at all if the storage could not be opened.
+     * Startup finished dealing with every stored timer, counted by `$eventData[restored]` and `$eventData[dropped]`.
+     * Does not fire at all if the storage could not be opened.
      */
     timersReady = "timersReady",
     /** The timer storage opened, and timers will be kept across restarts */
     databaseConnect = "databaseConnect",
-    /** The storage could not be opened, with `$databaseFailReason` saying why. Nothing is persisted */
+    /** The storage could not be opened, with `$eventData[failReason]` saying why. Nothing is persisted */
     databaseFail = "databaseFail"
 }
 export type TimerEventName = `${TimerEvent}`;
 /**
- * What an event hands its listener. Both halves ride the run's context rather than its
- * environment, so `$env` stays the script's own and neither half can shadow the other.
+ * What an event hands its listener.
  */
 export interface ITimerEventPayload {
-    /** The timer it is about, read with `$timerData`. Absent when the event is about the boot. */
+    /**
+     * The timer it is about, read with `$timerData`. Absent when the event is about the boot.
+     */
     timer?: Timer;
-    /** What the event adds on top of that timer, read by the functions named below. */
+    /**
+     * The timer as it was before this event changed it, read with `$oldTimer`.
+     */
+    previous?: Timer;
+    /**
+     * What the event adds on top of that timer.
+     */
     event?: ITimerEventData;
 }
 export type ITimerEvents = Record<TimerEventName, [payload: ITimerEventPayload]>;
 /**
- * What an event carries besides its timer. Every field is read by one function of its own,
- * so a name that does not exist here is a compile error rather than a blank at runtime.
+ * What an event carries besides its timer.
  */
 export interface ITimerEventData {
     /** Why a timer was thrown away without running. */

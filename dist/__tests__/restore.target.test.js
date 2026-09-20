@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
 const harness_1 = require("./support/harness");
+const structures_1 = require("../structures");
 let harness;
 (0, harness_1.useHarness)((booted) => (harness = booted));
 const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new harness_1.Timer({ name, kind, code: `$testMark[${name}]`, duration, channelID: "chan-1" }), Date.now() + dueIn);
@@ -162,7 +163,7 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
         duration: 1000,
         channelID: "chan-msg",
         messageID,
-        hostID: "user-1",
+        authorID: "user-1",
     }), Date.now() - 1000);
     (0, node_test_1.beforeEach)(() => {
         harness.channels.set("chan-msg", {
@@ -191,7 +192,7 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
         code: "$testMark[$authorID]",
         duration: 1000,
         channelID: "chan-1",
-        hostID: "user-1",
+        authorID: "user-1",
         guildID,
     }), Date.now() - 1000);
     (0, node_test_1.it)("stands in as the author when the target has none", async () => {
@@ -204,11 +205,20 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
     (0, node_test_1.it)("is looked up as a member when the timer belongs to a guild", async () => {
         harness.guilds.add("guild-1");
         harness.users.set("user-1", { id: "user-1" });
-        harness.members.set("user-1", { id: "user-1", nickname: "host" });
+        harness.members.set("user-1", { id: "user-1", nickname: "scheduler" });
         await hosted("guild-1");
         await harness.ready();
         await (0, harness_1.waitFor)(() => harness_1.marks.length > 0);
         strict_1.default.deepEqual(harness_1.marks, ["user-1"]);
+    });
+    (0, node_test_1.it)("stands in as the member too, which is what the lookup above is for", () => {
+        const member = { id: "user-1", nickname: "scheduler" };
+        // the target of a restored run is a channel at best, and the base context only takes a
+        // member off a real message, so without this the run would have none at all
+        const ctx = new structures_1.TimerContext({ client: {}, data: {}, obj: {}, authorMember: member });
+        strict_1.default.equal(ctx.member, member, "a run with no member of its own must borrow the scheduler's");
+        const alone = new structures_1.TimerContext({ client: {}, data: {}, obj: {} });
+        strict_1.default.equal(alone.member, null, "and with nobody to borrow from it stays empty");
     });
     (0, node_test_1.it)("leaves the run without an author when the user is gone", async () => {
         await hosted();

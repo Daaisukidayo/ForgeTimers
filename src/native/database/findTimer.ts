@@ -1,13 +1,6 @@
 import { ArgType, NativeFunction } from "@tryforge/forgescript"
-import { Database, ForgeTimers, Timer } from "../.."
-import { readProperties, TimerProperties, TimerProperty } from "../../properties/timer"
-
-function textOf(timer: Timer, property: TimerProperty) {
-    const value = TimerProperties[property](timer)
-
-    if (value === null || value === undefined) return ""
-    return typeof value === "object" ? JSON.stringify(value) : String(value)
-}
+import { Database, ForgeTimers } from "../.."
+import { matches, readFilters, readProperties } from "../../properties/timer"
 
 export default new NativeFunction({
     name: "$findTimer",
@@ -29,28 +22,11 @@ export default new NativeFunction({
     async execute(ctx, [filters]) {
         if (!(await ctx.client.getExtension(ForgeTimers, true).ready)) return this.successJSON([])
 
-        if (filters.length % 2) {
-            return this.customError(
-                `Every filter needs a property and a value, and "${filters.at(-1)}" was left without one.`
-            )
-        }
-
-        const pairs: Array<[TimerProperty, string]> = []
-
-        for (let i = 0; i < filters.length; i += 2) {
-            const named = filters[i] as TimerProperty
-
-            if (!(named in TimerProperties)) {
-                return this.customError(
-                    `"${named}" is not a timer property.`
-                )
-            }
-
-            pairs.push([named, filters[i + 1]])
-        }
+        const read = readFilters(filters)
+        if (!read.ok) return this.customError(read.reason)
 
         const timers = await Database.getAll()
-        const found = timers.filter((timer) => pairs.every(([named, wanted]) => textOf(timer, named) === wanted))
+        const found = timers.filter((timer) => matches(timer, read.pairs))
 
         return this.successJSON(found.map(readProperties))
     },

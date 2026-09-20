@@ -36,7 +36,7 @@ export interface IBaseTimerOptions {
 
     guildID?: Snowflake | null
     channelID?: Snowflake | null
-    hostID?: Snowflake | null
+    authorID?: Snowflake | null
     messageID?: Snowflake | null
 
     /**
@@ -228,7 +228,7 @@ export class Timer implements ITimer {
     /**
      * The id of the user that scheduled this timer.
      */
-    public hostID?: Snowflake | null
+    public authorID?: Snowflake | null
 
     /**
      * The id of the message this timer was scheduled from.
@@ -260,7 +260,7 @@ export class Timer implements ITimer {
         this.version = Timer.SCHEMA_VERSION
         this.guildID = options?.guildID ?? null
         this.channelID = options?.channelID ?? null
-        this.hostID = options?.hostID ?? null
+        this.authorID = options?.authorID ?? null
         this.messageID = options?.messageID ?? null
         this.args = options?.args
         this.config = options?.config ?? null
@@ -322,7 +322,12 @@ export class Timer implements ITimer {
      * @param data The row to rebuild from.
      */
     public static from(data: ITimer) {
-        return Object.assign(Object.create(Timer.prototype), data) as Timer
+        const timer = Object.assign(Object.create(Timer.prototype), data) as Timer & { hostID?: Snowflake | null }
+
+        if (timer.authorID === undefined) timer.authorID = timer.hostID ?? null
+        delete timer.hostID
+
+        return timer as Timer
     }
 
     /**

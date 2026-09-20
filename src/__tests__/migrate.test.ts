@@ -69,7 +69,7 @@ describe("moving timers between backends", () => {
             duration: 90 * 24 * 60 * 60 * 1000,
             guildID: "guild-1",
             channelID: "chan-1",
-            hostID: "user-1",
+            authorID: "user-1",
             messageID: "msg-1",
             args: ["a", "b"],
             config: { persist: false, restoredTicksLimit: "Infinity" },
@@ -81,7 +81,7 @@ describe("moving timers between backends", () => {
 
         const back = await Database.get(TimerKind.timeout, "full")
         assert.equal(back!.guildID, "guild-1")
-        assert.equal(back!.hostID, "user-1")
+        assert.equal(back!.authorID, "user-1")
         assert.equal(back!.messageID, "msg-1")
         assert.equal(back!.commandName, "cmd")
         assert.equal(back!.path, "/cmd.js")

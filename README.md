@@ -2,7 +2,7 @@
 
 # ForgeTimers
 
-ForgeTimers is an extension that makes `$setTimeout`, `$setInterval` and `$setCron` survive a restart. Timers are persisted in ForgeDB or QuorielDB when scheduled, re-armed automatically the next time your app starts, and can be read with functions or reacted to through events.
+ForgeTimers is an extension that makes `$setTimeout`, `$setInterval` and `$setCron` survive a restart. Timers are stored in ForgeDB or QuorielDB when scheduled and re-armed on the next start, and can be read with functions or reacted to through events.
 
 <a href="https://github.com/Daaisukidayo/ForgeTimers/"><img src="https://img.shields.io/github/package-json/v/Daaisukidayo/ForgeTimers/main?label=forge.timers&color=5c16d4" alt="forge.timers"></a>
 <a href="https://github.com/tryforge/ForgeScript/"><img src="https://img.shields.io/github/package-json/v/tryforge/ForgeScript/main?label=@tryforge/forgescript&color=5c16d4" alt="@tryforge/forgescript"></a>
@@ -36,9 +36,12 @@ ForgeTimers is an extension that makes `$setTimeout`, `$setInterval` and `$setCr
    npm i github:Daaisukidayo/ForgeTimers#main
    ```
 
-   And `dev` is where the next version is put together - take it to try what is coming, and expect it to break:
+   And `dev` is where the next version is put together - take it to try what is coming, and expect it to break. It is also on npm under the `dev` tag:
    ```bash
    npm i github:Daaisukidayo/ForgeTimers#dev
+   ```
+   ```bash
+   npm i forge.timers@dev
    ```
 
 
@@ -53,7 +56,7 @@ ForgeTimers is an extension that makes `$setTimeout`, `$setInterval` and `$setCr
    npm i @quoriel/db          # lmdb
    ```
 
-   Either will do, and [Storage](#storage) says how to pick between them. **ForgeScript 2.7.0** or newer is required in both cases.
+   Either will do, and [Storage](#storage) says how to pick between them. Both need **ForgeScript 2.7.0** or newer.
 
 3. Here's an example of how your main file should look:
 
@@ -105,13 +108,13 @@ At the top level, `ForgeTimers` accepts:
 | **`timeoutConfig`** | `ITimeoutConfig` | `{}` | How restored timeouts behave. Below. |
 | **`intervalConfig`** | `IIntervalConfig` | `{}` | How restored intervals behave. Below. |
 | **`cronConfig`** | `ICronConfig` | `{}` | How restored crons behave. Below, same as an interval. |
-| **`pruneUnknownGuilds`** | `boolean` | `false` | Deletes timers belonging to a guild this process can't see, on startup. |
+| **`pruneUnknownGuilds`** | `boolean` | `false` | Deletes timers belonging to a guild the bot is no longer in, on startup. |
 
-An invisible guild is far more often a Discord outage or another process's shard than a kick, and the deletion can't be undone. Turn `pruneUnknownGuilds` on only on a single unsharded process, where a missing guild really does mean the bot was removed.
+A timer is never held back by a guild it may never touch, and under sharding each one runs on exactly one shard.
 
-Startup only compiles what it restores. Channels, messages and users are fetched when a timer actually fires, so booting with thousands of stored timers costs nothing extra, and a timer due next month is never discarded over an outage happening today. A timeout that could not reach Discord keeps its record and is retried on the next boot.
+A guild can go missing because of a Discord outage rather than a kick, and the deletion cannot be undone, so leave `pruneUnknownGuilds` off unless stale records are a real problem for you.
 
-A channel that is really gone is a different matter: the timer runs anyway, with the same empty target a timer scheduled outside a channel already gets. Code that needed the channel fails on its own terms and says so in the console, and code that never touched it is not thrown away over a channel it never used.
+Booting with thousands of stored timers costs nothing extra, and a timer that could not reach Discord keeps its record and is retried on the next boot.
 
 `timeoutConfig`, `intervalConfig` and `cronConfig` accept:
 
@@ -124,7 +127,7 @@ A channel that is really gone is a different matter: the timer runs anyway, with
 > ⚠️ **Warning**\
 > `restoredTicksLimit: Infinity` on a 1-minute interval that was down for a day means 1440 executions on boot. Pair it with `maxOverdue` to bound the damage.
 
-`maxOverdue` is measured against the timer's *due time* - a timer due next week is never affected by a week of downtime. What happens past the limit differs by kind: an overdue **timeout** is discarded, while an **interval** or a **cron** only skips the stale tick and resumes.
+`maxOverdue` counts from the timer's *due time*, so a timer due next week is never affected by a week of downtime. Past the limit a **timeout** is discarded, while an **interval** or a **cron** skips the stale run and carries on.
 
 Any of them can also be set on one timer, as arguments:
 
@@ -140,9 +143,9 @@ Leave an argument out to fall back to the config:
 $setInterval[...;1m;example;;;Infinity]
 ```
 
-That interval replays every tick it missed no matter what `intervalConfig.restoredTicksLimit` says, while still taking `persist` and `maxOverdue` from the config.
+That interval replays every missed tick whatever `intervalConfig.restoredTicksLimit` says, and still takes `persist` and `maxOverdue` from the config.
 
-There is no upper bound on a duration: waits past node's own ~24.8 day limit are re-armed in chunks. An interval that survives a restart resumes on the time left on its current tick, so restarts don't push its schedule later.
+A duration has no upper bound - months are fine. An interval that survives a restart resumes on the time left on its current tick, so restarts don't push its schedule later.
 
 <h3 align="center">Storage</h3><hr>
 
@@ -161,7 +164,7 @@ const timers = new ForgeTimers({
 
 **ForgeDB** needs nothing extra: set it up as usual and the timers follow. On sqlite that means a `timers.db` file next to ForgeDB's own database.
 
-**QuorielDB** keeps them in its own store folder - `database`, unless you gave QuorielDB another `path`. The record type is registered on startup and your `config.json` is left alone, so there is nothing to add by hand, and the timers can be read with QuorielDB's own functions:
+**QuorielDB** keeps them in its own store folder - `database`, unless you gave QuorielDB another `path`. The record type is registered on startup and your `config.json` is left alone, so there is nothing to set up. The timers can be read with QuorielDB's own functions:
 
 ```js
 $getRecord[timers;timeout:reminder]
@@ -179,15 +182,15 @@ const timers = new ForgeTimers({
 })
 ```
 
-Both extensions have to be in `extensions` for that boot - the old one is what the timers are read through. Drop `migrateFrom` and the old extension once the log says it is done.
+Both extensions have to be in `extensions` for that boot, since the old one is what the timers are read through. Drop `migrateFrom` and the old extension once the log says it is done.
 
-The move happens before anything is restored, so deadlines carry over untouched. A name already taken in the new backend wins, and the timer that lost it is named in the log.
+Deadlines carry over untouched. If a name is already taken in the new backend, the one already there wins and the other is named in the log.
 
-Each timer is written, read back, and only then dropped from the old backend, so a rerun cannot bring back one that has since fired. `keepSource: true` copies instead, and the migration then repeats every boot until `migrateFrom` goes.
+Running the migration twice is safe: it cannot bring back a timer that has since fired. `keepSource: true` copies instead of moving, which means it repeats every boot until `migrateFrom` goes.
 
 <h3 align="center">Cron</h3><hr>
 
-An interval keeps a gap. A cron keeps the **wall clock**, which is not the same thing: a 24 hour interval drifts by an hour twice a year, while `0 9 * * *` stays at nine in the morning through every daylight saving change.
+An interval keeps a gap, a cron keeps the **wall clock**. A 24 hour interval drifts by an hour twice a year, while `0 9 * * *` stays at nine in the morning through every daylight saving change.
 
 ```js
 $setCron[$sendMessage[$channelID;standup];0 9 * * 1-5;standup;Europe/Kyiv]
@@ -207,12 +210,15 @@ Stored timers can be read back from commands:
 | **`$getTimer[kind;name;property?]`** | one field, or the timer as JSON | Reads one timer. Without a property you get the whole data. |
 | **`$getAllTimers[kind?;property?;separator?]`** | JSON array, or one joined string | Every stored timer, optionally only one kind of them. |
 | **`$findTimer[property;value;...]`** | JSON array | Every stored timer whose properties all match. Aliased as `$findTimers`. |
-| **`$timerExists[kind;name]`** | boolean | Whether there is a timer under that name **at all**, armed or stored. |
+| **`$clearTimers[property;value;...]`** | number | Cancels and forgets every one of those, and says how many. Aliased as `$stopTimers` and `$deleteTimers`. |
+| **`$timersCount[kind?]`** | number | How many timers are stored, of one kind or of every kind. |
+| **`$timerExists[kind;name]`** | boolean | Whether a timer is **stored** under that name, running or not. |
 | **`$timerRunning[kind;name]`** | boolean | Whether one is **armed** under that name right now. |
 | **`$rescheduleTimer[kind;name;schedule;timezone?]`** | boolean | Gives a stored timer a new schedule, keeping everything else it was scheduled with. |
 | **`$pauseTimer[kind;name]`** | boolean | Puts a timer on hold, keeping what is left of its wait. |
 | **`$resumeTimer[kind;name]`** | boolean | Starts a paused timer again, from where its wait was left. |
 | **`$executeTimer[kind;name]`** | boolean | Runs a stored timer's code now, leaving the timer itself untouched. Aliased as `$runTimer`. |
+| **`$clearTimer[kind;name]`** | boolean | Cancels a timer of any kind and forgets it. Aliased as `$stopTimer` and `$deleteTimer`. |
 | **`$wipeTimers`** | number | Cancels every running timer and clears the stored ones. Returns how many were running. |
 | **`$timerData[property?]`** | one field, or the timer as JSON | Reads the timer an [event](#events) is about. |
 
@@ -221,35 +227,37 @@ $getTimer[timeout;reminder;timeLeft]
 $getAllTimers[interval]
 ```
 
-`$getAllTimers` gives the whole of every timer by default. Name a property and you get just that one, as a list - add a separator to get it as plain text instead:
+`$getAllTimers` gives the whole of every timer by default. Name a property to get just that one as a list, and add a separator to get plain text instead:
 
 ```js
 $getAllTimers[interval;name]        // ["beat","daily"]
 $getAllTimers[interval;name;, ]     // beat, daily
 ```
 
-`$findTimer` takes [properties](#properties) and values in pairs, and hands back the whole of every timer where **all** of them match:
+`$findTimer` takes [properties](#properties) and values in pairs, and returns every timer where **all** of them match:
 
 ```js
 $findTimer[channelID;$channelID]            // everything waiting on this channel
-$findTimer[hostID;$authorID;kind;cron]      // this user's crons
+$findTimer[authorID;$authorID;kind;cron]      // this user's crons
 $findTimer[paused;true]                     // everything on hold
 ```
 
-`$executeTimer` runs the code as the timer itself would, with the variables it was scheduled with, and then changes nothing - the deadline stays put, the record is not spent, an interval does not count it as a tick, and no [event](#events) is reported. A paused timer runs too.
+`$clearTimers` takes the same pairs and cancels everything they match, returning how many. `$clearTimer[kind;name]` cancels one of any kind.
 
-The two answer different questions, and the gap between them is where paused and un-rearmed timers live:
+`$executeTimer` runs the timer's code now and changes nothing else: the deadline stays, the record stays, an interval does not count it as a tick, and no [event](#events) is reported. It runs a paused timer too.
+
+These two ask about different places, and either can be true on its own:
 
 ```js
-$timerExists[timeout;reminder]    // there is one under that name, somehow
-$timerRunning[timeout;reminder]   // and something is counting down for it
+$timerExists[timeout;reminder]    // there is a record in the database
+$timerRunning[timeout;reminder]   // something is counting down in this process
 ```
 
-`$timerExists` looks in both places - a record in the database, or a timer armed right now - so a paused one, or one a boot decided not to re-arm, still counts, and so does one scheduled while the database was unreachable and never written down. `$timerRunning` asks only whether it is armed, which is what a paused timer is not.
+A paused timer is stored but not armed. One scheduled while the database was down is armed but not stored.
 
-A paused timer is one of those: it keeps its record and its remaining wait, but nothing is armed for it until `$resumeTimer`, and a restart leaves it that way. `$rescheduleTimer` leaves it paused too, with the whole new wait ahead of it. Resuming rebuilds the run from the stored record, the same as a restart does, so it reads the variables it was scheduled with.
+Pausing keeps the record and the time left, and a restart leaves the timer paused. `$resumeTimer` starts it again from where it stopped, rebuilt from the record, so it reads the variables it was scheduled with. `$rescheduleTimer` leaves it paused too, with the whole new wait ahead.
 
-What `$rescheduleTimer` takes as a schedule is whatever that kind runs on - a duration for a timeout or an interval, an expression for a cron:
+The schedule `$rescheduleTimer` takes is whatever that kind runs on: a duration for a timeout or an interval, an expression for a cron.
 
 ```js
 $rescheduleTimer[timeout;reminder;30m]
@@ -276,14 +284,14 @@ The third argument of `$getTimer`, and the names an [event](#events) reads with 
 | **`paused`** | boolean | Whether it is on hold. A paused timer keeps its `timeLeft` frozen where `$pauseTimer` left it. |
 | **`guildID`** | snowflake | The guild it was scheduled in, empty when it belongs to none. |
 | **`channelID`** | snowflake | The channel it answers in, empty when it was scheduled outside one. |
-| **`hostID`** | snowflake | Who scheduled it. |
+| **`authorID`** | snowflake | Who scheduled it. |
 | **`messageID`** | snowflake | The message it was scheduled from, if there was one. |
 | **`args`** | JSON array | The command arguments present when it was scheduled. |
 | **`config`** | JSON object | The options the call spelled out for this timer, empty when it named none. |
 
 <h3 align="center">Events</h3><hr>
 
-A timer's own code says what it does. Events say what happened to it - useful for logging, for telling a channel that a reminder was lost, or for watching what a restart picked up.
+A timer's own code says what it does. Events say what happened to it - for logging, for telling a channel that a reminder was lost, or for watching what a restart picked up.
 
 Name the ones you want, then write commands for them:
 
@@ -296,7 +304,7 @@ const client = new ForgeClient({ extensions: [db, timers] })
 
 timers.commands.add({
     type: "timerDrop",
-    code: `$sendMessage[$timerData[channelID];Lost the $timerData[kind] "$timerData[name]": $timerDropReason]`
+    code: `$sendMessage[$timerData[channelID];Lost the $timerData[kind] "$timerData[name]": $eventData[dropReason]]`
 })
 
 // or from a folder
@@ -308,24 +316,40 @@ The events:
 | Event | When | Also reads |
 |---|---|---|
 | **`timerStart`** | A timer was scheduled. | — |
-| **`timerFire`** | A timer's code ran: a timeout going off, or an interval ticking. | — |
-| **`timerCancel`** | A timer was cancelled by hand, with `$clearTimeout`, `$clearInterval`, `$clearCron` or `$wipeTimers`. | — |
-| **`timerRestore`** | A stored timer was picked back up after a restart. | `$timerOverdueBy` — how late it was, in ms. |
-| **`timerDrop`** | A stored timer was thrown away without running - too late, unreadable, or its code no longer compiles. | `$timerDropReason`, and `$timerOverdueBy` when that was the reason. |
-| **`timersReady`** | Startup finished dealing with every stored timer. | `$timersRestored` and `$timersDropped`. |
+| **`timerFire`** | A timer's code ran: a timeout going off, an interval ticking, or a cron coming round. | — |
+| **`timerCancel`** | A timer was cancelled by hand, with any of the `$clear` functions or `$wipeTimers`. | — |
+| **`timerPause`** | A timer was put on hold. | — |
+| **`timerResume`** | A timer on hold was started again. | — |
+| **`timerRestore`** | A stored timer was picked back up after a restart. | `overdueBy` — how late it was, in ms. |
+| **`timerDrop`** | A stored timer was thrown away without running - too late, unreadable, or its code no longer compiles. | `dropReason`, and `overdueBy` when that was the reason. |
+| **`timersReady`** | Startup finished dealing with every stored timer. | `restored` and `dropped`. |
 | **`databaseConnect`** | The storage opened, and timers will survive a restart. | — |
-| **`databaseFail`** | The storage could not be opened, and nothing will be persisted. | `$databaseFailReason`. |
+| **`databaseFail`** | The storage could not be opened, and nothing will be persisted. | `failReason`. |
 
-Every event reads its timer with `$timerData`, under the same names `$getTimer` uses. See [Properties](#properties).
+Every event reads its timer with `$timerData`, under the same names `$getTimer` uses. See [Properties](#properties). A timer's own code reads itself the same way, so an interval can log its own name.
+
+Whatever the event adds on top of its timer is read with `$eventData`, under the names in the last column:
 
 ```js
-$timerData[channelID]   // one property
-$timerData              // all of them, as JSON
+$timerData[channelID]       // one property of the timer
+$timerData                  // all of them, as JSON
+
+$eventData[dropReason]      // one thing the event added
+$eventData                  // all of them, as JSON
 ```
+
+An event that **changed** a timer also carries what it looked like before, read with `$oldTimer` and `$newTimer` the way `$oldMessage` and `$newMessage` work in ForgeScript:
+
+```js
+$oldTimer[fireAt]    // when it was due before this
+$newTimer[fireAt]    // when it is due now
+```
+
+An interval or cron tick carries both, as do `timerPause` and `timerResume`. Everything else carries only `$newTimer`: a timeout fires once, a replayed tick has nothing to compare against, and a timer being scheduled, cancelled or thrown away has no before. This is the one way to compare a tick with the one before it: a timer's own code cannot remember anything between runs.
 
 The last three are about the boot, so `$timerData` is empty in them.
 
-`timersReady` does not fire when the storage could not be opened: `databaseFail` fires instead, and exactly one of the two database events happens on every boot.
+`timersReady` does not fire when the storage could not be opened - `databaseFail` fires instead. Exactly one of the two database events happens on every boot.
 
 <h3 align="center">Thanks</h3><hr>
 

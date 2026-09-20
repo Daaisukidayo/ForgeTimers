@@ -191,4 +191,88 @@ const stored = (name, duration, code = "$testMark[ran]") => new harness_1.Timer(
         strict_1.default.notEqual(await (0, harness_1.run)(harness, "$findTimer[]"), "[]", "a filterless call must not read as a match of none");
     });
 });
+(0, node_test_1.describe)("a timer reading itself", () => {
+    (0, node_test_1.it)("knows its own name and kind while it runs", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[me:$timerData[name]:$timerData[kind]];50;mine]");
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.includes("me:mine:timeout"), 3000), `it saw ${harness_1.marks}`);
+    });
+    (0, node_test_1.it)("reads the same on every tick of an interval", async () => {
+        await (0, harness_1.run)(harness, "$setInterval[$testMark[beat:$timerData[name]];60;drum]");
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.filter((m) => m === "beat:drum").length >= 2, 3000), `it saw ${harness_1.marks}`);
+    });
+    (0, node_test_1.it)("reads its expression back after a restart", async () => {
+        await harness_1.Database.set(new harness_1.Timer({
+            name: "daily",
+            kind: harness_1.TimerKind.cron,
+            code: "$testMark[on:$timerData[cron]]",
+            cron: "* * * * * *",
+            timezone: "UTC",
+            channelID: "chan-1",
+        }));
+        await harness.ready();
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.includes("on:* * * * * *"), 4000), `a restored cron saw ${harness_1.marks}`);
+    });
+    (0, node_test_1.it)("says nothing for an unnamed timer, which has no record to read", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[loose:<$timerData[name]>];50]");
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.includes("loose:<>"), 3000), `it saw ${harness_1.marks}`);
+    });
+});
+(0, node_test_1.describe)("$clearTimer", () => {
+    (0, node_test_1.it)("cancels any kind under one name, telling them apart", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[t];1h;n]");
+        await (0, harness_1.run)(harness, "$setInterval[$testMark[i];1h;n]");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$clearTimer[interval;n]"), "true");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$timerExists[interval;n]"), "false");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$timerExists[timeout;n]"), "true", "it took the wrong one");
+    });
+    (0, node_test_1.it)("cancels a cron, which the kind-specific ones cannot be asked for generically", async () => {
+        await (0, harness_1.run)(harness, "$setCron[x;0 9 * * *;daily]");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$clearTimer[cron;daily]"), "true");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$timerExists[cron;daily]"), "false");
+    });
+    (0, node_test_1.it)("says no for a name nothing was scheduled under", async () => {
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$clearTimer[timeout;never]"), "false");
+    });
+});
+(0, node_test_1.describe)("$clearTimers", () => {
+    (0, node_test_1.it)("cancels every match and counts them, leaving the rest alone", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[x;1h;a]");
+        await (0, harness_1.run)(harness, "$setTimeout[x;1h;b]");
+        await harness_1.Database.set(new harness_1.Timer({ name: "elsewhere", kind: harness_1.TimerKind.timeout, duration: 1000, channelID: "c2" }));
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$clearTimers[channelID;chan-1]"), "2");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$timerExists[timeout;a]"), "false");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$timerExists[timeout;b]"), "false");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$timerExists[timeout;elsewhere]"), "true", "it reached past its filter");
+    });
+    (0, node_test_1.it)("takes the same pairs $findTimer does", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[x;1h;a]");
+        await (0, harness_1.run)(harness, "$setInterval[x;1h;b]");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$clearTimers[channelID;chan-1;kind;interval]"), "1");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$timerExists[timeout;a]"), "true", "only the interval was asked for");
+    });
+    (0, node_test_1.it)("counts none when nothing matches, and refuses a pair without its value", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[x;1h;n]");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$clearTimers[name;missing]"), "0");
+        strict_1.default.notEqual(await (0, harness_1.run)(harness, "$clearTimers[kind;timeout;channelID]"), "1", "an odd filter still cleared");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$timerExists[timeout;n]"), "true", "and it took something anyway");
+    });
+});
+(0, node_test_1.describe)("$timersCount", () => {
+    (0, node_test_1.it)("counts what is stored, of one kind or of all of them", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[x;1h;a]");
+        await (0, harness_1.run)(harness, "$setInterval[x;1h;b]");
+        await (0, harness_1.run)(harness, "$setCron[x;0 9 * * *;c]");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$timersCount"), "3");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$timersCount[interval]"), "1");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$timersCount[cron]"), "1");
+    });
+    (0, node_test_1.it)("counts a paused timer, which is stored like any other", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[x;1h;n]");
+        await (0, harness_1.run)(harness, "$pauseTimer[timeout;n]");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$timersCount[timeout]"), "1");
+    });
+    (0, node_test_1.it)("is zero when nothing is stored", async () => {
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$timersCount"), "0");
+    });
+});
 //# sourceMappingURL=control.test.js.map

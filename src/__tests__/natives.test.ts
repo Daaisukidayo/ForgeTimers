@@ -30,7 +30,7 @@ describe("$setTimeout", () => {
         const row = await Database.get(TimerKind.timeout, "n")
         assert.equal(row!.channelID, "chan-9")
         assert.equal(row!.guildID, "guild-9")
-        assert.equal(row!.hostID, "user-9")
+        assert.equal(row!.authorID, "user-9")
     })
 
     it("leaves an unnamed timeout out of the database", async () => {
@@ -321,12 +321,12 @@ describe("$timerExists", () => {
         assert.equal(await run(harness, "$timerRunning[timeout;stored]"), "false", "the two are not the same question")
     })
 
-    it("counts one armed with no record, which is how a database outage leaves it", async () => {
+    it("says no to one armed with no record, which is how a database outage leaves it", async () => {
         await run(harness, "$setTimeout[x;1h;n]")
         await Database.delete(TimerKind.timeout, "n")
 
         assert.equal(await run(harness, "$timerRunning[timeout;n]"), "true", "it is still armed")
-        assert.equal(await run(harness, "$timerExists[timeout;n]"), "true", "so there is a timer, record or not")
+        assert.equal(await run(harness, "$timerExists[timeout;n]"), "false", "but the two answer for one place each")
     })
 
     it("counts a paused timer, which is exactly the one the other says no to", async () => {

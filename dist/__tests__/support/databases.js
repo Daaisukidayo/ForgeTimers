@@ -15,7 +15,7 @@ const sample = () => new harness_1.Timer({
     duration: NINETY_DAYS,
     channelID: "chan-1",
     guildID: "guild-1",
-    hostID: "user-1",
+    authorID: "user-1",
     messageID: "msg-1",
     args: ["first", "second"],
     config: { persist: false, maxOverdue: 1000, restoredTicksLimit: "Infinity" },
@@ -47,7 +47,7 @@ function persistenceSuite(target) {
             strict_1.default.equal(back.code, "$sendMessage[$channelID;now]");
             strict_1.default.equal(back.channelID, "chan-1");
             strict_1.default.equal(back.guildID, "guild-1");
-            strict_1.default.equal(back.hostID, "user-1");
+            strict_1.default.equal(back.authorID, "user-1");
             strict_1.default.equal(back.messageID, "msg-1");
             strict_1.default.deepEqual(back.args, ["first", "second"]);
             strict_1.default.deepEqual(back.config, original.config);
@@ -113,7 +113,7 @@ function persistenceSuite(target) {
             await harness_1.Database.set(new harness_1.Timer({ name: "bare", kind: harness_1.TimerKind.timeout, duration: 1, channelID: "c" }));
             const back = await harness_1.Database.get(harness_1.TimerKind.timeout, "bare");
             strict_1.default.equal(back.guildID, null);
-            strict_1.default.equal(back.hostID, null);
+            strict_1.default.equal(back.authorID, null);
             strict_1.default.equal(back.messageID, null);
             strict_1.default.equal(back.path, null);
         });

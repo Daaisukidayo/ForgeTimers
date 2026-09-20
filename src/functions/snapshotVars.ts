@@ -1,35 +1,5 @@
-import { Compiler, Context, IExtendedCompiledFunctionField, ILocalFunctionData } from "@tryforge/forgescript"
+import { Compiler, IExtendedCompiledFunctionField, ILocalFunctionData } from "@tryforge/forgescript"
 import { Logger } from "./logger"
-
-/**
- * Builds the runner for a timer that fires more than once.
- *
- * @param ctx The context the timer was scheduled from.
- * @param resolve What to run, given the context built for that run.
- * @returns The cloned runtime the snapshot was taken from, and the runner itself.
- */
-export function repeatingRunner(ctx: Context, resolve: (tick: Context) => Promise<unknown>) {
-    const runtime = ctx.cloneRuntime()
-
-    const vars = {
-        keywords: { ...runtime.keywords },
-        environment: { ...runtime.environment },
-        localFunctions: { ...runtime.localFunctions },
-    }
-
-    const run = async () => {
-        const tick = new Context({
-            ...runtime,
-            keywords: { ...vars.keywords },
-            environment: { ...vars.environment },
-            localFunctions: { ...vars.localFunctions },
-        })
-
-        await resolve(tick)
-    }
-
-    return { runtime, run }
-}
 
 export interface IPersistedLocalFunction {
     code: string
@@ -218,7 +188,7 @@ function decode(value: unknown): unknown {
 
     const inner = obj.value
 
-    // the payload's tag key is user data, not ours
+    // the payload's tag key is user data
     if (obj[TAG] === "raw") return decodeEntries(inner as Record<string, unknown>)
 
     // an unknown tag was written by a build that knows more than this one

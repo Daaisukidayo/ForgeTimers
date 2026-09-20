@@ -1,37 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VARS_SCHEMA_VERSION = void 0;
-exports.repeatingRunner = repeatingRunner;
 exports.snapshotVars = snapshotVars;
 exports.restoreVars = restoreVars;
 exports.rehydrateLocalFunctions = rehydrateLocalFunctions;
 const forgescript_1 = require("@tryforge/forgescript");
 const logger_1 = require("./logger");
-/**
- * Builds the runner for a timer that fires more than once.
- *
- * @param ctx The context the timer was scheduled from.
- * @param resolve What to run, given the context built for that run.
- * @returns The cloned runtime the snapshot was taken from, and the runner itself.
- */
-function repeatingRunner(ctx, resolve) {
-    const runtime = ctx.cloneRuntime();
-    const vars = {
-        keywords: { ...runtime.keywords },
-        environment: { ...runtime.environment },
-        localFunctions: { ...runtime.localFunctions },
-    };
-    const run = async () => {
-        const tick = new forgescript_1.Context({
-            ...runtime,
-            keywords: { ...vars.keywords },
-            environment: { ...vars.environment },
-            localFunctions: { ...vars.localFunctions },
-        });
-        await resolve(tick);
-    };
-    return { runtime, run };
-}
 /** v0 was plain json. v1 tags dates, maps, sets, regexps and bigints, and drops per value instead of per key */
 exports.VARS_SCHEMA_VERSION = 1;
 const TAG = "$forge";
@@ -174,7 +148,7 @@ function decode(value) {
     if (!isTagged(obj))
         return decodeEntries(obj);
     const inner = obj.value;
-    // the payload's tag key is user data, not ours
+    // the payload's tag key is user data
     if (obj[TAG] === "raw")
         return decodeEntries(inner);
     // an unknown tag was written by a build that knows more than this one

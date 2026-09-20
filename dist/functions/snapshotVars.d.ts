@@ -1,15 +1,4 @@
-import { Context, ILocalFunctionData } from "@tryforge/forgescript";
-/**
- * Builds the runner for a timer that fires more than once.
- *
- * @param ctx The context the timer was scheduled from.
- * @param resolve What to run, given the context built for that run.
- * @returns The cloned runtime the snapshot was taken from, and the runner itself.
- */
-export declare function repeatingRunner(ctx: Context, resolve: (tick: Context) => Promise<unknown>): {
-    runtime: import("@tryforge/forgescript").IRunnable;
-    run: () => Promise<void>;
-};
+import { ILocalFunctionData } from "@tryforge/forgescript";
 export interface IPersistedLocalFunction {
     code: string;
     args: string[];

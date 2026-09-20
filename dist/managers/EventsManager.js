@@ -21,7 +21,7 @@ function runCommands(client, event, payload) {
     const commands = client.getExtension(__1.ForgeTimers, true).commands?.get(event) ?? [];
     if (!commands.length)
         return;
-    const { timer, event: data } = payload;
+    const { timer, previous, event: data } = payload;
     for (const command of commands) {
         forgescript_1.Interpreter.run(new structures_1.TimerContext({
             client,
@@ -30,6 +30,7 @@ function runCommands(client, event, payload) {
             obj: {},
             timer: timer ?? null,
             event: data ?? null,
+            states: { timer: { old: previous ?? null, new: timer ?? null } },
         })).catch(logger_1.Logger.error);
     }
 }

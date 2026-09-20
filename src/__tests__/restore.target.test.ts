@@ -12,6 +12,7 @@ import {
     useHarness,
     waitFor,
 } from "./support/harness"
+import { TimerContext } from "../structures"
 
 let harness: TestHarness
 
@@ -240,7 +241,7 @@ describe("the message a timer was scheduled from", () => {
                 duration: 1000,
                 channelID: "chan-msg",
                 messageID,
-                hostID: "user-1",
+                authorID: "user-1",
             }),
             Date.now() - 1000
         )
@@ -279,7 +280,7 @@ describe("the user who scheduled a timer", () => {
                 code: "$testMark[$authorID]",
                 duration: 1000,
                 channelID: "chan-1",
-                hostID: "user-1",
+                authorID: "user-1",
                 guildID,
             }),
             Date.now() - 1000
@@ -297,13 +298,25 @@ describe("the user who scheduled a timer", () => {
     it("is looked up as a member when the timer belongs to a guild", async () => {
         harness.guilds.add("guild-1")
         harness.users.set("user-1", { id: "user-1" })
-        harness.members.set("user-1", { id: "user-1", nickname: "host" })
+        harness.members.set("user-1", { id: "user-1", nickname: "scheduler" })
 
         await hosted("guild-1")
         await harness.ready()
         await waitFor(() => marks.length > 0)
 
         assert.deepEqual(marks, ["user-1"])
+    })
+
+    it("stands in as the member too, which is what the lookup above is for", () => {
+        const member = { id: "user-1", nickname: "scheduler" }
+
+        // the target of a restored run is a channel at best, and the base context only takes a
+        // member off a real message, so without this the run would have none at all
+        const ctx = new TimerContext({ client: {}, data: {}, obj: {}, authorMember: member } as never)
+        assert.equal(ctx.member, member, "a run with no member of its own must borrow the scheduler's")
+
+        const alone = new TimerContext({ client: {}, data: {}, obj: {} } as never)
+        assert.equal(alone.member, null, "and with nobody to borrow from it stays empty")
     })
 
     it("leaves the run without an author when the user is gone", async () => {

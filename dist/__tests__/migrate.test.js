@@ -58,7 +58,7 @@ async function seed(from, to, timers) {
             duration: 90 * 24 * 60 * 60 * 1000,
             guildID: "guild-1",
             channelID: "chan-1",
-            hostID: "user-1",
+            authorID: "user-1",
             messageID: "msg-1",
             args: ["a", "b"],
             config: { persist: false, restoredTicksLimit: "Infinity" },
@@ -68,7 +68,7 @@ async function seed(from, to, timers) {
         await (0, __1.migrateTimers)(both, "forgedb", "quorieldb");
         const back = await harness_1.Database.get(harness_1.TimerKind.timeout, "full");
         strict_1.default.equal(back.guildID, "guild-1");
-        strict_1.default.equal(back.hostID, "user-1");
+        strict_1.default.equal(back.authorID, "user-1");
         strict_1.default.equal(back.messageID, "msg-1");
         strict_1.default.equal(back.commandName, "cmd");
         strict_1.default.equal(back.path, "/cmd.js");

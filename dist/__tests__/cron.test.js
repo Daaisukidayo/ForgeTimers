@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
 const harness_1 = require("./support/harness");
+const cron_1 = require("../functions/cron");
 let harness;
 (0, harness_1.useHarness)((booted) => (harness = booted));
 /** Every second, so a test can watch it come round without waiting on a wall clock */
@@ -74,6 +75,39 @@ function overdueCron(name, secondsAgo) {
         await (0, harness_1.run)(harness, "$setTimeout[x;1h;later]");
         strict_1.default.equal(await (0, harness_1.run)(harness, "$getTimer[timeout;later;cron]"), "");
         strict_1.default.equal(await (0, harness_1.run)(harness, "$getTimer[timeout;later;timezone]"), "");
+    });
+});
+(0, node_test_1.describe)("a cron across a change of the clocks", () => {
+    const ZONE = "America/New_York";
+    /** What the zone's own clock reads at each of the next few occurrences */
+    const localRuns = (expression, from, count = 3) => {
+        const hits = [];
+        let at = Date.parse(from);
+        for (let i = 0; i < count; i++) {
+            at = (0, cron_1.nextRun)(expression, at, ZONE);
+            hits.push(new Date(at).toLocaleString("sv-SE", { timeZone: ZONE }));
+        }
+        return hits;
+    };
+    (0, node_test_1.it)("runs the hour the clocks skip over, rather than missing that day", () => {
+        // new york jumps 02:00 to 03:00 on this date, so 2am does not exist
+        strict_1.default.deepEqual(localRuns("0 2 * * *", "2027-03-13T12:00:00Z"), [
+            "2027-03-14 03:00:00",
+            "2027-03-15 02:00:00",
+            "2027-03-16 02:00:00",
+        ]);
+    });
+    (0, node_test_1.it)("runs the hour the clocks repeat only once", () => {
+        // 01:00 comes round twice on this date, and a daily cron is due on one of them
+        strict_1.default.deepEqual(localRuns("0 1 * * *", "2027-11-06T12:00:00Z"), [
+            "2027-11-07 01:00:00",
+            "2027-11-08 01:00:00",
+            "2027-11-09 01:00:00",
+        ]);
+    });
+    (0, node_test_1.it)("keeps to the wall clock either side, which is the whole point of a zone", () => {
+        const spring = localRuns("0 9 * * *", "2027-03-12T12:00:00Z", 4);
+        strict_1.default.ok(spring.every((at) => at.endsWith("09:00:00")), `nine in the morning drifted: ${spring}`);
     });
 });
 (0, node_test_1.describe)("$clearCron", () => {

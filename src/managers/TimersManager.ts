@@ -1,5 +1,5 @@
 import { Compiler, ForgeClient, Interpreter, Sendable } from "@tryforge/forgescript"
-import { DiscordAPIError, Events, GuildMember, User } from "discord.js"
+import { DiscordAPIError, Events, GuildMember, ShardClientUtil, User } from "discord.js"
 import { Database, Timer, TimerContext, TimerKind } from "../structures"
 import { ForgeTimers } from ".."
 import { ITimerEventData, ITimerOverrides, TimerEvent } from "../types"
@@ -45,8 +45,8 @@ type ITargetResult = { ok: true; obj: Sendable } | IRestoreFailure
 
 interface IResolved {
     obj: Sendable
-    host: User | null
-    hostMember: GuildMember | null
+    author: User | null
+    authorMember: GuildMember | null
 }
 
 type IResolveResult = { ok: true; resolved: IResolved } | IRestoreFailure
@@ -151,11 +151,19 @@ export class TimersManager {
         await this._forget(timer)
     }
 
-    private _report(name: TimerEvent, timer: Timer, event?: ITimerEventData) {
+    /**
+     * @param previous The timer as it was before this event changed it, for `$oldTimer`.
+     */
+    private _report(name: TimerEvent, timer: Timer, event?: ITimerEventData, previous?: Timer) {
         const { emitter } = this.timers
         if (!emitter.listenerCount(name)) return
 
-        emitter.emit(name, { timer, event })
+        emitter.emit(name, { timer, event, previous })
+    }
+
+    /** A copy of a timer as it stands, to hand to an event once the original has moved on */
+    private _snapshot(timer: Timer) {
+        return Timer.from({ ...timer })
     }
 
     private async _reportCancel(kind: TimerKind, name: string, wasLive: boolean) {
@@ -308,11 +316,13 @@ export class TimersManager {
         const timer = await this._stored(kind, name)
         if (!timer || timer.isPaused()) return false
 
+        const previous = this._snapshot(timer)
         this.clear(kind, name)
 
         timer.pausedAt = Date.now()
         await this._save(timer)
 
+        this._report(TimerEvent.timerPause, timer, undefined, previous)
         return true
     }
 
@@ -333,6 +343,8 @@ export class TimersManager {
             return false
         }
 
+        const previous = this._snapshot(timer)
+
         if (timer.isCron()) timer.scheduleNext()
         else timer.fireAt = Date.now() + timer.timeLeft()
 
@@ -340,6 +352,8 @@ export class TimersManager {
         await this._save(timer)
 
         this._arm(timer, runner.run)
+
+        this._report(TimerEvent.timerResume, timer, undefined, previous)
         return true
     }
 
@@ -419,8 +433,6 @@ export class TimersManager {
      * @param name The name of the timer.
      */
     public isLive(kind: TimerKind, name: string) {
-        // a restored run holds its name with nothing scheduled, and its code is running right
-        // then, so it counts as live the same as one waiting on a handle
         return !!this.mapOf(kind)?.has(name) || this.generations.has(Timer.idOf(kind, name))
     }
 
@@ -436,22 +448,17 @@ export class TimersManager {
             for (const name of [...map.keys()]) this.clear(kind, name)
         }
 
-        // a run in flight holds a name with nothing scheduled for the loop above to find
         this.generations.clear()
     }
 
     /**
-     * Whether there is a timer under this name at all: armed, stored, or both.
-     *
-     * A paused timer is stored with nothing armed, and one scheduled while the database was
-     * unreachable is armed with nothing stored. Either way it is a timer that exists.
+     * Whether a record is stored under this name, whatever is or is not armed for it.
      *
      * @param kind The kind of the timer.
      * @param name The name of the timer.
      */
     public async exists(kind: TimerKind, name: string) {
-        // the map costs nothing, so the database is only asked when it has to be
-        return this.isLive(kind, name) || !!(await this._stored(kind, name))
+        return !!(await this._stored(kind, name))
     }
 
     /**
@@ -494,8 +501,6 @@ export class TimersManager {
     private _schedule(kind: TimerKind, name: string, delay: number, fn: () => unknown) {
         const map = this.mapOf(kind)
 
-        // setLongTimeout drops whatever fn returns, so a throw here would go up as an unhandled
-        // rejection and take the process with it. One timer failing is not the others' business.
         const guarded = async () => {
             try {
                 await fn()
@@ -541,6 +546,7 @@ export class TimersManager {
         this._schedule(timer.kind, timer.name, timer.timeLeft(), async () => {
             if (!owns()) return
 
+            const previous = this._snapshot(timer)
             await this._save(timer.advance())
 
             if (!owns()) {
@@ -552,7 +558,7 @@ export class TimersManager {
             this._armRepeating(timer, run, owns)
 
             const outcome = await run()
-            if (outcome.ran) this._report(TimerEvent.timerFire, timer)
+            if (outcome.ran) this._report(TimerEvent.timerFire, timer, undefined, previous)
         })
     }
 
@@ -605,8 +611,9 @@ export class TimersManager {
                 environment: { ...environment },
                 localFunctions: rehydrateLocalFunctions(timer.vars?.localFunctions, timer.path, "ForgeTimers"),
                 args: timer.args ?? [],
-                host: resolved.host,
-                hostMember: resolved.hostMember,
+                author: resolved.author,
+                authorMember: resolved.authorMember,
+                timer,
             })
 
             await Interpreter.run(ctx).catch(Logger.error)
@@ -640,12 +647,13 @@ export class TimersManager {
 
         const obj = target.obj
         const hasAuthor = "author" in obj || "user" in obj
-        const host = timer.hostID && !hasAuthor ? await this.client.users.fetch(timer.hostID).catch(() => null) : null
+        const author =
+            timer.authorID && !hasAuthor ? await this.client.users.fetch(timer.authorID).catch(() => null) : null
 
         const guild = timer.guildID ? this.client.guilds.cache.get(timer.guildID) : undefined
-        const hostMember = host && guild ? await guild.members.fetch(host.id).catch(() => null) : null
+        const authorMember = author && guild ? await guild.members.fetch(author.id).catch(() => null) : null
 
-        return { ok: true, resolved: { obj, host, hostMember } }
+        return { ok: true, resolved: { obj, author, authorMember } }
     }
 
     private async _rebuildTarget(timer: Timer): Promise<ITargetResult> {
@@ -672,7 +680,6 @@ export class TimersManager {
             return { ok: true, obj: {} }
         }
 
-        // refills the author from hostID
         if (timer.messageID && "messages" in channel) {
             const message = await channel.messages.fetch(timer.messageID).catch(() => null)
             if (message) return { ok: true, obj: message as Sendable }
@@ -681,24 +688,34 @@ export class TimersManager {
         return { ok: true, obj: channel as Sendable }
     }
 
-    /** What it can't see is left alone — it's a sibling shard or an outage. Deleting is opt-in */
+    // What it can't see is left alone, because it's a sibling shard or an outage. Deleting is opt-in
+    /**
+     * Whether this process is the one meant to run a timer.
+     *
+     * @param timer The timer being restored.
+     */
     private async _owns(timer: Timer) {
         if (!timer.guildID) {
-            // no guild means shard 0, otherwise sharding would run it twice
+            // one shard has to be picked or every shard would run it
             return !this.client.shard || this.client.shard.ids.includes(0)
         }
 
-        if (this.client.guilds.cache.has(timer.guildID)) return true
-
-        if (!this.client.shard && this.timers.options.pruneUnknownGuilds) {
-            Logger.warn(`Dropping ${timer.kind} "${timer.name}": guild ${timer.guildID} is not visible to this process`)
-            this._report(TimerEvent.timerDrop, timer, {
-                dropReason: `guild ${timer.guildID} is not visible to this process`,
-            })
-            await this._forget(timer)
+        if (this.client.shard) {
+            const owner = ShardClientUtil.shardIdForGuildId(timer.guildID, this.client.shard.count)
+            if (!this.client.shard.ids.includes(owner)) return false
         }
 
-        return false
+        if (this.timers.options.pruneUnknownGuilds && !this.client.guilds.cache.has(timer.guildID)) {
+            const dropReason = `guild ${timer.guildID} is not one this process is in`
+
+            Logger.warn(`Dropping ${timer.kind} "${timer.name}": ${dropReason}`)
+            this._report(TimerEvent.timerDrop, timer, { dropReason })
+            await this._forget(timer)
+
+            return false
+        }
+
+        return true
     }
 
     private async _restore() {

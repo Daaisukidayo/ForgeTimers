@@ -1,6 +1,7 @@
 import { ArgType, IExtendedCompiledFunctionField, NativeFunction } from "@tryforge/forgescript"
 import { ForgeTimers, Timer, TimerKind } from "../.."
-import { repeatingRunner, snapshotVars } from "../../functions/snapshotVars"
+import { snapshotVars } from "../../functions/snapshotVars"
+import { snapshotRunner } from "../../structures"
 import { setLongInterval } from "../../functions/schedule"
 import { overridesOf } from "../../functions/overrides"
 
@@ -75,7 +76,7 @@ export default new NativeFunction({
             )
         }
 
-        const { runtime, run } = repeatingRunner(ctx, (tick) => this["resolveCode"](tick, code).catch(ctx.noop))
+        const { runtime, run, carries } = snapshotRunner(ctx, (tick) => this["resolveCode"](tick, code).catch(ctx.noop))
 
         if (!name) {
             setLongInterval(duration, run)
@@ -98,13 +99,14 @@ export default new NativeFunction({
             duration,
             guildID: ctx.guild?.id ?? null,
             channelID: ctx.channel?.id ?? null,
-            hostID: ctx.user?.id ?? null,
+            authorID: ctx.user?.id ?? null,
             messageID: ctx.message?.id ?? null,
             args: ctx.args.length ? [...ctx.args] : undefined,
             config: overridesOf({ persist, maxOverdue, restoredTicksLimit }),
             vars: snapshotVars(runtime, this.fn.name),
         })
 
+        carries(timer)
         await ctx.client.getExtension(ForgeTimers, true).timersManager.start(timer, run)
 
         return this.success()

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { Database, marks, run, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./support/harness"
+import { nextRun } from "../functions/cron"
 
 let harness: TestHarness
 
@@ -92,6 +93,50 @@ describe("reading a cron back", () => {
 
         assert.equal(await run(harness, "$getTimer[timeout;later;cron]"), "")
         assert.equal(await run(harness, "$getTimer[timeout;later;timezone]"), "")
+    })
+})
+
+describe("a cron across a change of the clocks", () => {
+    const ZONE = "America/New_York"
+
+    /** What the zone's own clock reads at each of the next few occurrences */
+    const localRuns = (expression: string, from: string, count = 3) => {
+        const hits: string[] = []
+        let at = Date.parse(from)
+
+        for (let i = 0; i < count; i++) {
+            at = nextRun(expression, at, ZONE)
+            hits.push(new Date(at).toLocaleString("sv-SE", { timeZone: ZONE }))
+        }
+
+        return hits
+    }
+
+    it("runs the hour the clocks skip over, rather than missing that day", () => {
+        // new york jumps 02:00 to 03:00 on this date, so 2am does not exist
+        assert.deepEqual(localRuns("0 2 * * *", "2027-03-13T12:00:00Z"), [
+            "2027-03-14 03:00:00",
+            "2027-03-15 02:00:00",
+            "2027-03-16 02:00:00",
+        ])
+    })
+
+    it("runs the hour the clocks repeat only once", () => {
+        // 01:00 comes round twice on this date, and a daily cron is due on one of them
+        assert.deepEqual(localRuns("0 1 * * *", "2027-11-06T12:00:00Z"), [
+            "2027-11-07 01:00:00",
+            "2027-11-08 01:00:00",
+            "2027-11-09 01:00:00",
+        ])
+    })
+
+    it("keeps to the wall clock either side, which is the whole point of a zone", () => {
+        const spring = localRuns("0 9 * * *", "2027-03-12T12:00:00Z", 4)
+
+        assert.ok(
+            spring.every((at) => at.endsWith("09:00:00")),
+            `nine in the morning drifted: ${spring}`
+        )
     })
 })
 

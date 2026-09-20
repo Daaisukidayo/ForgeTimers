@@ -20,7 +20,7 @@ export function runCommands(client: ForgeClient, event: TimerEventName, payload:
     const commands = client.getExtension(ForgeTimers, true).commands?.get(event) ?? []
     if (!commands.length) return
 
-    const { timer, event: data } = payload
+    const { timer, previous, event: data } = payload
 
     for (const command of commands) {
         Interpreter.run(
@@ -31,6 +31,7 @@ export function runCommands(client: ForgeClient, event: TimerEventName, payload:
                 obj: {},
                 timer: timer ?? null,
                 event: data ?? null,
+                states: { timer: { old: previous ?? null, new: timer ?? null } },
             })
         ).catch(Logger.error)
     }

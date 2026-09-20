@@ -260,3 +260,116 @@ describe("$findTimer", () => {
         assert.notEqual(await run(harness, "$findTimer[]"), "[]", "a filterless call must not read as a match of none")
     })
 })
+
+describe("a timer reading itself", () => {
+    it("knows its own name and kind while it runs", async () => {
+        await run(harness, "$setTimeout[$testMark[me:$timerData[name]:$timerData[kind]];50;mine]")
+
+        assert.ok(await waitFor(() => marks.includes("me:mine:timeout"), 3000), `it saw ${marks}`)
+    })
+
+    it("reads the same on every tick of an interval", async () => {
+        await run(harness, "$setInterval[$testMark[beat:$timerData[name]];60;drum]")
+
+        assert.ok(await waitFor(() => marks.filter((m) => m === "beat:drum").length >= 2, 3000), `it saw ${marks}`)
+    })
+
+    it("reads its expression back after a restart", async () => {
+        await Database.set(
+            new Timer({
+                name: "daily",
+                kind: TimerKind.cron,
+                code: "$testMark[on:$timerData[cron]]",
+                cron: "* * * * * *",
+                timezone: "UTC",
+                channelID: "chan-1",
+            })
+        )
+
+        await harness.ready()
+
+        assert.ok(await waitFor(() => marks.includes("on:* * * * * *"), 4000), `a restored cron saw ${marks}`)
+    })
+
+    it("says nothing for an unnamed timer, which has no record to read", async () => {
+        await run(harness, "$setTimeout[$testMark[loose:<$timerData[name]>];50]")
+
+        assert.ok(await waitFor(() => marks.includes("loose:<>"), 3000), `it saw ${marks}`)
+    })
+})
+
+describe("$clearTimer", () => {
+    it("cancels any kind under one name, telling them apart", async () => {
+        await run(harness, "$setTimeout[$testMark[t];1h;n]")
+        await run(harness, "$setInterval[$testMark[i];1h;n]")
+
+        assert.equal(await run(harness, "$clearTimer[interval;n]"), "true")
+
+        assert.equal(await run(harness, "$timerExists[interval;n]"), "false")
+        assert.equal(await run(harness, "$timerExists[timeout;n]"), "true", "it took the wrong one")
+    })
+
+    it("cancels a cron, which the kind-specific ones cannot be asked for generically", async () => {
+        await run(harness, "$setCron[x;0 9 * * *;daily]")
+
+        assert.equal(await run(harness, "$clearTimer[cron;daily]"), "true")
+        assert.equal(await run(harness, "$timerExists[cron;daily]"), "false")
+    })
+
+    it("says no for a name nothing was scheduled under", async () => {
+        assert.equal(await run(harness, "$clearTimer[timeout;never]"), "false")
+    })
+})
+
+describe("$clearTimers", () => {
+    it("cancels every match and counts them, leaving the rest alone", async () => {
+        await run(harness, "$setTimeout[x;1h;a]")
+        await run(harness, "$setTimeout[x;1h;b]")
+        await Database.set(new Timer({ name: "elsewhere", kind: TimerKind.timeout, duration: 1000, channelID: "c2" }))
+
+        assert.equal(await run(harness, "$clearTimers[channelID;chan-1]"), "2")
+
+        assert.equal(await run(harness, "$timerExists[timeout;a]"), "false")
+        assert.equal(await run(harness, "$timerExists[timeout;b]"), "false")
+        assert.equal(await run(harness, "$timerExists[timeout;elsewhere]"), "true", "it reached past its filter")
+    })
+
+    it("takes the same pairs $findTimer does", async () => {
+        await run(harness, "$setTimeout[x;1h;a]")
+        await run(harness, "$setInterval[x;1h;b]")
+
+        assert.equal(await run(harness, "$clearTimers[channelID;chan-1;kind;interval]"), "1")
+        assert.equal(await run(harness, "$timerExists[timeout;a]"), "true", "only the interval was asked for")
+    })
+
+    it("counts none when nothing matches, and refuses a pair without its value", async () => {
+        await run(harness, "$setTimeout[x;1h;n]")
+
+        assert.equal(await run(harness, "$clearTimers[name;missing]"), "0")
+        assert.notEqual(await run(harness, "$clearTimers[kind;timeout;channelID]"), "1", "an odd filter still cleared")
+        assert.equal(await run(harness, "$timerExists[timeout;n]"), "true", "and it took something anyway")
+    })
+})
+
+describe("$timersCount", () => {
+    it("counts what is stored, of one kind or of all of them", async () => {
+        await run(harness, "$setTimeout[x;1h;a]")
+        await run(harness, "$setInterval[x;1h;b]")
+        await run(harness, "$setCron[x;0 9 * * *;c]")
+
+        assert.equal(await run(harness, "$timersCount"), "3")
+        assert.equal(await run(harness, "$timersCount[interval]"), "1")
+        assert.equal(await run(harness, "$timersCount[cron]"), "1")
+    })
+
+    it("counts a paused timer, which is stored like any other", async () => {
+        await run(harness, "$setTimeout[x;1h;n]")
+        await run(harness, "$pauseTimer[timeout;n]")
+
+        assert.equal(await run(harness, "$timersCount[timeout]"), "1")
+    })
+
+    it("is zero when nothing is stored", async () => {
+        assert.equal(await run(harness, "$timersCount"), "0")
+    })
+})

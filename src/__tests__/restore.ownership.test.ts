@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
+import { ShardClientUtil } from "discord.js"
 import { Database, persist, TestHarness, Timer, TimerKind, useHarness } from "./support/harness"
 
 let harness: TestHarness
@@ -7,7 +8,7 @@ let harness: TestHarness
 useHarness((booted) => (harness = booted))
 
 describe("ownership across processes", () => {
-    it("leaves a timer whose guild this process cannot see", async () => {
+    it("runs a timer whose guild it cannot see, with nothing to share the work with", async () => {
         await persist(
             new Timer({
                 name: "n",
@@ -21,8 +22,46 @@ describe("ownership across processes", () => {
         )
         await harness.ready()
 
-        assert.ok(await Database.get(TimerKind.timeout, "n"), "another shard's timer is not ours to delete")
-        assert.equal(harness.client.timeouts.has("n"), false, "nor ours to run")
+        assert.ok(await Database.get(TimerKind.timeout, "n"), "it is not anyone else's to leave alone")
+        assert.equal(harness.client.timeouts.has("n"), true, "a guild it never uses must not hold its code back")
+    })
+
+    it("takes only the guilds its own shards own, whether or not they are in cache", async () => {
+        // discord hands a guild to (id >> 22) % count, so ask it which shard each of these is for
+        const ours = "1234567890123456789"
+        const mine = ShardClientUtil.shardIdForGuildId(ours, 4)
+
+        const theirs = "9876543210987654321"
+        assert.notEqual(ShardClientUtil.shardIdForGuildId(theirs, 4), mine, "both guilds landed on one shard")
+
+        harness.client.shard = { ids: [mine], count: 4 }
+
+        for (const [name, guildID] of [
+            ["ours", ours],
+            ["theirs", theirs],
+        ] as const) {
+            await persist(
+                new Timer({ name, kind: TimerKind.timeout, code: `$testMark[${name}]`, duration: 1000, guildID }),
+                Date.now() + 60_000
+            )
+        }
+
+        await harness.ready()
+
+        assert.equal(harness.client.timeouts.has("ours"), true, "its own shard's guild was passed over")
+        assert.equal(harness.client.timeouts.has("theirs"), false, "it took a guild belonging to another shard")
+    })
+
+    it("leaves a guildless timer to shard 0", async () => {
+        harness.client.shard = { ids: [2], count: 4 }
+        await persist(
+            new Timer({ name: "loose", kind: TimerKind.timeout, code: "$testMark[loose]", duration: 1000 }),
+            Date.now() + 60_000
+        )
+
+        await harness.ready()
+
+        assert.equal(harness.client.timeouts.has("loose"), false, "every shard would have run it")
     })
 
     it("prunes it only when asked to", async () => {
