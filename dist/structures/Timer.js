@@ -252,6 +252,10 @@ class MongoTimer extends Timer {
      * The object id for MongoDB.
      */
     mongoId;
+    /**
+     * What builds before 2.0.0 wrote the author under, read beside {@link Timer.authorID} on mongo alone.
+     */
+    hostID;
 }
 exports.MongoTimer = MongoTimer;
 //# sourceMappingURL=Timer.js.map

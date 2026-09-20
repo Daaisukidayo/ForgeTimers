@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { join } from "node:path"
 import { describe, it } from "node:test"
 import { Database, Timer, TimerKind, useTempHome } from "./support/harness"
+import { MongoTimerSchema } from "../structures/stores/ForgeDBStore"
 
 const folder = useTempHome("forgetimers-forgedb")
 
@@ -78,5 +79,15 @@ describe("a row an older version wrote", () => {
         assert.deepEqual(back.vars?.keywords, { k: "v" })
 
         await Database.wipe()
+    })
+})
+
+describe("the entity mongo reads", () => {
+    it("renames no column, since mongo writes property names and reads column names", () => {
+        const renamed = Object.entries(MongoTimerSchema.options.columns)
+            .filter(([property, column]) => column?.name !== undefined && column.name !== property)
+            .map(([property]) => property)
+
+        assert.deepEqual(renamed, [], "such a column is written under the property and looked for under the column")
     })
 })

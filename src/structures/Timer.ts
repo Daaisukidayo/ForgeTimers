@@ -415,4 +415,9 @@ export class MongoTimer extends Timer {
      * The object id for MongoDB.
      */
     public mongoId?: string
+
+    /**
+     * What builds before 2.0.0 wrote the author under, read beside {@link Timer.authorID} on mongo alone.
+     */
+    public hostID?: Snowflake | null
 }

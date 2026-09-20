@@ -56,6 +56,20 @@ export function persistenceSuite(target: TestDatabase) {
             assert.deepEqual(back.vars, original.vars)
         })
 
+        if (target === "mongodb") {
+            it("reads the author an older build wrote under hostID", async () => {
+                // mongo stores an entity under its property names, so this is the document 1.x left behind
+                const legacy = sample() as Timer & { hostID?: string | null }
+                legacy.authorID = null
+                legacy.hostID = "user-1"
+
+                await Database.set(legacy)
+
+                const back = await Database.get(TimerKind.timeout, "reminder")
+                assert.equal(back?.authorID, "user-1", "an upgrade must not lose who scheduled the timer")
+            })
+        }
+
         it("keeps epoch timestamps intact instead of overflowing an int32", async () => {
             const original = sample()
             await Database.set(original)

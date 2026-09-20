@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ForgeDBStore = void 0;
+exports.ForgeDBStore = exports.MongoTimerSchema = exports.TimerSchema = void 0;
 const forge_db_1 = require("@tryforge/forge.db");
 const typeorm_1 = require("typeorm");
 const Timer_1 = require("../Timer");
@@ -27,32 +27,36 @@ const columns = {
     pausedAt: { type: "bigint", nullable: true, transformer: numeric },
     guildID: { type: "varchar", nullable: true },
     channelID: { type: "varchar", nullable: true },
-    authorID: { type: "varchar", nullable: true, name: "hostID" },
+    authorID: { type: "varchar", nullable: true },
     messageID: { type: "varchar", nullable: true },
     args: { type: "simple-json", nullable: true },
     config: { type: "simple-json", nullable: true },
     vars: { type: "simple-json", nullable: true },
 };
-const TimerSchema = new typeorm_1.EntitySchema({
+exports.TimerSchema = new typeorm_1.EntitySchema({
     name: "Timer",
     tableName: "timer",
     target: Timer_1.Timer,
-    columns,
+    columns: { ...columns, authorID: { ...columns.authorID, name: "hostID" } },
 });
-const MongoTimerSchema = new typeorm_1.EntitySchema({
+exports.MongoTimerSchema = new typeorm_1.EntitySchema({
     name: "MongoTimer",
     tableName: "mongo_timer",
     target: Timer_1.MongoTimer,
-    columns: { mongoId: { type: String, objectId: true }, ...columns },
+    columns: {
+        mongoId: { type: String, objectId: true },
+        ...columns,
+        hostID: { type: "varchar", nullable: true },
+    },
 });
 /** Keeps timers in whatever ForgeDB is already connected to: sqlite, postgres, mysql or mongodb */
 class ForgeDBStore extends forge_db_1.DataBaseManager {
     database = "timers.db";
     entityManager = {
-        sqlite: [TimerSchema],
-        mongodb: [MongoTimerSchema],
-        mysql: [TimerSchema],
-        postgres: [TimerSchema],
+        sqlite: [exports.TimerSchema],
+        mongodb: [exports.MongoTimerSchema],
+        mysql: [exports.TimerSchema],
+        postgres: [exports.TimerSchema],
     };
     connecting;
     source;
@@ -87,14 +91,24 @@ class ForgeDBStore extends forge_db_1.DataBaseManager {
     get repository() {
         return this.source.getRepository(this.entity);
     }
+    /** A mongo document an older build wrote carries the author under hostID, where no column alias reaches */
+    static fold(timer) {
+        const row = timer;
+        if (!row)
+            return timer;
+        if (row.authorID == null)
+            row.authorID = row.hostID ?? null;
+        delete row.hostID;
+        return timer;
+    }
     async get(kind, name) {
-        return (await this.repository.findOneBy({ id: Timer_1.Timer.idOf(kind, name) }));
+        return ForgeDBStore.fold((await this.repository.findOneBy({ id: Timer_1.Timer.idOf(kind, name) })));
     }
     async getAll() {
-        return (await this.repository.find());
+        return (await this.repository.find()).map((timer) => ForgeDBStore.fold(timer));
     }
     async getAllOf(kind) {
-        return (await this.repository.findBy({ kind }));
+        return (await this.repository.findBy({ kind })).map((timer) => ForgeDBStore.fold(timer));
     }
     async set(timer) {
         if (this.type === "mongodb") {

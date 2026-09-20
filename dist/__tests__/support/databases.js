@@ -53,6 +53,17 @@ function persistenceSuite(target) {
             strict_1.default.deepEqual(back.config, original.config);
             strict_1.default.deepEqual(back.vars, original.vars);
         });
+        if (target === "mongodb") {
+            (0, node_test_1.it)("reads the author an older build wrote under hostID", async () => {
+                // mongo stores an entity under its property names, so this is the document 1.x left behind
+                const legacy = sample();
+                legacy.authorID = null;
+                legacy.hostID = "user-1";
+                await harness_1.Database.set(legacy);
+                const back = await harness_1.Database.get(harness_1.TimerKind.timeout, "reminder");
+                strict_1.default.equal(back?.authorID, "user-1", "an upgrade must not lose who scheduled the timer");
+            });
+        }
         (0, node_test_1.it)("keeps epoch timestamps intact instead of overflowing an int32", async () => {
             const original = sample();
             await harness_1.Database.set(original);
