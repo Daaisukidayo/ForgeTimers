@@ -391,7 +391,6 @@ class TimersManager {
         }
         return timer.config ? { ...config, ...(0, overrides_1.readOverrides)(timer.config) } : config;
     }
-    /** Arms `fn`, keeping the live map on the pending chunk so {@link clear} cancels the right one */
     /**
      * Why a stored cron could never be armed, or null when it can.
      * @param timer The cron to look over.
@@ -402,6 +401,7 @@ class TimersManager {
         const invalid = (0, cron_1.cronError)(timer.cron, timer.timezone);
         return invalid ? `its expression "${timer.cron}" can no longer be read: ${invalid}` : null;
     }
+    /** Arms `fn`, keeping the live map on the pending chunk so {@link clear} cancels the right one */
     _schedule(kind, name, delay, fn) {
         const map = this.mapOf(kind);
         const guarded = async () => {

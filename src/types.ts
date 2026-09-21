@@ -1,4 +1,3 @@
-// type-only, so the cycles with these are erased rather than carried into the build
 import type { Timer } from "./structures/Timer"
 import type { TimerStorage } from "./structures/Database"
 

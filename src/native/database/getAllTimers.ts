@@ -1,6 +1,6 @@
 import { ArgType, NativeFunction } from "@tryforge/forgescript"
 import { Database, ForgeTimers, TimerKind } from "../.."
-import { readProperties, TimerProperties, TimerProperty } from "../../properties/timer"
+import { isStructured, readProperties, TimerProperties, TimerProperty } from "../../properties/timer"
 
 export default new NativeFunction({
     name: "$getAllTimers",
@@ -44,7 +44,7 @@ export default new NativeFunction({
         if (!sep) return this.successJSON(values)
 
         // args and config would read as [object Object] once joined
-        const flat = values.map((value) => (typeof value === "object" && value !== null ? JSON.stringify(value) : value))
+        const flat = values.map((value) => (isStructured(value) ? JSON.stringify(value) : value))
         return this.success(flat.join(sep))
     }
 })

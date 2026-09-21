@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TimerProperties = exports.TimerProperty = void 0;
+exports.isStructured = isStructured;
 exports.textOf = textOf;
 exports.readFilters = readFilters;
 exports.matches = matches;
@@ -25,6 +26,10 @@ var TimerProperty;
     TimerProperty["args"] = "args";
     TimerProperty["config"] = "config";
 })(TimerProperty || (exports.TimerProperty = TimerProperty = {}));
+/** Whether a value has to go back as JSON, since plain text flattens it to [object Object] */
+function isStructured(value) {
+    return typeof value === "object" && value !== null;
+}
 /** How a property reads as text, so every one of them can be matched the same way */
 function textOf(timer, property) {
     const value = exports.TimerProperties[property](timer);
@@ -45,7 +50,8 @@ function readFilters(filters) {
     const pairs = [];
     for (let i = 0; i < filters.length; i += 2) {
         const named = filters[i];
-        if (!(named in exports.TimerProperties))
+        // "in" reaches the prototype, where toString would match every timer and __proto__ would throw
+        if (!Object.hasOwn(exports.TimerProperties, named))
             return { ok: false, reason: `"${named}" is not a timer property.` };
         pairs.push([named, filters[i + 1]]);
     }

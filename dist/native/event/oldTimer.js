@@ -18,12 +18,13 @@ exports.default = new forgescript_1.NativeFunction({
             enum: timer_1.TimerProperty,
         },
     ],
-    output: forgescript_1.ArgType.Unknown,
+    output: [forgescript_1.ArgType.Json, forgescript_1.ArgType.Unknown],
     execute(ctx, [property]) {
         const old = ctx.states?.timer?.old;
         if (!old)
             return this.success();
-        return this.success(timer_1.TimerProperties[property](old));
+        const value = timer_1.TimerProperties[property](old);
+        return (0, timer_1.isStructured)(value) ? this.successJSON(value) : this.success(value);
     },
 });
 //# sourceMappingURL=oldTimer.js.map

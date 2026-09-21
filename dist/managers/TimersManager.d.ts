@@ -139,12 +139,12 @@ export declare class TimersManager {
      * @param timer The timer to resolve the config of.
      */
     private configFor;
-    /** Arms `fn`, keeping the live map on the pending chunk so {@link clear} cancels the right one */
     /**
      * Why a stored cron could never be armed, or null when it can.
      * @param timer The cron to look over.
      */
     private _cronFault;
+    /** Arms `fn`, keeping the live map on the pending chunk so {@link clear} cancels the right one */
     private _schedule;
     private _arm;
     private _armTimeout;

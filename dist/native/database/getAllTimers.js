@@ -45,7 +45,7 @@ exports.default = new forgescript_1.NativeFunction({
         if (!sep)
             return this.successJSON(values);
         // args and config would read as [object Object] once joined
-        const flat = values.map((value) => (typeof value === "object" && value !== null ? JSON.stringify(value) : value));
+        const flat = values.map((value) => ((0, timer_1.isStructured)(value) ? JSON.stringify(value) : value));
         return this.success(flat.join(sep));
     }
 });

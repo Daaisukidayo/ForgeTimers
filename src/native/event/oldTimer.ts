@@ -1,5 +1,5 @@
 import { ArgType, NativeFunction } from "@tryforge/forgescript"
-import { TimerProperties, TimerProperty } from "../../properties/timer"
+import { isStructured, TimerProperties, TimerProperty } from "../../properties/timer"
 
 export default new NativeFunction({
     name: "$oldTimer",
@@ -17,11 +17,12 @@ export default new NativeFunction({
             enum: TimerProperty,
         },
     ],
-    output: ArgType.Unknown,
+    output: [ArgType.Json, ArgType.Unknown],
     execute(ctx, [property]) {
         const old = ctx.states?.timer?.old
         if (!old) return this.success()
 
-        return this.success(TimerProperties[property](old))
+        const value = TimerProperties[property](old)
+        return isStructured(value) ? this.successJSON(value) : this.success(value)
     },
 })

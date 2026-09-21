@@ -45,9 +45,7 @@ exports.default = new forgescript_1.NativeFunction({
             return this.success();
         if (prop) {
             const value = timer_1.TimerProperties[prop](timer);
-            return typeof value === "object" && value !== null
-                ? this.successJSON(value)
-                : this.success(value);
+            return (0, timer_1.isStructured)(value) ? this.successJSON(value) : this.success(value);
         }
         return this.successJSON((0, timer_1.readProperties)(timer));
     }

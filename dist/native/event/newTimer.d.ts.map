@@ -1,1 +1,1 @@
-{"version":3,"file":"newTimer.d.ts","sourceRoot":"","sources":["../../../src/native/event/newTimer.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,OAAO,EAAE,cAAc,EAAE,MAAM,uBAAuB,CAAA;AAC/D,OAAO,EAAmB,aAAa,EAAE,MAAM,wBAAwB,CAAA;;;;;;;;;AAEvE,wBAuBE"}
+{"version":3,"file":"newTimer.d.ts","sourceRoot":"","sources":["../../../src/native/event/newTimer.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,OAAO,EAAE,cAAc,EAAE,MAAM,uBAAuB,CAAA;AAC/D,OAAO,EAAiC,aAAa,EAAE,MAAM,wBAAwB,CAAA;;;;;;;;;AAErF,wBAwBE"}

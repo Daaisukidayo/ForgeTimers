@@ -24,6 +24,11 @@ export type ITimerFilter = [TimerProperty, string]
 
 export type IFilterResult = { ok: true; pairs: ITimerFilter[] } | { ok: false; reason: string }
 
+/** Whether a value has to go back as JSON, since plain text flattens it to [object Object] */
+export function isStructured(value: unknown) {
+    return typeof value === "object" && value !== null
+}
+
 /** How a property reads as text, so every one of them can be matched the same way */
 export function textOf(timer: Timer, property: TimerProperty) {
     const value = TimerProperties[property](timer)
@@ -48,7 +53,8 @@ export function readFilters(filters: string[]): IFilterResult {
     for (let i = 0; i < filters.length; i += 2) {
         const named = filters[i] as TimerProperty
 
-        if (!(named in TimerProperties)) return { ok: false, reason: `"${named}" is not a timer property.` }
+        // "in" reaches the prototype, where toString would match every timer and __proto__ would throw
+        if (!Object.hasOwn(TimerProperties, named)) return { ok: false, reason: `"${named}" is not a timer property.` }
 
         pairs.push([named, filters[i + 1]])
     }

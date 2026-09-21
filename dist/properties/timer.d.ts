@@ -26,6 +26,8 @@ export type IFilterResult = {
     ok: false;
     reason: string;
 };
+/** Whether a value has to go back as JSON, since plain text flattens it to [object Object] */
+export declare function isStructured(value: unknown): value is object;
 /** How a property reads as text, so every one of them can be matched the same way */
 export declare function textOf(timer: Timer, property: TimerProperty): string;
 /**

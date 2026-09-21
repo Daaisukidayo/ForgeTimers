@@ -25,7 +25,8 @@ exports.default = new forgescript_1.NativeFunction({
             return this.success();
         if (!prop)
             return this.successJSON((0, timer_1.readProperties)(timer));
-        return this.successJSON(timer_1.TimerProperties[prop](timer));
+        const value = timer_1.TimerProperties[prop](timer);
+        return (0, timer_1.isStructured)(value) ? this.successJSON(value) : this.success(value);
     },
 });
 //# sourceMappingURL=timerData.js.map

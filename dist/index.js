@@ -96,7 +96,7 @@ class ForgeTimers extends forgescript_1.ForgeExtension {
             }
         }
         for (const event of events ?? []) {
-            if (!(event in types_1.TimerEvent)) {
+            if (!Object.hasOwn(types_1.TimerEvent, event)) {
                 logger_1.Logger.warn(`"${event}" is not a timer event, so loading them will fail. ` +
                     `The ones there are: ${Object.keys(types_1.TimerEvent).join(", ")}.`);
             }
