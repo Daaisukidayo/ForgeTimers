@@ -6,12 +6,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
 const forgescript_1 = require("@tryforge/forgescript");
-const snapshotVars_1 = require("../functions/snapshotVars");
+const structures_1 = require("../structures");
 forgescript_1.FunctionManager.loadNative();
 class Dummy {
     label = "class instance";
 }
-const snapshot = (environment) => (0, snapshotVars_1.restoreVars)((0, snapshotVars_1.snapshotVars)({ environment, keywords: {}, localFunctions: {} }, "test").environment, snapshotVars_1.VARS_SCHEMA_VERSION);
+const snapshot = (environment) => (0, structures_1.restoreVars)((0, structures_1.snapshotVars)({ environment, keywords: {}, localFunctions: {} }, "test").environment, structures_1.VARS_SCHEMA_VERSION);
 (0, node_test_1.describe)("snapshotVars", () => {
     (0, node_test_1.it)("keeps the json-safe values", () => {
         const kept = snapshot({
@@ -99,44 +99,44 @@ const snapshot = (environment) => (0, snapshotVars_1.restoreVars)((0, snapshotVa
         strict_1.default.equal(kept.live.nested.n, 1, "the snapshot must not follow later edits");
     });
     (0, node_test_1.it)("carries keywords and environment separately", () => {
-        const out = (0, snapshotVars_1.snapshotVars)({ keywords: { k: "kept" }, environment: { e: "kept" }, localFunctions: {} }, "test");
+        const out = (0, structures_1.snapshotVars)({ keywords: { k: "kept" }, environment: { e: "kept" }, localFunctions: {} }, "test");
         strict_1.default.deepEqual(out.keywords, { k: "kept" });
         strict_1.default.deepEqual(out.environment, { e: "kept" });
     });
     (0, node_test_1.it)("reads a record written before the schema existed as plain json", () => {
         const legacy = { plain: "value", nested: { n: 1 } };
-        strict_1.default.deepEqual((0, snapshotVars_1.restoreVars)(legacy, 0), legacy);
+        strict_1.default.deepEqual((0, structures_1.restoreVars)(legacy, 0), legacy);
     });
     (0, node_test_1.it)("leaves an unknown tag out rather than guessing", () => {
-        strict_1.default.deepEqual((0, snapshotVars_1.restoreVars)({ odd: { $forge: "something-new", value: 1 } }, snapshotVars_1.VARS_SCHEMA_VERSION), {});
+        strict_1.default.deepEqual((0, structures_1.restoreVars)({ odd: { $forge: "something-new", value: 1 } }, structures_1.VARS_SCHEMA_VERSION), {});
     });
 });
 (0, node_test_1.describe)("rehydrateLocalFunctions", () => {
     (0, node_test_1.it)("recompiles a stored function", () => {
-        const out = (0, snapshotVars_1.rehydrateLocalFunctions)({ greet: { code: "hello", args: ["name"] } }, null, "test");
+        const out = (0, structures_1.rehydrateLocalFunctions)({ greet: { code: "hello", args: ["name"] } }, null, "test");
         strict_1.default.deepEqual(Object.keys(out), ["greet"]);
         strict_1.default.deepEqual(out.greet.args, ["name"]);
         strict_1.default.equal(out.greet.code.rawValue, "hello");
     });
     (0, node_test_1.it)("round-trips through snapshotVars", () => {
         const compiled = forgescript_1.Compiler.compile("hello");
-        const snapped = (0, snapshotVars_1.snapshotVars)({
+        const snapped = (0, structures_1.snapshotVars)({
             keywords: {},
             environment: {},
             localFunctions: {
                 greet: { args: ["name"], code: { rawValue: "hello", ...compiled } },
             },
         }, "test");
-        const out = (0, snapshotVars_1.rehydrateLocalFunctions)(snapped.localFunctions, null, "test");
+        const out = (0, structures_1.rehydrateLocalFunctions)(snapped.localFunctions, null, "test");
         strict_1.default.equal(out.greet.code.rawValue, "hello");
         strict_1.default.deepEqual(out.greet.args, ["name"]);
     });
     (0, node_test_1.it)("drops a function that no longer compiles instead of throwing", () => {
-        const out = (0, snapshotVars_1.rehydrateLocalFunctions)({ broken: { code: "$if[", args: [] }, fine: { code: "ok", args: [] } }, null, "test");
+        const out = (0, structures_1.rehydrateLocalFunctions)({ broken: { code: "$if[", args: [] }, fine: { code: "ok", args: [] } }, null, "test");
         strict_1.default.deepEqual(Object.keys(out), ["fine"]);
     });
     (0, node_test_1.it)("returns nothing when there is nothing stored", () => {
-        strict_1.default.deepEqual((0, snapshotVars_1.rehydrateLocalFunctions)(undefined, null, "test"), {});
+        strict_1.default.deepEqual((0, structures_1.rehydrateLocalFunctions)(undefined, null, "test"), {});
     });
 });
 //# sourceMappingURL=snapshot.test.js.map

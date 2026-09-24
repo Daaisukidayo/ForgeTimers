@@ -1,1 +1,1 @@
-{"version":3,"file":"oldTimer.d.ts","sourceRoot":"","sources":["../../../src/native/event/oldTimer.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,OAAO,EAAE,cAAc,EAAE,MAAM,uBAAuB,CAAA;AAC/D,OAAO,EAAiC,aAAa,EAAE,MAAM,wBAAwB,CAAA;;;;;;;;;AAErF,wBAwBE"}
+{"version":3,"file":"oldTimer.d.ts","sourceRoot":"","sources":["../../../src/native/event/oldTimer.ts"],"names":[],"mappings":"AAAA,OAAO,EAAO,OAAO,EAAE,cAAc,EAAE,MAAM,uBAAuB,CAAA;AACpE,OAAO,EAAU,aAAa,EAAE,MAAM,wBAAwB,CAAA;;AAE9D,wBAaE"}

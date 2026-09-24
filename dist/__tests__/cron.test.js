@@ -9,9 +9,9 @@ const harness_1 = require("./support/harness");
 const cron_1 = require("../functions/cron");
 let harness;
 (0, harness_1.useHarness)((booted) => (harness = booted));
-/** Every second, so a test can watch it come round without waiting on a wall clock */
+/** Every second. A test watches it come round without waiting on a wall clock. */
 const EVERY_SECOND = "* * * * * *";
-/** A per-second cron whose last due time is `secondsAgo` behind, so it has that many to catch up on */
+/** A per-second cron last due `secondsAgo` back, with that many to catch up on. */
 function overdueCron(name, secondsAgo) {
     const timer = new harness_1.Timer({
         name,
@@ -79,7 +79,7 @@ function overdueCron(name, secondsAgo) {
 });
 (0, node_test_1.describe)("a cron across a change of the clocks", () => {
     const ZONE = "America/New_York";
-    /** What the zone's own clock reads at each of the next few occurrences */
+    /** The zone's own clock at each of the next few occurrences. */
     const localRuns = (expression, from, count = 3) => {
         const hits = [];
         let at = Date.parse(from);
@@ -90,7 +90,7 @@ function overdueCron(name, secondsAgo) {
         return hits;
     };
     (0, node_test_1.it)("runs the hour the clocks skip over, rather than missing that day", () => {
-        // new york jumps 02:00 to 03:00 on this date, so 2am does not exist
+        // new york jumps 02:00 to 03:00 on this date, there is no 2am
         strict_1.default.deepEqual(localRuns("0 2 * * *", "2027-03-13T12:00:00Z"), [
             "2027-03-14 03:00:00",
             "2027-03-15 02:00:00",
@@ -184,10 +184,10 @@ function overdueCron(name, secondsAgo) {
         strict_1.default.equal(harness_1.marks.length, 2, `it ran past its own limit: ${harness_1.marks.length}`);
     });
     (0, node_test_1.it)("counts no further than the limit, however long it was down", async () => {
-        // a per-second expression a day behind is 86400 occurrences: only the limit may be walked
+        // a per-second expression a day behind is 86400 occurrences, walk only up to the limit
         const day = overdueCron("ancient", 86_400);
         const started = Date.now();
-        // one past the limit, which is how the caller is told there were more than it will run
+        // one past the limit tells the caller there were more than it will run
         strict_1.default.equal(day.missedTicks(2), 3, "it counted past what anything would replay");
         strict_1.default.ok(Date.now() - started < 500, "counting took long enough to be walking the whole day");
     });
@@ -231,7 +231,7 @@ function overdueCron(name, secondsAgo) {
     });
     (0, node_test_1.it)("refuses one the manager is handed directly, without standing the cron down first", async () => {
         await (0, harness_1.run)(harness, "$setCron[x;0 9 * * *;daily;UTC]");
-        // the native checks too, so only a direct caller reaches this guard
+        // the native checks too, only a direct caller reaches this guard
         strict_1.default.equal(await harness.ext.timersManager.rescheduleCron("daily", "garbage"), false);
         strict_1.default.equal((await harness_1.Database.get(harness_1.TimerKind.cron, "daily")).cron, "0 9 * * *");
         strict_1.default.equal(await (0, harness_1.run)(harness, "$timerRunning[cron;daily]"), "true", "it was cancelled by a refused call");

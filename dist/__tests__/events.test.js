@@ -15,11 +15,12 @@ let harness;
             booted.ext.commands.add({ type: event, code: `$testMark[${event}:$timerData[name]:$timerData[kind]]` });
         }
         booted.ext.commands.add({ type: types_1.TimerEvent.timerDrop, code: "$testMark[why:$eventData[dropReason]]" });
+        booted.ext.commands.add({ type: types_1.TimerEvent.timerDrop, code: "$testMark[all:$eventData]" });
     },
 });
 const QUIET = 250;
 const droppedBecause = () => harness_1.marks.find((mark) => mark.startsWith("why:"))?.slice("why:".length);
-/** A row already past due when the restore reaches it, but inside the maxOverdue this suite boots with */
+/** A row already due when the restore reaches it, but inside the maxOverdue this suite boots with. */
 const overdue = (name, code = "$testMark[ran]", extra = {}) => (0, harness_1.persist)(new harness_1.Timer({ name, kind: harness_1.TimerKind.timeout, code, duration: 3_600_000, channelID: "chan-1", ...extra }), Date.now() - 100);
 (0, node_test_1.describe)("an event named as a plain string", () => {
     (0, node_test_1.it)("is listened to, and its command runs", async () => {
@@ -34,9 +35,9 @@ const overdue = (name, code = "$testMark[ran]", extra = {}) => (0, harness_1.per
             type: types_1.TimerEvent.timersReady,
             code: "$testMark[ready:$eventData[restored]:$eventData[dropped]]",
         });
-        // inside the 1000ms maxOverdue this suite boots with, so it is kept
+        // within the 1000ms limit, kept
         await overdue("kept");
-        // an hour past it, so it is discarded instead
+        // an hour past it, discarded
         await (0, harness_1.persist)(new harness_1.Timer({ name: "stale", kind: harness_1.TimerKind.timeout, code: "x", duration: 3_600_000, channelID: "chan-1" }), Date.now() - 3_600_000);
         await harness.ready();
         strict_1.default.ok(await (0, harness_1.marked)("ready:1:1"), `wrong tally: ${harness_1.marks.filter((mark) => mark.startsWith("ready:"))}`);
@@ -132,7 +133,7 @@ const overdue = (name, code = "$testMark[ran]", extra = {}) => (0, harness_1.per
     (0, node_test_1.it)("keeps the timer off the environment entirely", async () => {
         harness.ext.commands.add({ type: types_1.TimerEvent.timerStart, code: "$testMark[env:<$env[timer]>]" });
         await (0, harness_1.run)(harness, "$setTimeout[$testMark[x];1h;reminder]");
-        // it rides the context, so a command can never reach its code or its variable snapshot through $env
+        // rides the context, a command never reaches its code or variable snapshot through $env
         strict_1.default.ok(await (0, harness_1.marked)("env:<>"), `the timer leaked into the environment: ${harness_1.marks}`);
     });
     (0, node_test_1.it)("reads the same inside a timer's own code as it does in an event", async () => {
@@ -285,8 +286,27 @@ const overdue = (name, code = "$testMark[ran]", extra = {}) => (0, harness_1.per
         harness_1.marks.length = 0;
         await (0, harness_1.run)(harness, "$clearTimeout[orphan]");
         strict_1.default.ok(await (0, harness_1.marked)(`${types_1.TimerEvent.timerCancel}:orphan:timeout`), "the cancel went unreported");
-        // nothing was stored, so there is no schedule left to report: only which name went away is true
+        // nothing was stored and no schedule is left to report, only the name that went away is true
         strict_1.default.ok(await (0, harness_1.marked)("left:0"), `it claimed to know a deadline it never read: ${harness_1.marks}`);
+    });
+});
+(0, node_test_1.describe)("a timer run by hand", () => {
+    (0, node_test_1.it)("is not reported, since nothing about the timer went off", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[ran];1h;byHand]");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$executeTimer[timeout;byHand]"), "true");
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.includes("ran"), 2000), "the stored code never ran");
+        // events aren't awaited, give absence time to show up
+        strict_1.default.ok(!(await (0, harness_1.waitFor)(() => harness_1.marks.some((mark) => mark.startsWith(types_1.TimerEvent.timerFire)), QUIET)), `a hand run was reported as the timer firing: ${harness_1.marks}`);
+    });
+});
+(0, node_test_1.describe)("what an event added", () => {
+    (0, node_test_1.it)("comes back whole as json when no property is named", async () => {
+        await overdue("broken", "$if[");
+        await harness.ready();
+        strict_1.default.ok(await (0, harness_1.marked)(`${types_1.TimerEvent.timerDrop}:broken:timeout`));
+        const whole = harness_1.marks.find((mark) => mark.startsWith("all:"));
+        strict_1.default.ok(whole, `the bare form never marked: ${harness_1.marks}`);
+        strict_1.default.match(JSON.parse(whole.slice("all:".length)).dropReason, /compiles/);
     });
 });
 //# sourceMappingURL=events.test.js.map

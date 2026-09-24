@@ -19,6 +19,11 @@ let harness;
         strict_1.default.equal(row.channelID, "chan-1");
         strict_1.default.equal(harness.client.timeouts.has("reminder"), true);
     });
+    (0, node_test_1.it)("takes a negative duration", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[now];-5000;n]");
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.includes("now"), 2000), "overriding the native must not take the call away");
+        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), null, "and a spent timeout still gives up its record");
+    });
     (0, node_test_1.it)("records where and by whom it was scheduled", async () => {
         await (0, harness_1.run)(harness, "$setTimeout[x;1h;n]", {
             id: "msg-1",
@@ -30,6 +35,18 @@ let harness;
         strict_1.default.equal(row.channelID, "chan-9");
         strict_1.default.equal(row.guildID, "guild-9");
         strict_1.default.equal(row.authorID, "user-9");
+    });
+    (0, node_test_1.it)("records a slash command, which has a channel and a user but no message", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[fired:$authorID];120;n]", {
+            channel: { id: "chan-9" },
+            user: { id: "user-9" },
+            guild: { id: "guild-9" },
+        });
+        const row = await harness_1.Database.get(harness_1.TimerKind.timeout, "n");
+        strict_1.default.equal(row.channelID, "chan-9");
+        strict_1.default.equal(row.authorID, "user-9");
+        strict_1.default.equal(row.messageID, null, "there is no message for a restart to come back to");
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.includes("fired:user-9"), 2000), "it never ran");
     });
     (0, node_test_1.it)("leaves an unnamed timeout out of the database", async () => {
         await (0, harness_1.run)(harness, "$setTimeout[x;1s]");
@@ -85,10 +102,32 @@ let harness;
         strict_1.default.equal(row.duration, 300_000);
         strict_1.default.equal(harness.client.intervals.has("pulse"), true);
     });
-    (0, node_test_1.it)("refuses a zero duration", async () => {
-        await (0, harness_1.run)(harness, "$setInterval[x;;n]");
-        strict_1.default.equal((await harness_1.Database.getAll()).length, 0);
-        strict_1.default.equal(harness.client.intervals.size, 0, "a 0ms interval would be a busy loop");
+    (0, node_test_1.it)("leaves an unnamed interval out of the database, the way an unnamed timeout is left out", async () => {
+        // an unnamed interval is registered nowhere, a real one would outlive the test with nothing to stop it
+        const schedule = require("../functions/schedule");
+        const real = schedule.setLongInterval;
+        const armed = [];
+        schedule.setLongInterval = (duration) => void armed.push(duration);
+        try {
+            await (0, harness_1.run)(harness, "$setInterval[x;1h]");
+        }
+        finally {
+            schedule.setLongInterval = real;
+        }
+        strict_1.default.deepEqual(armed, [3_600_000], "the unnamed branch never ran");
+        strict_1.default.equal((await harness_1.Database.getAll()).length, 0, "an unnamed interval must not be persisted");
+        strict_1.default.equal(harness.client.intervals.size, 0, "there is no name to register it under");
+    });
+    (0, node_test_1.it)("refuses a name too long for the key column", async () => {
+        await (0, harness_1.run)(harness, `$setInterval[x;1h;${"x".repeat(300)}]`);
+        strict_1.default.equal((await harness_1.Database.getAll()).length, 0, "an oversized name must not reach the database");
+    });
+    (0, node_test_1.it)("takes a zero duration, which forgescript runs on the event loop", async () => {
+        await (0, harness_1.run)(harness, "$setInterval[$testMark[tick];;n]");
+        const ticked = await (0, harness_1.waitFor)(() => harness_1.marks.filter((mark) => mark === "tick").length >= 2, 2000);
+        harness.disarm();
+        strict_1.default.ok(ticked, "overriding the native must not take the call away");
+        strict_1.default.equal((await harness_1.Database.get(harness_1.TimerKind.interval, "n")).duration, 0, "it is stored as it was scheduled");
     });
 });
 (0, node_test_1.describe)("$clearTimeout and $clearInterval", () => {
@@ -268,6 +307,12 @@ let harness;
     });
     (0, node_test_1.it)("says no for a name nothing was ever scheduled under", async () => {
         strict_1.default.equal(await (0, harness_1.run)(harness, "$timerExists[timeout;never]"), "false");
+    });
+});
+(0, node_test_1.describe)("$setCron", () => {
+    (0, node_test_1.it)("refuses a name too long for the key column", async () => {
+        await (0, harness_1.run)(harness, `$setCron[x;0 9 * * *;${"x".repeat(300)}]`);
+        strict_1.default.equal((await harness_1.Database.getAll()).length, 0, "an oversized name must not reach the database");
     });
 });
 //# sourceMappingURL=natives.test.js.map

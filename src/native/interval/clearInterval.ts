@@ -1,4 +1,4 @@
-import { ArgType, NativeFunction } from "@tryforge/forgescript"
+import { Arg, ArgType, NativeFunction } from "@tryforge/forgescript"
 import { ForgeTimers, TimerKind } from "../.."
 
 export default new NativeFunction({
@@ -8,18 +8,10 @@ export default new NativeFunction({
     aliases: ["$stopInterval", "$deleteInterval"],
     unwrap: true,
     brackets: true,
-    args: [
-        {
-            name: "name",
-            description: "The name of the interval",
-            rest: false,
-            required: true,
-            type: ArgType.String,
-        },
-    ],
+    args: [Arg.requiredString("name", "The name of the interval")],
     output: ArgType.Boolean,
     async execute(ctx, [name]) {
-        const manager = ctx.client.getExtension(ForgeTimers, true).timersManager
+        const manager = ForgeTimers.of(ctx.client).timersManager
         const { cleared, forgotten } = await manager.stop(TimerKind.interval, name)
         return this.success(cleared || forgotten)
     },

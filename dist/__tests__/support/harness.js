@@ -46,7 +46,7 @@ function connectionFor(target) {
 }
 let seeded = false;
 exports.marks = [];
-/** Waits for something to become true instead of guessing how long it takes */
+/** Waits for something to become true instead of guessing how long it takes. */
 async function waitFor(condition, timeout = 5000) {
     const deadline = Date.now() + timeout;
     while (Date.now() < deadline) {
@@ -95,7 +95,7 @@ function registerMark() {
         },
     }));
 }
-/** forge.db arms this on every connection and never clears it, so the process idles it out */
+/** forge.db arms this on every connection and never clears it. Unref'd below, the process won't wait on it. */
 const FORGE_DB_WATCHDOG = 10_000;
 const realSetTimeout = globalThis.setTimeout;
 globalThis.setTimeout = ((handler, ms, ...rest) => {
@@ -104,7 +104,7 @@ globalThis.setTimeout = ((handler, ms, ...rest) => {
         handle.unref?.();
     return handle;
 });
-/** Wraps an extension in a client it can believe in, without any of the setup boot() does */
+/** Wraps an extension in a client it can believe in, without any of the setup boot() does. */
 function attach(ext) {
     const booted = structuredClone({
         timeoutConfig: ext.options.timeoutConfig,
@@ -131,7 +131,7 @@ function attach(ext) {
                 await handler();
         },
         disarm() {
-            // the manager's own stand-down, so claims are let go of too and a name stops reading as live
+            // the manager's own stand-down, it lets claims go too and a name stops reading as live
             ext.timersManager?.standDown();
         },
         reset() {
@@ -271,7 +271,7 @@ function useTempHome(prefix) {
         await structures_1.Database.destroy().catch(() => undefined);
         process.chdir(home);
         try {
-            // only the store in use is closed above, so a backend read alongside it may still hold the folder
+            // only the store in use is closed above, a backend read alongside it may still hold the folder
             (0, node_fs_1.rmSync)(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
         }
         catch {
@@ -285,8 +285,8 @@ exports.marked = marked;
 const apiError = (status, code, message) => new discord_js_1.DiscordAPIError({ message, code }, code, status, "GET", "/channels/x", {});
 exports.apiError = apiError;
 async function contentsOf(storage) {
-    // not destroyed: both backends hand out one handle per process, and closing this one
-    // would shut the live Database out from under whatever is still running
+    // not destroyed, both backends hand out one handle per process and closing this one
+    // would pull the live Database out from under whatever still runs
     const store = await structures_1.Database.open(storage);
     const all = await store.getAll();
     return all.map((timer) => timer.id).sort();

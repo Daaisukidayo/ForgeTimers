@@ -1,4 +1,4 @@
-import { ArgType, NativeFunction } from "@tryforge/forgescript"
+import { Arg, ArgType, NativeFunction } from "@tryforge/forgescript"
 import { Database, ForgeTimers } from "../.."
 import { matches, readFilters, readProperties } from "../../properties/timer"
 
@@ -10,17 +10,11 @@ export default new NativeFunction({
     unwrap: true,
     brackets: true,
     args: [
-        {
-            name: "filters",
-            description: "property;value pairs, all of which have to match",
-            rest: true,
-            required: true,
-            type: ArgType.String,
-        },
+        Arg.restString("filters", "property;value pairs, all of which have to match", true),
     ],
     output: ArgType.Json,
     async execute(ctx, [filters]) {
-        if (!(await ctx.client.getExtension(ForgeTimers, true).ready)) return this.successJSON([])
+        if (!(await ForgeTimers.of(ctx.client).ready)) return this.successJSON([])
 
         const read = readFilters(filters)
         if (!read.ok) return this.customError(read.reason)

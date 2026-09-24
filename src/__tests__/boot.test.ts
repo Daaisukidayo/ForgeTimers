@@ -16,7 +16,7 @@ import { ForgeTimers } from ".."
 
 useTempHome("forgetimers-boot")
 
-/** Makes forge.db unresolvable, and hands back the undo */
+/** Makes forge.db unresolvable. Returns the undo. */
 function blockForgeDB() {
     const resolve = require("module")._resolveFilename
 
@@ -32,7 +32,7 @@ function blockForgeDB() {
     }
 }
 
-/** Runs `fn` against an extension whose backend could not be required at all */
+/** Runs `fn` against an extension whose backend can't be required at all. */
 async function withoutForgeDB(fn: (harness: ITestClient) => Promise<void>) {
     const restore = blockForgeDB()
     const harness = attach(new ForgeTimers())

@@ -124,3 +124,34 @@ describe("timers on lmdb", () => {
         assert.deepEqual(marks, ["kept"])
     })
 })
+
+describe("a record an older version wrote", () => {
+    it("still reads back its author, which went under hostID before 2.0.0", async () => {
+        const { putRecord } = require("@quoriel/db") as {
+            putRecord: (type: string, key: string, value: unknown) => Promise<unknown>
+        }
+
+        await Database.wipe()
+
+        const now = Date.now()
+        await putRecord(QUORIEL_TYPE, "timeout:legacy", {
+            id: "timeout:legacy",
+            name: "legacy",
+            kind: TimerKind.timeout,
+            code: "$testMark[old]",
+            duration: 3_600_000,
+            timestamp: now,
+            fireAt: now + 3_600_000,
+            channelID: "chan-1",
+            hostID: "user-1",
+        })
+
+        const back = await Database.get(TimerKind.timeout, "legacy")
+
+        assert.ok(back, "an upgrade must not lose the timers already stored")
+        assert.equal(back.authorID, "user-1")
+        assert.equal((back as Timer & { hostID?: string }).hostID, undefined, "and the old field is not carried on")
+
+        await Database.wipe()
+    })
+})

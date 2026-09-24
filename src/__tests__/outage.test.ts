@@ -18,7 +18,7 @@ let harness: TestHarness
 
 useHarness((booted) => (harness = booted))
 
-/** Takes a call away the way a connection dropped after startup would */
+/** Takes a call away the way a connection dropped after startup would. */
 function breaks(...calls: Parameters<typeof patchDatabase>[0][]) {
     for (const call of calls) {
         patchDatabase(call, () => async () => {

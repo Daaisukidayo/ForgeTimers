@@ -13,12 +13,12 @@ class TimerCommandManager extends forgescript_1.BaseCommandManager {
 exports.TimerCommandManager = TimerCommandManager;
 class TimerEventHandler extends forgescript_1.BaseEventHandler {
     register(client) {
-        client.getExtension(__1.ForgeTimers, true).emitter.on(this.name, this.listener.bind(client));
+        __1.ForgeTimers.of(client).emitter.on(this.name, this.listener.bind(client));
     }
 }
 exports.TimerEventHandler = TimerEventHandler;
 function runCommands(client, event, payload) {
-    const commands = client.getExtension(__1.ForgeTimers, true).commands?.get(event) ?? [];
+    const commands = __1.ForgeTimers.of(client).commands?.get(event) ?? [];
     if (!commands.length)
         return;
     const { timer, previous, event: data } = payload;

@@ -232,16 +232,16 @@ describe("the command a timer came from", () => {
 })
 
 describe("the message a timer was scheduled from", () => {
-    const withMessage = (messageID: string) =>
+    const withMessage = (messageID: string, code = "$testMark[$authorID]", authorID = "user-1") =>
         persist(
             new Timer({
                 name: "n",
                 kind: TimerKind.timeout,
-                code: "$testMark[$authorID]",
+                code,
                 duration: 1000,
                 channelID: "chan-msg",
                 messageID,
-                authorID: "user-1",
+                authorID,
             }),
             Date.now() - 1000
         )
@@ -254,11 +254,21 @@ describe("the message a timer was scheduled from", () => {
     })
 
     it("is fetched again and becomes the target", async () => {
+        // a prefix command is the scheduler's own message, its author proves the message is the target
+        await withMessage("msg-1", "$testMark[$authorID]", "author-1")
+        await harness.ready()
+        await waitFor(() => marks.length > 0)
+
+        assert.deepEqual(marks, ["author-1"], "the run should be answering on the message, not on the channel")
+    })
+
+    it("does not hand the run its author, who only wrote the message a component sat on", async () => {
+        harness.users.set("user-1", { id: "user-1" })
         await withMessage("msg-1")
         await harness.ready()
         await waitFor(() => marks.length > 0)
 
-        assert.deepEqual(marks, ["author-1"], "the run should see the original author")
+        assert.deepEqual(marks, ["user-1"], "a button's message belongs to whoever posted it, not to who clicked it")
     })
 
     it("falls back to the channel once the message is gone", async () => {
@@ -310,8 +320,8 @@ describe("the user who scheduled a timer", () => {
     it("stands in as the member too, which is what the lookup above is for", () => {
         const member = { id: "user-1", nickname: "scheduler" }
 
-        // the target of a restored run is a channel at best, and the base context only takes a
-        // member off a real message, so without this the run would have none at all
+        // a restored run targets a channel at best, and the base context only takes a member
+        // off a real message, without this the run would have none at all
         const ctx = new TimerContext({ client: {}, data: {}, obj: {}, authorMember: member } as never)
         assert.equal(ctx.member, member, "a run with no member of its own must borrow the scheduler's")
 

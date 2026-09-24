@@ -1,10 +1,4 @@
 import { ArgType, NativeFunction } from "@tryforge/forgescript";
-declare const _default: NativeFunction<[{
-    name: string;
-    description: string;
-    rest: true;
-    required: true;
-    type: ArgType.String;
-}], true>;
+declare const _default: NativeFunction<[import("@tryforge/forgescript").IArg<ArgType.String, boolean, true, import("@tryforge/forgescript").EnumLike>], true>;
 export default _default;
 //# sourceMappingURL=findTimer.d.ts.map

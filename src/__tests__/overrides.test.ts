@@ -60,6 +60,19 @@ describe("what a call records for itself", () => {
         assert.equal(harness.client.timeouts.has("n"), false)
     })
 
+    it("refuses a negative maxOverdue on an interval", async () => {
+        await run(harness, "$setInterval[x;1h;n;;-1]")
+
+        assert.equal(await Database.get(TimerKind.interval, "n"), null, "nothing should have been scheduled")
+        assert.equal(harness.client.intervals.has("n"), false)
+    })
+
+    it("refuses a negative maxOverdue on a cron", async () => {
+        await run(harness, "$setCron[x;0 9 * * *;n;;;-1]")
+
+        assert.equal(await Database.get(TimerKind.cron, "n"), null, "nothing should have been scheduled")
+    })
+
     it("refuses a negative tick limit rather than silently replaying nothing", async () => {
         await run(harness, "$setInterval[x;1h;n;;;-1]")
 
@@ -154,7 +167,7 @@ describe("which config wins on restore", () => {
     })
 
     it("still reads the extension's config for what the timer left out", async () => {
-        // only persist is spelled out, so the tick limit must still come from the config
+        // only persist is spelled out, the tick limit still comes from the config
         configure({}, { restoredTicksLimit: 3 })
         await stored(TimerKind.interval, 10_000, -35_000, { persist: true })
         await harness.ready()

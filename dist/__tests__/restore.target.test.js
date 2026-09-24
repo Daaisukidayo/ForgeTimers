@@ -156,14 +156,14 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
     });
 });
 (0, node_test_1.describe)("the message a timer was scheduled from", () => {
-    const withMessage = (messageID) => (0, harness_1.persist)(new harness_1.Timer({
+    const withMessage = (messageID, code = "$testMark[$authorID]", authorID = "user-1") => (0, harness_1.persist)(new harness_1.Timer({
         name: "n",
         kind: harness_1.TimerKind.timeout,
-        code: "$testMark[$authorID]",
+        code,
         duration: 1000,
         channelID: "chan-msg",
         messageID,
-        authorID: "user-1",
+        authorID,
     }), Date.now() - 1000);
     (0, node_test_1.beforeEach)(() => {
         harness.channels.set("chan-msg", {
@@ -172,10 +172,18 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
         });
     });
     (0, node_test_1.it)("is fetched again and becomes the target", async () => {
+        // a prefix command is the scheduler's own message, its author proves the message is the target
+        await withMessage("msg-1", "$testMark[$authorID]", "author-1");
+        await harness.ready();
+        await (0, harness_1.waitFor)(() => harness_1.marks.length > 0);
+        strict_1.default.deepEqual(harness_1.marks, ["author-1"], "the run should be answering on the message, not on the channel");
+    });
+    (0, node_test_1.it)("does not hand the run its author, who only wrote the message a component sat on", async () => {
+        harness.users.set("user-1", { id: "user-1" });
         await withMessage("msg-1");
         await harness.ready();
         await (0, harness_1.waitFor)(() => harness_1.marks.length > 0);
-        strict_1.default.deepEqual(harness_1.marks, ["author-1"], "the run should see the original author");
+        strict_1.default.deepEqual(harness_1.marks, ["user-1"], "a button's message belongs to whoever posted it, not to who clicked it");
     });
     (0, node_test_1.it)("falls back to the channel once the message is gone", async () => {
         harness.users.set("user-1", { id: "user-1" });
@@ -213,8 +221,8 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
     });
     (0, node_test_1.it)("stands in as the member too, which is what the lookup above is for", () => {
         const member = { id: "user-1", nickname: "scheduler" };
-        // the target of a restored run is a channel at best, and the base context only takes a
-        // member off a real message, so without this the run would have none at all
+        // a restored run targets a channel at best, and the base context only takes a member
+        // off a real message, without this the run would have none at all
         const ctx = new structures_1.TimerContext({ client: {}, data: {}, obj: {}, authorMember: member });
         strict_1.default.equal(ctx.member, member, "a run with no member of its own must borrow the scheduler's");
         const alone = new structures_1.TimerContext({ client: {}, data: {}, obj: {} });

@@ -5,7 +5,7 @@ exports.snapshotVars = snapshotVars;
 exports.restoreVars = restoreVars;
 exports.rehydrateLocalFunctions = rehydrateLocalFunctions;
 const forgescript_1 = require("@tryforge/forgescript");
-const logger_1 = require("./logger");
+const logger_1 = require("../functions/logger");
 /** v0 was plain json. v1 tags dates, maps, sets, regexps and bigints, and drops per value instead of per key */
 exports.VARS_SCHEMA_VERSION = 1;
 const TAG = "$forge";
@@ -19,7 +19,7 @@ function isPlainObject(value) {
 const FAILED = { ok: false };
 /** Nothing nested to encode, for the codecs that hold a single value */
 const NO_WALK = () => FAILED;
-/** Both halves of every tagged type live together, so adding one is a single entry */
+/** Both halves of every tagged type in one entry. A new type is one more entry */
 const CODECS = {
     bigint: {
         test: (value) => typeof value === "bigint",
@@ -67,16 +67,22 @@ const CODECS = {
         decode: (payload) => new Set(payload.map(decode)),
     },
 };
-/** Runs one codec and wraps what it produced in its envelope */
+/**
+ * Runs one codec and wraps the result in its envelope.
+ * @param tag Codec to run.
+ * @param value Value to encode.
+ * @param walk Encodes whatever the value holds.
+ */
 function applyCodec(tag, value, walk) {
     const payload = CODECS[tag].encode(value, walk);
     return payload.ok ? { ok: true, value: { [TAG]: tag, value: payload.value } } : FAILED;
 }
 /**
- * Rewrites a value into something JSON can hold without losing its type.
- *
- * @param value The value to encode.
- * @param seen The objects currently being walked, to break cycles.
+ * Rewrites a value into something JSON holds without losing its type.
+ * @param value Value to encode.
+ * @param seen Objects on the current path, to break cycles.
+ * @param path Where the value sits, for the log.
+ * @param dropped Collects what could not be kept.
  */
 function encode(value, seen, path, dropped) {
     if (value === null)
@@ -128,7 +134,7 @@ function encode(value, seen, path, dropped) {
             if (encoded.ok)
                 out[key] = encoded.value;
         }
-        // user object with our tag key would read back as an envelope, so wrap it
+        // a user object with our tag key would read back as an envelope, wrap it
         return { ok: true, value: isTagged(obj) ? { [TAG]: "raw", value: out } : out };
     }
     finally {
@@ -137,7 +143,7 @@ function encode(value, seen, path, dropped) {
 }
 /**
  * Rebuilds a value written by {@link encode}.
- * @param value The stored value.
+ * @param value Stored value.
  */
 function decode(value) {
     if (value === null || typeof value !== "object")
@@ -169,12 +175,11 @@ function encodeRecord(source) {
     return { kept, dropped };
 }
 /**
- * Writes a timer's variables down so a restart can hand them back.
- * Whatever a function left in them travels - strings, numbers, arrays, plain objects, and the tagged dates, maps, sets, regexps and bigints that `$js` or another extension may have put there.
- * Functions, class instances and live discord structures cannot survive a restart, so they are dropped and named in the log instead.
- *
- * @param runtime The variables to write down.
- * @param label What to call this timer in that log.
+ * Writes a timer's variables down for a restart to hand back.
+ * Plain JSON travels, and the tagged dates, maps, sets, regexps and bigints `$js` or an extension may leave.
+ * Functions, class instances and discord structures can't survive a restart. They get dropped and named in the log.
+ * @param runtime Variables to write down.
+ * @param label What to call the timer in that log.
  */
 function snapshotVars(runtime, label) {
     const keywords = encodeRecord(runtime.keywords ?? {});
@@ -195,9 +200,8 @@ function snapshotVars(runtime, label) {
 }
 /**
  * Reads back a record written by {@link snapshotVars}.
- *
- * @param source The stored record.
- * @param version The schema the timer was written under.
+ * @param source Stored record.
+ * @param version Schema it was written under.
  */
 function restoreVars(source, version) {
     if (!source)
@@ -213,7 +217,12 @@ function restoreVars(source, version) {
     }
     return out;
 }
-/** Rebuilds `localFunctions` by recompiling each stored code. */
+/**
+ * Rebuilds `localFunctions` by recompiling each stored code. One that won't compile is dropped.
+ * @param stored Local functions as stored.
+ * @param path Command path to compile against.
+ * @param label What to call the timer in the log.
+ */
 function rehydrateLocalFunctions(stored, path, label) {
     const out = {};
     if (!stored)
@@ -238,4 +247,4 @@ function rehydrateLocalFunctions(stored, path, label) {
     }
     return out;
 }
-//# sourceMappingURL=snapshotVars.js.map
+//# sourceMappingURL=PersistedVars.js.map

@@ -12,7 +12,7 @@ import {
     useHarness,
     waitFor,
 } from "./support/harness"
-import { snapshotVars } from "../functions/snapshotVars"
+import { snapshotVars } from "../structures"
 import { IIntervalConfig, ITimeoutConfig } from "../types"
 
 let harness: TestHarness
@@ -245,7 +245,7 @@ describe("the stored schema", () => {
         )
     })
 
-    // nothing can write this kind today: the row stands in for one a later build adds
+    // nothing writes this kind today, the row stands in for one a later build adds
     it("leaves a kind this build has no map for alone", async () => {
         const future = new Timer({
             name: "later",
@@ -265,5 +265,22 @@ describe("the stored schema", () => {
         assert.equal(harness.client.timeouts.has("later"), false)
         assert.equal(harness.client.intervals.has("later"), false)
         assert.ok(await Database.get("weekly" as never, "later"), "the row was thrown away rather than left alone")
+    })
+})
+
+describe("an interval stored with no duration", () => {
+    it("is picked back up and keeps ticking, rather than dropped or replayed", async () => {
+        await persist(
+            new Timer({ name: "spin", kind: TimerKind.interval, code: "$testMark[tick]", duration: 0 }),
+            Date.now() - 1000
+        )
+
+        await harness.ready()
+
+        const ticked = await waitFor(() => marks.filter((mark) => mark === "tick").length >= 2, 2000)
+        harness.disarm()
+
+        assert.ok(ticked, `it never came back, ${marks.length} ticks ran`)
+        assert.ok(await Database.get(TimerKind.interval, "spin"), "its record was thrown away")
     })
 })

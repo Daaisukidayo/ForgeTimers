@@ -17,7 +17,7 @@ let harness: TestHarness
 
 useHarness((booted) => (harness = booted))
 
-/** What a tick wrote down, in the order the ticks ran */
+/** What a tick wrote down, in the order the ticks ran. */
 const ticks = () => marks.filter((mark) => mark.startsWith("saw:"))
 
 describe("what a timer writes to its own variables", () => {

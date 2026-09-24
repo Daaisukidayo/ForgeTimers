@@ -11,17 +11,11 @@ exports.default = new forgescript_1.NativeFunction({
     unwrap: true,
     brackets: true,
     args: [
-        {
-            name: "filters",
-            description: "Property and value pairs, all of which have to match",
-            rest: true,
-            required: true,
-            type: forgescript_1.ArgType.String,
-        },
+        forgescript_1.Arg.restString("filters", "Property and value pairs, all of which have to match", true),
     ],
     output: forgescript_1.ArgType.Number,
     async execute(ctx, [filters]) {
-        const extension = ctx.client.getExtension(__1.ForgeTimers, true);
+        const extension = __1.ForgeTimers.of(ctx.client);
         if (!(await extension.ready))
             return this.success(0);
         const read = (0, timer_1.readFilters)(filters);

@@ -41,9 +41,9 @@ const node_fs_1 = require("node:fs");
 const node_os_1 = require("node:os");
 const node_path_1 = require("node:path");
 const node_test_1 = require("node:test");
-/** Each backend's packages, which only whoever picked that backend should have to install */
+/** Each backend's packages. Only whoever picked that backend should need them installed. */
 const BACKEND_PACKAGES = ["typeorm", "reflect-metadata", "@tryforge/forge.db", "@quoriel/db"];
-/** A package nobody installed was certainly never loaded, and resolving it throws rather than saying so */
+/** A package nobody installed was never loaded. Resolving it throws, which reads as false here. */
 const loaded = (pkg) => {
     try {
         return !!require.cache[require.resolve(pkg)];
@@ -52,7 +52,7 @@ const loaded = (pkg) => {
         return false;
     }
 };
-// not useTempHome: importing the harness would load forge.db, which is the very thing being measured
+// no useTempHome, importing the harness would load forge.db, the very thing being measured
 const home = process.cwd();
 const folder = (0, node_fs_1.mkdtempSync)((0, node_path_1.join)((0, node_os_1.tmpdir)(), "forgetimers-lazy-"));
 (0, node_test_1.before)(() => process.chdir(folder));
@@ -94,7 +94,7 @@ const folder = (0, node_fs_1.mkdtempSync)((0, node_path_1.join)((0, node_os_1.tm
     (0, node_test_1.it)("names the module that actually went missing, not just the backend", async () => {
         const { Database } = await Promise.resolve().then(() => __importStar(require("../structures")));
         const resolve = require("module")._resolveFilename;
-        // forge.db is installed and fine here: it is typeorm underneath it that cannot be found
+        // forge.db is installed and fine here, it's typeorm under it that can't be found
         require("module")._resolveFilename = function (request, ...rest) {
             if (request === "typeorm") {
                 throw Object.assign(new Error(`Cannot find module '${request}'`), { code: "MODULE_NOT_FOUND" });

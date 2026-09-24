@@ -9,17 +9,11 @@ exports.default = new forgescript_1.NativeFunction({
     unwrap: true,
     brackets: false,
     args: [
-        {
-            name: "kind",
-            description: "Only count timers of this kind",
-            rest: false,
-            type: forgescript_1.ArgType.Enum,
-            enum: __1.TimerKind,
-        },
+        forgescript_1.Arg.optionalEnum(__1.TimerKind, "kind", "Only count timers of this kind"),
     ],
     output: forgescript_1.ArgType.Number,
     async execute(ctx, [kind]) {
-        if (!(await ctx.client.getExtension(__1.ForgeTimers, true).ready))
+        if (!(await __1.ForgeTimers.of(ctx.client).ready))
             return this.success(0);
         const timers = kind ? await __1.Database.getAllOf(kind) : await __1.Database.getAll();
         return this.success(timers.length);

@@ -18,4 +18,5 @@ __exportStar(require("./Database"), exports);
 __exportStar(require("./Timer"), exports);
 __exportStar(require("./Context"), exports);
 __exportStar(require("./stores"), exports);
+__exportStar(require("./PersistedVars"), exports);
 //# sourceMappingURL=index.js.map

@@ -1,30 +1,4 @@
-import { ArgType, NativeFunction } from "@tryforge/forgescript";
-declare const _default: NativeFunction<[{
-    name: string;
-    description: string;
-    rest: false;
-    required: true;
-    type: ArgType.String;
-}, {
-    name: string;
-    description: string;
-    rest: false;
-    type: ArgType.Time;
-}, {
-    name: string;
-    description: string;
-    rest: false;
-    type: ArgType.String;
-}, {
-    name: string;
-    description: string;
-    rest: false;
-    type: ArgType.Boolean;
-}, {
-    name: string;
-    description: string;
-    rest: false;
-    type: ArgType.Time;
-}], false>;
+import { NativeFunction } from "@tryforge/forgescript";
+declare const _default: NativeFunction<[import("@tryforge/forgescript").IArg<import("@tryforge/forgescript").ArgType.String, true, false, import("@tryforge/forgescript").EnumLike>, import("@tryforge/forgescript").IArg<import("@tryforge/forgescript").ArgType.Time, boolean, false, import("@tryforge/forgescript").EnumLike>, import("@tryforge/forgescript").IArg<import("@tryforge/forgescript").ArgType.String, boolean, false, import("@tryforge/forgescript").EnumLike>, import("@tryforge/forgescript").IArg<import("@tryforge/forgescript").ArgType.Boolean, boolean, false, import("@tryforge/forgescript").EnumLike>, import("@tryforge/forgescript").IArg<import("@tryforge/forgescript").ArgType.Time, boolean, false, import("@tryforge/forgescript").EnumLike>], false>;
 export default _default;
 //# sourceMappingURL=setTimeout.d.ts.map

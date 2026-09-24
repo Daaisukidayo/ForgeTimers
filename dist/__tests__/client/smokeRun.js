@@ -13,12 +13,12 @@ const SCENARIOS = [
     { id: "to-forgedb", label: "quorieldb -> forgedb", seed: "quorieldb", verify: "forgedb" },
 ];
 /**
- * Runs the bot until it prints one of `sentinels`, or until it exits on its own.
- * @param env What to hand the bot on top of this process's own environment.
- * @param label What to call this phase in the log.
+ * Runs the bot until it prints one of `sentinels` or exits on its own.
+ * @param env Extra environment on top of this process's own.
+ * @param label Phase name for the log.
  * @param sentinels Lines that end the phase.
  * @param timeout How long to give it.
- * @param killOnMatch Whether a match should stop the bot rather than wait for it to exit.
+ * @param killOnMatch Stop the bot on a match instead of waiting for it to exit.
  */
 function phase(env, label, sentinels, timeout, killOnMatch) {
     return new Promise((resolve) => {
@@ -69,12 +69,12 @@ function phase(env, label, sentinels, timeout, killOnMatch) {
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /**
  * Schedules on one boot and checks on the next.
- * @param scenario Which backends the two boots run on.
+ * @param scenario Backends the two boots run on.
  * @returns Whether the timers came back intact.
  */
 async function check(scenario) {
     console.log("\n" + (0, smoke_1.bold)((0, smoke_1.cyan)(`########## ${scenario.label} ##########`)));
-    // a run that died mid-way would otherwise send us straight to verifying
+    // else a run that died mid-way sends us straight to verifying
     (0, smoke_1.clearPlan)();
     const first = await phase({ SMOKE_STORAGE: scenario.seed }, "run 1 of 2 - scheduling", [smoke_1.SEEDED], BOOT_TIMEOUT, true);
     if (first.matched !== smoke_1.SEEDED) {
@@ -83,7 +83,7 @@ async function check(scenario) {
     }
     console.log("\n" + (0, smoke_1.grey)(`stopped. staying down ${Math.round(smoke_1.DOWNTIME / 1000)}s`));
     await wait(smoke_1.DOWNTIME);
-    // a differing backend means the second boot has to migrate before it can restore
+    // different backends, the second boot migrates before it restores
     const moving = scenario.seed !== scenario.verify;
     const env = { SMOKE_STORAGE: scenario.verify };
     if (moving)
@@ -96,7 +96,7 @@ async function check(scenario) {
     return false;
 }
 async function main() {
-    // one scenario when named, otherwise all of them, because each can break alone
+    // the named scenario, else all of them, each can break alone
     const only = process.env.SMOKE_ONLY?.split(",")
         .map((id) => id.trim())
         .filter(Boolean);

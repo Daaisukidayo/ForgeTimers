@@ -127,4 +127,107 @@ async function withSlowWrites(delay, fn) {
         strict_1.default.equal(claims().size, 0);
     });
 });
+(0, node_test_1.describe)("cancelling while startup is writing", () => {
+    (0, node_test_1.it)("takes the row back out when the restored write lands after the cancel", async () => {
+        await (0, harness_1.persist)(new harness_1.Timer({ name: "pulse", kind: harness_1.TimerKind.interval, code: "$testMark[tick]", duration: 60 }), Date.now() - 1000);
+        await withSlowWrites(600, async () => {
+            const booted = harness.ready();
+            await sleep(150);
+            strict_1.default.equal(await (0, harness_1.run)(harness, "$clearInterval[pulse]"), "true");
+            await booted;
+        });
+        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.interval, "pulse"), null, "the row came back after the cancel");
+        strict_1.default.equal(harness.client.intervals.has("pulse"), false, "and it armed itself again");
+    });
+});
+/** Slows only the writes the predicate picks. Makes one write land after another. */
+async function withSlowWritesOf(slow, fn) {
+    (0, harness_1.patchDatabase)("set", (real) => async (timer) => {
+        if (slow(timer))
+            await sleep(400);
+        return real(timer);
+    });
+    try {
+        return await fn();
+    }
+    finally {
+        (0, harness_1.restoreDatabase)();
+    }
+}
+(0, node_test_1.describe)("holding or moving a timer while its tick is writing", () => {
+    (0, node_test_1.it)("keeps a hold that lands while the tick writes, rather than losing the timer", async () => {
+        await (0, harness_1.run)(harness, "$setInterval[$testMark[tick];60;pulse]");
+        await (0, harness_1.waitFor)(() => harness_1.marks.length >= 1);
+        // the tick writes the timer running, the hold writes it held
+        await withSlowWritesOf((timer) => !timer.isPaused(), async () => {
+            await sleep(100);
+            strict_1.default.equal(await (0, harness_1.run)(harness, "$pauseTimer[interval;pulse]"), "true");
+        });
+        // long enough for the tick's write to have landed, however soon the hold came back
+        await sleep(600);
+        const row = await harness_1.Database.get(harness_1.TimerKind.interval, "pulse");
+        strict_1.default.ok(row, "holding the timer threw it away");
+        strict_1.default.equal(row.isPaused(), true, "and it came back running");
+        strict_1.default.equal(harness.client.intervals.has("pulse"), false);
+    });
+    (0, node_test_1.it)("keeps a hold that lands first, rather than letting the tick write over it", async () => {
+        await (0, harness_1.run)(harness, "$setInterval[$testMark[tick];60;pulse]");
+        await (0, harness_1.waitFor)(() => harness_1.marks.length >= 1);
+        // the hold reads slowly, a tick comes due meanwhile and queues its write behind it
+        (0, harness_1.patchDatabase)("get", (real) => async (kind, name) => {
+            await sleep(300);
+            return real(kind, name);
+        });
+        try {
+            strict_1.default.equal(await (0, harness_1.run)(harness, "$pauseTimer[interval;pulse]"), "true");
+        }
+        finally {
+            (0, harness_1.restoreDatabase)();
+        }
+        await sleep(200);
+        strict_1.default.equal((await harness_1.Database.get(harness_1.TimerKind.interval, "pulse")).isPaused(), true, "the tick wrote it running");
+    });
+    (0, node_test_1.it)("keeps a new schedule that lands while the tick writes", async () => {
+        await (0, harness_1.run)(harness, "$setInterval[$testMark[tick];60;beat]");
+        await (0, harness_1.waitFor)(() => harness_1.marks.length >= 1);
+        await withSlowWritesOf((timer) => timer.duration === 60, async () => {
+            await sleep(100);
+            strict_1.default.equal(await (0, harness_1.run)(harness, "$rescheduleTimer[interval;beat;1h]"), "true");
+        });
+        await sleep(600);
+        const row = await harness_1.Database.get(harness_1.TimerKind.interval, "beat");
+        strict_1.default.equal(row.duration, 3_600_000, "the tick wrote the old schedule back");
+        harness.disarm();
+    });
+});
+(0, node_test_1.describe)("a timeout whose code is already running", () => {
+    (0, node_test_1.it)("can be neither held nor moved, since either would run it a second time", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[ran]$wait[300];60;n]");
+        await (0, harness_1.waitFor)(() => harness_1.marks.includes("ran"), 2000);
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$pauseTimer[timeout;n]"), "false");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$rescheduleTimer[timeout;n;1h]"), "false");
+        await sleep(500);
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$resumeTimer[timeout;n]"), "false");
+        await sleep(200);
+        strict_1.default.equal(harness_1.marks.filter((mark) => mark === "ran").length, 1, "it ran twice");
+        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), null, "and it is not spent");
+    });
+});
+(0, node_test_1.describe)("releasing a held timeout twice at once", () => {
+    (0, node_test_1.it)("starts it once, whichever release comes first", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[ran];200;n]");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$pauseTimer[timeout;n]"), "true");
+        // both releases would read the timer held before either write landed
+        let said = [];
+        await withSlowWritesOf(() => true, async () => {
+            said = await Promise.all([
+                (0, harness_1.run)(harness, "$resumeTimer[timeout;n]"),
+                (0, harness_1.run)(harness, "$resumeTimer[timeout;n]"),
+            ]);
+        });
+        strict_1.default.deepEqual([...said].sort(), ["false", "true"], "both releases took");
+        await sleep(600);
+        strict_1.default.equal(harness_1.marks.filter((mark) => mark === "ran").length, 1, "it ran once per release");
+    });
+});
 //# sourceMappingURL=races.test.js.map

@@ -43,6 +43,15 @@ const stored = (kind, duration, dueIn, config) => (0, harness_1.persist)(new har
         strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), null, "nothing should have been scheduled");
         strict_1.default.equal(harness.client.timeouts.has("n"), false);
     });
+    (0, node_test_1.it)("refuses a negative maxOverdue on an interval", async () => {
+        await (0, harness_1.run)(harness, "$setInterval[x;1h;n;;-1]");
+        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.interval, "n"), null, "nothing should have been scheduled");
+        strict_1.default.equal(harness.client.intervals.has("n"), false);
+    });
+    (0, node_test_1.it)("refuses a negative maxOverdue on a cron", async () => {
+        await (0, harness_1.run)(harness, "$setCron[x;0 9 * * *;n;;;-1]");
+        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.cron, "n"), null, "nothing should have been scheduled");
+    });
     (0, node_test_1.it)("refuses a negative tick limit rather than silently replaying nothing", async () => {
         await (0, harness_1.run)(harness, "$setInterval[x;1h;n;;;-1]");
         strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.interval, "n"), null, "nothing should have been scheduled");
@@ -115,7 +124,7 @@ const stored = (kind, duration, dueIn, config) => (0, harness_1.persist)(new har
         strict_1.default.equal(harness_1.marks.length, 2, `the config said replay nothing, the timer said 2, got ${harness_1.marks.length}`);
     });
     (0, node_test_1.it)("still reads the extension's config for what the timer left out", async () => {
-        // only persist is spelled out, so the tick limit must still come from the config
+        // only persist is spelled out, the tick limit still comes from the config
         configure({}, { restoredTicksLimit: 3 });
         await stored(harness_1.TimerKind.interval, 10_000, -35_000, { persist: true });
         await harness.ready();

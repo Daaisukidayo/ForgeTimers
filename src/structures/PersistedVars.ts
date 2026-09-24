@@ -1,5 +1,5 @@
 import { Compiler, IExtendedCompiledFunctionField, ILocalFunctionData } from "@tryforge/forgescript"
-import { Logger } from "./logger"
+import { Logger } from "../functions/logger"
 
 export interface IPersistedLocalFunction {
     code: string
@@ -42,15 +42,25 @@ type Walk = (value: unknown, suffix: string) => Encoded
 const NO_WALK: Walk = () => FAILED
 
 interface ICodec {
-    /** Recognises the values this codec owns */
+    /**
+     * Recognises the values this codec owns
+     * @param value Value to test.
+     */
     test(value: unknown): boolean
-    /** What to store under the tag, or FAILED when the value cannot be held */
+    /**
+     * What to store under the tag, or FAILED when the value cannot be held
+     * @param value Value to encode.
+     * @param walk Encodes whatever the value holds.
+     */
     encode(value: never, walk: Walk): Encoded
-    /** Rebuilds the value from what was stored */
+    /**
+     * Rebuilds the value from what was stored
+     * @param payload What the tag holds.
+     */
     decode(payload: unknown): unknown
 }
 
-/** Both halves of every tagged type live together, so adding one is a single entry */
+/** Both halves of every tagged type in one entry. A new type is one more entry */
 const CODECS: Record<string, ICodec> = {
     bigint: {
         test: (value) => typeof value === "bigint",
@@ -102,17 +112,23 @@ const CODECS: Record<string, ICodec> = {
     },
 }
 
-/** Runs one codec and wraps what it produced in its envelope */
+/**
+ * Runs one codec and wraps the result in its envelope.
+ * @param tag Codec to run.
+ * @param value Value to encode.
+ * @param walk Encodes whatever the value holds.
+ */
 function applyCodec(tag: string, value: unknown, walk: Walk): Encoded {
     const payload = CODECS[tag].encode(value as never, walk)
     return payload.ok ? { ok: true, value: { [TAG]: tag, value: payload.value } } : FAILED
 }
 
 /**
- * Rewrites a value into something JSON can hold without losing its type.
- *
- * @param value The value to encode.
- * @param seen The objects currently being walked, to break cycles.
+ * Rewrites a value into something JSON holds without losing its type.
+ * @param value Value to encode.
+ * @param seen Objects on the current path, to break cycles.
+ * @param path Where the value sits, for the log.
+ * @param dropped Collects what could not be kept.
  */
 function encode(value: unknown, seen: WeakSet<object>, path: string, dropped: string[]): Encoded {
     if (value === null) return { ok: true, value: null }
@@ -167,7 +183,7 @@ function encode(value: unknown, seen: WeakSet<object>, path: string, dropped: st
             if (encoded.ok) out[key] = encoded.value
         }
 
-        // user object with our tag key would read back as an envelope, so wrap it
+        // a user object with our tag key would read back as an envelope, wrap it
         return { ok: true, value: isTagged(obj) ? { [TAG]: "raw", value: out } : out }
     } finally {
         seen.delete(obj)
@@ -176,7 +192,7 @@ function encode(value: unknown, seen: WeakSet<object>, path: string, dropped: st
 
 /**
  * Rebuilds a value written by {@link encode}.
- * @param value The stored value.
+ * @param value Stored value.
  */
 function decode(value: unknown): unknown {
     if (value === null || typeof value !== "object") return value
@@ -214,12 +230,11 @@ function encodeRecord(source: Record<string, unknown>) {
 }
 
 /**
- * Writes a timer's variables down so a restart can hand them back.
- * Whatever a function left in them travels - strings, numbers, arrays, plain objects, and the tagged dates, maps, sets, regexps and bigints that `$js` or another extension may have put there.
- * Functions, class instances and live discord structures cannot survive a restart, so they are dropped and named in the log instead.
- *
- * @param runtime The variables to write down.
- * @param label What to call this timer in that log.
+ * Writes a timer's variables down for a restart to hand back.
+ * Plain JSON travels, and the tagged dates, maps, sets, regexps and bigints `$js` or an extension may leave.
+ * Functions, class instances and discord structures can't survive a restart. They get dropped and named in the log.
+ * @param runtime Variables to write down.
+ * @param label What to call the timer in that log.
  */
 export function snapshotVars(
     runtime: {
@@ -253,9 +268,8 @@ export function snapshotVars(
 
 /**
  * Reads back a record written by {@link snapshotVars}.
- *
- * @param source The stored record.
- * @param version The schema the timer was written under.
+ * @param source Stored record.
+ * @param version Schema it was written under.
  */
 export function restoreVars(source: Record<string, unknown> | undefined, version: number) {
     if (!source) return {}
@@ -271,7 +285,12 @@ export function restoreVars(source: Record<string, unknown> | undefined, version
     return out
 }
 
-/** Rebuilds `localFunctions` by recompiling each stored code. */
+/**
+ * Rebuilds `localFunctions` by recompiling each stored code. One that won't compile is dropped.
+ * @param stored Local functions as stored.
+ * @param path Command path to compile against.
+ * @param label What to call the timer in the log.
+ */
 export function rehydrateLocalFunctions(
     stored: Record<string, IPersistedLocalFunction> | undefined,
     path: string | null | undefined,

@@ -5,7 +5,7 @@ const forge_db_1 = require("@tryforge/forge.db");
 const typeorm_1 = require("typeorm");
 const Timer_1 = require("../Timer");
 const logger_1 = require("../../functions/logger");
-/** Epoch ms overflows an int32 on mysql and postgres, so these columns are bigint */
+/** Epoch ms overflows int32 on mysql and postgres, hence bigint */
 const numeric = {
     to: (value) => value,
     from: (value) => (value === null || value === undefined ? value : Number(value)),
@@ -49,7 +49,7 @@ exports.MongoTimerSchema = new typeorm_1.EntitySchema({
         hostID: { type: "varchar", nullable: true },
     },
 });
-/** Keeps timers in whatever ForgeDB is already connected to: sqlite, postgres, mysql or mongodb */
+/** Keeps timers in whatever database ForgeDB already uses, be it sqlite, postgres, mysql or mongodb */
 class ForgeDBStore extends forge_db_1.DataBaseManager {
     database = "timers.db";
     entityManager = {
@@ -91,7 +91,10 @@ class ForgeDBStore extends forge_db_1.DataBaseManager {
     get repository() {
         return this.source.getRepository(this.entity);
     }
-    /** A mongo document an older build wrote carries the author under hostID, where no column alias reaches */
+    /**
+     * Mongo rows from before 2.0.0 keep the author under hostID. Mongo can't alias a column, it gets read here.
+     * @param timer Row as read, or null.
+     */
     static fold(timer) {
         const row = timer;
         if (!row)

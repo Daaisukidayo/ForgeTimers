@@ -1,4 +1,4 @@
-import { ArgType, NativeFunction } from "@tryforge/forgescript"
+import { Arg, ArgType, NativeFunction } from "@tryforge/forgescript"
 import { Database, ForgeTimers, TimerKind } from "../.."
 import { isStructured, readProperties, TimerProperties, TimerProperty } from "../../properties/timer"
 
@@ -9,33 +9,16 @@ export default new NativeFunction({
     unwrap: true,
     brackets: false,
     args: [
-        {
-            name: "kind",
-            description: "Only return timers of this kind",
-            rest: false,
-            type: ArgType.Enum,
-            enum: TimerKind
-        },
-        {
-            name: "property",
-            description: "Return only this property of every timer, instead of all of them",
-            rest: false,
-            type: ArgType.Enum,
-            enum: TimerProperty
-        },
-        {
-            name: "separator",
-            description: "Join the properties with this, instead of listing them as JSON",
-            rest: false,
-            type: ArgType.String
-        }
+        Arg.optionalEnum(TimerKind, "kind", "Only return timers of this kind"),
+        Arg.optionalEnum(TimerProperty, "property", "Return only this property of every timer, instead of all of them"),
+        Arg.optionalString("separator", "Join the properties with this, instead of listing them as JSON")
     ],
     output: [
         ArgType.Json,
         ArgType.Unknown
     ],
     async execute(ctx, [kind, prop, sep]) {
-        if (!(await ctx.client.getExtension(ForgeTimers, true).ready)) return this.successJSON([])
+        if (!(await ForgeTimers.of(ctx.client).ready)) return this.successJSON([])
 
         const timers = kind ? await Database.getAllOf(kind) : await Database.getAll()
         if (!prop) return this.successJSON(timers.map(readProperties))

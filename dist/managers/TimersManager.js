@@ -6,10 +6,10 @@ const discord_js_1 = require("discord.js");
 const structures_1 = require("../structures");
 const __1 = require("..");
 const types_1 = require("../types");
-const snapshotVars_1 = require("../functions/snapshotVars");
 const overrides_1 = require("../functions/overrides");
 const cron_1 = require("../functions/cron");
 const schedule_1 = require("../functions/schedule");
+const emit_1 = require("../functions/emit");
 const logger_1 = require("../functions/logger");
 function isGone(err) {
     return err instanceof discord_js_1.DiscordAPIError && err.status === 404;
@@ -22,10 +22,17 @@ class TimersManager {
     timers;
     claims = 0;
     generations = new Map();
-    crons = new Map();
+    /** Last queued write per timer. Only `_queue` writes here. */
+    writes = new Map();
+    /** Timeouts mid-run. */
+    firing = new Set();
+    /**
+     * Restores stored timers once the client is ready and storage is open.
+     * @param client Client the timers run on.
+     */
     constructor(client) {
         this.client = client;
-        this.timers = client.getExtension(__1.ForgeTimers, true);
+        this.timers = __1.ForgeTimers.of(client);
         client.once(discord_js_1.Events.ClientReady, async () => {
             if (!(await this.timers.ready))
                 return;
@@ -33,9 +40,9 @@ class TimersManager {
         });
     }
     /**
-     * Schedules a timer and persists it.
-     * @param timer The timer to schedule.
-     * @param run What it executes when it fires.
+     * Arms and stores a new timer. Anything under the same name gets replaced.
+     * @param timer Timer to start.
+     * @param run Its code, already bound to the calling context.
      */
     async start(timer, run) {
         const persisted = await this.timers.ready;
@@ -44,7 +51,7 @@ class TimersManager {
         }
         if (persisted)
             await this._save(timer);
-        // live timer already has its target, so it always runs
+        // a live run has its target already, no outage to hit
         this._arm(timer, async () => {
             await run();
             return { ran: true };
@@ -53,59 +60,145 @@ class TimersManager {
         return timer;
     }
     /**
-     * Cancels a running timer, leaving the database untouched.
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
-     * @returns Whether anything was stopped, whether it was scheduled or already mid-run.
+     * Disarms only, the row stays. Use `stop` to forget it too.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @returns True if something was armed or mid-run.
      */
     clear(kind, name) {
         const map = this.mapOf(kind);
         const handle = map?.get(name);
         if (map && handle) {
-            switch (kind) {
-                case structures_1.TimerKind.interval:
-                    clearInterval(handle);
-                    break;
-                // a cron is armed through setLongTimeout
-                case structures_1.TimerKind.timeout:
-                case structures_1.TimerKind.cron:
-                    clearTimeout(handle);
-                    break;
-            }
+            // ours all come from setLongTimeout, and clearTimeout stops a core setInterval handle too
+            clearTimeout(handle);
             map.delete(name);
         }
-        // a restored run owns its name with nothing scheduled yet
+        // a restored run can hold the name with nothing in the map
         const held = this.generations.has(structures_1.Timer.idOf(kind, name));
         this._release(kind, name);
         return !!handle || held;
     }
+    /**
+     * Every write for one timer goes through here, in call order.
+     * Skip it and a tick landing late can undo a pause.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @param write Runs once earlier writes have landed.
+     */
+    _queue(kind, name, write) {
+        const key = structures_1.Timer.idOf(kind, name);
+        const next = (this.writes.get(key) ?? Promise.resolve()).then(write);
+        const settled = next.then(() => undefined, () => undefined);
+        this.writes.set(key, settled);
+        void settled.then(() => {
+            if (this.writes.get(key) === settled)
+                this.writes.delete(key);
+        });
+        return next;
+    }
+    /**
+     * Pending writes for this timer. Await before reading the row.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     */
+    _settled(kind, name) {
+        return this.writes.get(structures_1.Timer.idOf(kind, name)) ?? Promise.resolve();
+    }
+    /**
+     * Read, change and write in one queue turn.
+     * Inside `change` write through Database directly, `_save` would wait on itself.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @param change Gets the stored timer, or null.
+     * @returns Whatever `change` said, false with no backend.
+     */
+    async _locked(kind, name, change) {
+        if (!(await this.timers.ready))
+            return false;
+        return this._queue(kind, name, async () => change((await structures_1.Database.get(kind, name).catch(logger_1.Logger.error)) || null));
+    }
+    /**
+     * Queued write of the timer as it is now.
+     * @param timer Timer to write.
+     */
     _save(timer) {
-        return structures_1.Database.set(timer).catch(logger_1.Logger.error);
+        return this._queue(timer.kind, timer.name, () => structures_1.Database.set(timer)).catch(logger_1.Logger.error);
     }
+    /**
+     * Tick write. Dropped if the name changed hands before its turn, the new owner already wrote.
+     * @param timer Timer to write.
+     * @param owns Checked when the turn comes, not now.
+     */
+    _saveHeld(timer, owns) {
+        return this._queue(timer.kind, timer.name, async () => {
+            if (owns())
+                await structures_1.Database.set(timer);
+        }).catch(logger_1.Logger.error);
+    }
+    /**
+     * Queued delete of the row.
+     * @param timer Timer to forget.
+     */
     _forget(timer) {
-        return structures_1.Database.delete(timer.kind, timer.name).catch(logger_1.Logger.error);
+        return this._queue(timer.kind, timer.name, () => structures_1.Database.delete(timer.kind, timer.name)).catch(logger_1.Logger.error);
     }
-    /** Reports how a one-shot ended, and spends its record only once the run is really over */
+    /**
+     * Runs a timeout and spends it. Pause and reschedule refuse it until done, or it runs twice.
+     * @param timer Timeout that fires.
+     * @param run What it runs.
+     * @param owns Whether the name is still ours.
+     */
+    async _fire(timer, run, owns) {
+        this.firing.add(timer.id);
+        try {
+            const outcome = await run();
+            if (!owns())
+                return;
+            this.client.timeouts.delete(timer.name);
+            this._release(timer.kind, timer.name);
+            await this._settle(timer, outcome);
+        }
+        finally {
+            this.firing.delete(timer.id);
+        }
+    }
+    /**
+     * Reports the fire and drops the row. On an outage (`ran` false) the row stays for the next boot.
+     * @param timer Timeout that ran.
+     * @param outcome How the run went.
+     */
     async _settle(timer, outcome) {
         if (!outcome.ran)
             return;
-        // the record waits for the next boot because an outage is not a run
         this._report(types_1.TimerEvent.timerFire, timer);
         await this._forget(timer);
     }
     /**
-     * @param previous The timer as it was before this event changed it, for `$oldTimer`.
+     * Emits only with listeners. A throwing listener gets logged, never rethrown.
+     * @param name Event to emit.
+     * @param timer For `$timerData` and `$newTimer`.
+     * @param event Extras for `$eventData`.
+     * @param previous For `$oldTimer`.
      */
     _report(name, timer, event, previous) {
         const { emitter } = this.timers;
         if (!emitter.listenerCount(name))
             return;
-        emitter.emit(name, { timer, event, previous });
+        (0, emit_1.emitSafely)(emitter, name, { timer, event, previous });
     }
-    /** A copy of a timer as it stands, to hand to an event once the original has moved on */
+    /**
+     * Copy for events. The original keeps changing after the report.
+     * @param timer Timer to copy.
+     */
     _snapshot(timer) {
         return structures_1.Timer.from({ ...timer });
     }
+    /**
+     * timerCancel with the stored row, or a stub when only an armed timer existed.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @param wasLive Report a stub even without a row.
+     */
     async _reportCancel(kind, name, wasLive) {
         if (!this.timers.emitter.listenerCount(types_1.TimerEvent.timerCancel))
             return;
@@ -113,18 +206,14 @@ class TimersManager {
         if (stored)
             return this._report(types_1.TimerEvent.timerCancel, stored);
         if (wasLive)
-            this.timers.emitter.emit(types_1.TimerEvent.timerCancel, { timer: structures_1.Timer.stub(kind, name) });
+            (0, emit_1.emitSafely)(this.timers.emitter, types_1.TimerEvent.timerCancel, { timer: structures_1.Timer.stub(kind, name) });
     }
     /**
-     * Runs a task that holds a name outright, with nothing scheduled to hold it for them.
-     *
-     * The claim is always handed back, because a name left claimed by a run that never finished
-     * would read as live for ever. Arming inside the task takes a claim of its own, and that one
-     * is left alone.
-     *
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
-     * @param task What to do while the name is held, given a check for whether it still is.
+     * Holds the name for a restored run with nothing armed yet.
+     * Always releases, else the name reads live forever.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @param task Gets a check for whether the name is still held.
      */
     async _claimed(kind, name, task) {
         const owns = this._claim(kind, name);
@@ -139,7 +228,11 @@ class TimersManager {
                 this._release(kind, name);
         }
     }
-    /** Takes the name over and hands back a check for whether it's still ours */
+    /**
+     * Takes the name. The check turns false once anyone claims it after.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     */
     _claim(kind, name) {
         const key = structures_1.Timer.idOf(kind, name);
         const claim = ++this.claims;
@@ -147,162 +240,160 @@ class TimersManager {
         return () => this.generations.get(key) === claim;
     }
     /**
-     * Forgets a name nothing is armed under any more.
+     * Drops the claim. Only when nothing is armed under the name.
+     * @param kind Timer kind.
+     * @param name Timer name.
      */
     _release(kind, name) {
         this.generations.delete(structures_1.Timer.idOf(kind, name));
     }
     /**
-     * Cancels a running timer and deletes it from the database.
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
-     * @returns Whether anything was stopped, and whether a stored record was removed.
+     * Disarms and deletes the row. The delete waits behind any tick still writing.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @returns Whether something was armed, and whether a row went.
      */
     async stop(kind, name) {
         const cleared = this.clear(kind, name);
         await this._reportCancel(kind, name, cleared);
         if (!(await this.timers.ready))
             return { cleared, forgotten: false };
-        const result = await structures_1.Database.delete(kind, name).catch(logger_1.Logger.error);
+        const result = await this._queue(kind, name, () => structures_1.Database.delete(kind, name)).catch(logger_1.Logger.error);
         return { cleared, forgotten: !!result && (result.affected ?? 0) > 0 };
     }
     /**
-     * Moves a stored timer's deadline, keeping everything else it was scheduled with.
-     *
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
-     * @param duration The new delay for a timeout, or tick length for an interval, in ms.
-     * @returns Whether a stored timer was found and moved.
+     * New duration, everything else kept. Refuses crons, firing timeouts and code that no longer compiles.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @param duration New delay or tick length, in ms.
+     * @returns Whether a stored timer moved.
      */
     async reschedule(kind, name, duration) {
-        const timer = await this._stored(kind, name);
-        if (!timer)
-            return false;
-        if (timer.kind === structures_1.TimerKind.cron) {
-            logger_1.Logger.warn(`Cannot give cron "${name}" a duration: its schedule is an expression.`);
-            return false;
-        }
-        const runner = this._runnerFor(timer);
-        if (!runner.ok) {
-            logger_1.Logger.warn(`Cannot reschedule ${kind} "${name}": ${runner.reason}`);
-            return false;
-        }
-        this.clear(kind, name);
-        timer.duration = duration;
-        timer.fireAt = (timer.pausedAt ?? Date.now()) + duration;
-        await this._save(timer);
-        if (!timer.isPaused())
-            this._arm(timer, runner.run);
-        return true;
+        return this._locked(kind, name, async (timer) => {
+            if (!timer || this.firing.has(timer.id))
+                return false;
+            if (timer.kind === structures_1.TimerKind.cron) {
+                logger_1.Logger.warn(`Cannot give cron "${name}" a duration: its schedule is an expression.`);
+                return false;
+            }
+            const run = this._runnable(timer, "reschedule");
+            if (!run)
+                return false;
+            this.clear(kind, name);
+            timer.duration = duration;
+            timer.fireAt = (timer.pausedAt ?? Date.now()) + duration;
+            await structures_1.Database.set(timer).catch(logger_1.Logger.error);
+            if (!timer.isPaused())
+                this._arm(timer, run);
+            return true;
+        });
     }
     /**
-     * Gives a stored cron a new expression, keeping everything else it was scheduled with.
-     *
-     * @param name The name of the cron.
-     * @param expression The cron expression it should run on from now on.
-     * @param timezone The zone to read it in, or null to keep the one it already had.
-     * @returns Whether a stored cron was found and moved.
+     * New expression for a stored cron. Check it before `clear`, a bad one would leave the cron cancelled.
+     * @param name Cron name.
+     * @param expression Expression to run on from now.
+     * @param timezone Zone to read it in, null keeps the old one.
+     * @returns Whether a stored cron moved.
      */
     async rescheduleCron(name, expression, timezone) {
-        const timer = await this._stored(structures_1.TimerKind.cron, name);
-        if (!timer || timer.kind !== structures_1.TimerKind.cron)
-            return false;
-        const zone = timezone ?? timer.timezone;
-        // read before anything is stopped: scheduleNext throws on an expression it cannot parse,
-        // and by then the cron would already be cancelled with its old row left behind
-        const invalid = (0, cron_1.cronError)(expression, zone);
-        if (invalid) {
-            logger_1.Logger.warn(`Cannot reschedule cron "${name}": "${expression}" cannot be read: ${invalid}`);
-            return false;
-        }
-        const runner = this._runnerFor(timer);
-        if (!runner.ok) {
-            logger_1.Logger.warn(`Cannot reschedule cron "${name}": ${runner.reason}`);
-            return false;
-        }
-        this.clear(structures_1.TimerKind.cron, name);
-        timer.cron = expression;
-        timer.timezone = zone;
-        timer.scheduleNext();
-        // a paused cron keeps its hold, and wakes on the next occurrence of whatever it now runs on
-        await this._save(timer);
-        if (!timer.isPaused())
-            this._arm(timer, runner.run);
-        return true;
+        return this._locked(structures_1.TimerKind.cron, name, async (timer) => {
+            if (!timer || timer.kind !== structures_1.TimerKind.cron)
+                return false;
+            const zone = timezone ?? timer.timezone;
+            const invalid = (0, cron_1.cronError)(expression, zone);
+            if (invalid) {
+                logger_1.Logger.warn(`Cannot reschedule cron "${name}": "${expression}" cannot be read: ${invalid}`);
+                return false;
+            }
+            const run = this._runnable(timer, "reschedule");
+            if (!run)
+                return false;
+            this.clear(structures_1.TimerKind.cron, name);
+            timer.cron = expression;
+            timer.timezone = zone;
+            timer.scheduleNext();
+            // paused stays paused, wakes on the next occurrence of the new expression
+            await structures_1.Database.set(timer).catch(logger_1.Logger.error);
+            if (!timer.isPaused())
+                this._arm(timer, run);
+            return true;
+        });
     }
     /**
-     * Puts a stored timer on hold, keeping what is left of its wait for {@link resume}.
-     *
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
-     * @returns Whether a running timer was put on hold.
+     * Holds a timer, keeping what is left of its wait. Refuses a firing timeout.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @returns Whether it got held.
      */
     async pause(kind, name) {
-        const timer = await this._stored(kind, name);
-        if (!timer || timer.isPaused())
-            return false;
-        const previous = this._snapshot(timer);
-        this.clear(kind, name);
-        timer.pausedAt = Date.now();
-        await this._save(timer);
-        this._report(types_1.TimerEvent.timerPause, timer, undefined, previous);
-        return true;
+        return this._locked(kind, name, async (timer) => {
+            if (!timer || timer.isPaused() || this.firing.has(timer.id))
+                return false;
+            const previous = this._snapshot(timer);
+            this.clear(kind, name);
+            timer.pausedAt = Date.now();
+            await structures_1.Database.set(timer).catch(logger_1.Logger.error);
+            this._report(types_1.TimerEvent.timerPause, timer, undefined, previous);
+            return true;
+        });
     }
     /**
-     * Starts a paused timer, from wherever its wait was left.
-     *
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
-     * @returns Whether a paused timer was started.
+     * Restarts a held timer from what was left. A cron jumps to its next occurrence instead.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @returns Whether it restarted.
      */
     async resume(kind, name) {
-        const timer = await this._stored(kind, name);
-        if (!timer?.isPaused())
-            return false;
-        const runner = this._runnerFor(timer);
-        if (!runner.ok) {
-            logger_1.Logger.warn(`Cannot resume ${kind} "${name}": ${runner.reason}`);
-            return false;
-        }
-        const previous = this._snapshot(timer);
-        if (timer.isCron())
-            timer.scheduleNext();
-        else
-            timer.fireAt = Date.now() + timer.timeLeft();
-        timer.pausedAt = null;
-        await this._save(timer);
-        this._arm(timer, runner.run);
-        this._report(types_1.TimerEvent.timerResume, timer, undefined, previous);
-        return true;
+        return this._locked(kind, name, async (timer) => {
+            if (!timer?.isPaused())
+                return false;
+            const run = this._runnable(timer, "resume");
+            if (!run)
+                return false;
+            const previous = this._snapshot(timer);
+            if (timer.isCron())
+                timer.scheduleNext();
+            else
+                timer.fireAt = Date.now() + timer.timeLeft();
+            timer.pausedAt = null;
+            await structures_1.Database.set(timer).catch(logger_1.Logger.error);
+            // an orphaned handle would keep running beside the new one
+            this.clear(kind, name);
+            this._arm(timer, run);
+            this._report(types_1.TimerEvent.timerResume, timer, undefined, previous);
+            return true;
+        });
     }
     /**
-     * Runs a stored timer's code once, on demand.
-     *
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
+     * Runs the stored code once. Schedule, row and events stay untouched.
+     * @param kind Timer kind.
+     * @param name Timer name.
      * @returns Whether the code ran.
      */
     async execute(kind, name) {
         const timer = await this._stored(kind, name);
         if (!timer)
             return false;
-        const runner = this._runnerFor(timer);
-        if (!runner.ok) {
-            logger_1.Logger.warn(`Could not execute ${kind} "${name}": ${runner.reason}`);
+        const run = this._runnable(timer, "execute");
+        if (!run)
             return false;
-        }
-        const outcome = await runner.run();
+        const outcome = await run();
         return outcome.ran;
     }
-    /** The stored record for a name, or null when there is no backend or no such row */
+    /**
+     * The row once pending writes land. null without a backend.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     */
     async _stored(kind, name) {
         if (!(await this.timers.ready))
             return null;
+        await this._settled(kind, name);
         return await structures_1.Database.get(kind, name).catch(logger_1.Logger.error);
     }
     /**
-     * Cancels every running timer and empties the table.
-     * @returns The number of running timers that were cancelled.
+     * Disarms everything and empties storage. Waits for writes in flight first, or they bring rows back.
+     * @returns How many armed timers got cancelled.
      */
     async wipe() {
         let cleared = 0;
@@ -314,41 +405,33 @@ class TimersManager {
                 await this._reportCancel(kind, name, true);
             }
         }
-        // a restored run holds its name with nothing scheduled to find above, and wiping stands it down too
         this.generations.clear();
         if (!(await this.timers.ready))
             return cleared;
+        await Promise.all(this.writes.values());
         await structures_1.Database.wipe().catch(logger_1.Logger.error);
         return cleared;
     }
     /**
-     * The live timer map ForgeScript keeps for a kind.
-     * @param kind The kind of the timers.
+     * Handle map for a kind, all three on the client. The cron one is ours, set in `init`.
+     * @param kind Timer kind.
      */
     mapOf(kind) {
-        switch (kind) {
-            case structures_1.TimerKind.timeout:
-                return this.client.timeouts;
-            case structures_1.TimerKind.interval:
-                return this.client.intervals;
-            case structures_1.TimerKind.cron:
-                return this.crons;
-            default:
-                // no map for this kind yet, so nothing to schedule
-                return undefined;
-        }
+        const { timeouts, intervals, crons } = this.client;
+        const maps = { timeout: timeouts, interval: intervals, cron: crons };
+        // a row from a newer build can carry any kind, toString too
+        return Object.hasOwn(maps, kind) ? maps[kind] : undefined;
     }
     /**
-     * Whether a timer under this name is already running.
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
+     * Armed or claimed in this process. Says nothing about the row.
+     * @param kind Timer kind.
+     * @param name Timer name.
      */
     isLive(kind, name) {
         return !!this.mapOf(kind)?.has(name) || this.generations.has(structures_1.Timer.idOf(kind, name));
     }
     /**
-     * Stops everything armed and lets every name go, leaving the database alone.
-     * Unlike {@link wipe} nothing is forgotten, so the next boot picks the records back up.
+     * Disarms everything, keeps the rows. The next boot restores them.
      */
     standDown() {
         for (const kind of Object.values(structures_1.TimerKind)) {
@@ -361,39 +444,24 @@ class TimersManager {
         this.generations.clear();
     }
     /**
-     * Whether a record is stored under this name, whatever is or is not armed for it.
-     *
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
+     * Is there a row? Whatever is armed does not matter.
+     * @param kind Timer kind.
+     * @param name Timer name.
      */
     async exists(kind, name) {
         return !!(await this._stored(kind, name));
     }
     /**
-     * A kind's config with the timer's own options laid over it, so a call beats the config.
-     * @param timer The timer to resolve the config of.
+     * Kind config with the timer's own options on top.
+     * @param timer Timer to resolve for.
      */
     configFor(timer) {
-        const { timeoutConfig, intervalConfig, cronConfig } = this.timers.options;
-        let config;
-        switch (timer.kind) {
-            case structures_1.TimerKind.timeout:
-                config = timeoutConfig ?? {};
-                break;
-            case structures_1.TimerKind.interval:
-                config = intervalConfig ?? {};
-                break;
-            case structures_1.TimerKind.cron:
-                config = cronConfig ?? {};
-                break;
-            default:
-                config = {};
-        }
+        const config = this.timers.configOf(timer.kind);
         return timer.config ? { ...config, ...(0, overrides_1.readOverrides)(timer.config) } : config;
     }
     /**
-     * Why a stored cron could never be armed, or null when it can.
-     * @param timer The cron to look over.
+     * Why this cron cannot be armed, null when it can.
+     * @param timer Cron to check.
      */
     _cronFault(timer) {
         if (!timer.isCron())
@@ -401,7 +469,14 @@ class TimersManager {
         const invalid = (0, cron_1.cronError)(timer.cron, timer.timezone);
         return invalid ? `its expression "${timer.cron}" can no longer be read: ${invalid}` : null;
     }
-    /** Arms `fn`, keeping the live map on the pending chunk so {@link clear} cancels the right one */
+    /**
+     * setLongTimeout plus the map entry. The map holds the pending chunk, the one `clear` has to cancel.
+     * A throw inside gets logged, the timer stays as it was.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @param delay Wait in ms.
+     * @param fn Tick body.
+     */
     _schedule(kind, name, delay, fn) {
         const map = this.mapOf(kind);
         const guarded = async () => {
@@ -415,6 +490,11 @@ class TimersManager {
         };
         (0, schedule_1.setLongTimeout)(delay, guarded, (handle) => map?.set(name, handle));
     }
+    /**
+     * Claims the name and schedules by kind.
+     * @param timer Timer to arm.
+     * @param run What it runs.
+     */
     _arm(timer, run) {
         const owns = this._claim(timer.kind, timer.name);
         switch (timer.kind) {
@@ -427,28 +507,32 @@ class TimersManager {
                 return this._assertNever(timer.kind, timer.name);
         }
     }
+    /**
+     * One run, then the row is spent. Checks the claim before running, an orphaned handle must not fire.
+     * @param timer Timeout to schedule.
+     * @param run What it runs.
+     * @param owns Whether the name is still ours.
+     */
     _armTimeout(timer, run, owns) {
         this._schedule(timer.kind, timer.name, timer.timeLeft(), async () => {
-            const outcome = await run();
-            if (!owns())
-                return;
-            this.client.timeouts.delete(timer.name);
-            this._release(timer.kind, timer.name);
-            await this._settle(timer, outcome);
+            if (owns())
+                await this._fire(timer, run, owns);
         });
     }
+    /**
+     * Writes the next due time, re-arms, then runs. Lost the name during the write? Stop there.
+     * @param timer Interval or cron to schedule.
+     * @param run What it runs every tick.
+     * @param owns Whether the name is still ours.
+     */
     _armRepeating(timer, run, owns) {
         this._schedule(timer.kind, timer.name, timer.timeLeft(), async () => {
             if (!owns())
                 return;
             const previous = this._snapshot(timer);
-            await this._save(timer.advance());
-            if (!owns()) {
-                // cancelled while that write was in flight, so take the row back out
-                if (!this.isLive(timer.kind, timer.name))
-                    await this._forget(timer);
+            await this._saveHeld(timer.advance(), owns);
+            if (!owns())
                 return;
-            }
             this._armRepeating(timer, run, owns);
             const outcome = await run();
             if (outcome.ran)
@@ -456,8 +540,8 @@ class TimersManager {
         });
     }
     /**
-     * Compiles now, fetches later.
-     * @param timer The timer to build a runner for.
+     * Compiles now, fetches from discord on the first run.
+     * @param timer Timer to build a runner for.
      */
     _runnerFor(timer) {
         let compiled;
@@ -466,24 +550,22 @@ class TimersManager {
         }
         catch (err) {
             logger_1.Logger.untagged(err);
-            // won't compile now, won't compile next boot either
             return { ok: false, gone: true, reason: "its code no longer compiles" };
         }
         const version = timer.version ?? 0;
-        const keywords = (0, snapshotVars_1.restoreVars)(timer.vars?.keywords, version);
-        const environment = (0, snapshotVars_1.restoreVars)(timer.vars?.environment, version);
+        const keywords = (0, structures_1.restoreVars)(timer.vars?.keywords, version);
+        const environment = (0, structures_1.restoreVars)(timer.vars?.environment, version);
         let resolved = null;
         let command = null;
         const run = async () => {
             if (!resolved) {
                 const attempt = await this._resolve(timer);
                 if (!attempt.ok) {
-                    // only an outage lands here, the record is kept and the next boot tries again
                     logger_1.Logger.warn(`Could not run ${timer.kind} "${timer.name}" yet: ${attempt.reason}`);
                     return { ran: false };
                 }
                 resolved = attempt.resolved;
-                // the file a timer came from cannot move under it
+                // once per runner, the command file won't move mid-run
                 command = this._commandFor(timer);
             }
             const ctx = new structures_1.TimerContext({
@@ -495,7 +577,7 @@ class TimersManager {
                 redirectErrorsToConsole: true,
                 keywords: { ...keywords },
                 environment: { ...environment },
-                localFunctions: (0, snapshotVars_1.rehydrateLocalFunctions)(timer.vars?.localFunctions, timer.path, "ForgeTimers"),
+                localFunctions: (0, structures_1.rehydrateLocalFunctions)(timer.vars?.localFunctions, timer.path, "ForgeTimers"),
                 args: timer.args ?? [],
                 author: resolved.author,
                 authorMember: resolved.authorMember,
@@ -507,8 +589,20 @@ class TimersManager {
         return { ok: true, run };
     }
     /**
-     * Finds the live command.
-     * @param timer The timer to look up.
+     * The runner, or null with a warning when the timer can't run.
+     * @param timer Timer to build a runner for.
+     * @param doing What the caller was about to do, for the warning.
+     */
+    _runnable(timer, doing) {
+        const runner = this._runnerFor(timer);
+        if (runner.ok)
+            return runner.run;
+        logger_1.Logger.warn(`Cannot ${doing} ${timer.kind} "${timer.name}": ${runner.reason}`);
+        return null;
+    }
+    /**
+     * Live command by path, then by name. null once it is gone.
+     * @param timer Timer to look up.
      */
     _commandFor(timer) {
         if (!timer.path && !timer.commandName)
@@ -517,20 +611,29 @@ class TimersManager {
         return (commands.find((command) => (timer.path && command.data.path === timer.path) ||
             (timer.commandName && command.data.name === timer.commandName)) ?? null);
     }
-    /** Fetches everything a run needs from discord */
+    /**
+     * Target, author and member for a restored run. Author gets refetched unless the target is theirs.
+     * @param timer Timer about to run.
+     */
     async _resolve(timer) {
         const target = await this._rebuildTarget(timer);
         if (!target.ok)
             return target;
         const obj = target.obj;
-        const hasAuthor = "author" in obj || "user" in obj;
-        const author = timer.authorID && !hasAuthor ? await this.client.users.fetch(timer.authorID).catch(() => null) : null;
+        const owner = obj;
+        const targetAuthorID = owner.author?.id ?? owner.user?.id ?? null;
+        const author = timer.authorID && targetAuthorID !== timer.authorID
+            ? await this.client.users.fetch(timer.authorID).catch(() => null)
+            : null;
         const guild = timer.guildID ? this.client.guilds.cache.get(timer.guildID) : undefined;
         const authorMember = author && guild ? await guild.members.fetch(author.id).catch(() => null) : null;
         return { ok: true, resolved: { obj, author, authorMember } };
     }
+    /**
+     * Message, else channel, else nothing. A 404 channel still runs, other errors retry next boot.
+     * @param timer Timer to rebuild the target for.
+     */
     async _rebuildTarget(timer) {
-        // no channel means empty target
         if (!timer.channelID)
             return { ok: true, obj: {} };
         let channel;
@@ -558,15 +661,14 @@ class TimersManager {
         }
         return { ok: true, obj: channel };
     }
-    // What it can't see is left alone, because it's a sibling shard or an outage. Deleting is opt-in
     /**
-     * Whether this process is the one meant to run a timer.
-     *
-     * @param timer The timer being restored.
+     * Should this process run it? Guildless ones go to shard 0, the rest by the shard formula.
+     * Unknown guilds stay unless pruneUnknownGuilds, it may be an outage.
+     * @param timer Timer being restored.
      */
     async _owns(timer) {
         if (!timer.guildID) {
-            // one shard has to be picked or every shard would run it
+            // pick one shard, or every shard runs it
             return !this.client.shard || this.client.shard.ids.includes(0);
         }
         if (this.client.shard) {
@@ -583,6 +685,9 @@ class TimersManager {
         }
         return true;
     }
+    /**
+     * Re-arms stored timers on boot and drops what cannot run. Due runs start after the scan.
+     */
     async _restore() {
         if (!(await this.timers.ready))
             return;
@@ -611,7 +716,7 @@ class TimersManager {
                 dropped++;
                 continue;
             }
-            // an expression that cannot be read has no next occurrence
+            // unreadable expression, no next occurrence
             const unreadable = timer.kind === structures_1.TimerKind.cron ? this._cronFault(timer) : null;
             if (unreadable) {
                 logger_1.Logger.warn(`Dropping cron "${timer.name}": ${unreadable}`);
@@ -633,7 +738,7 @@ class TimersManager {
                 }
                 continue;
             }
-            // a paused timer is kept as it is
+            // paused, keep as is with nothing to arm
             if (timer.isPaused()) {
                 this._report(types_1.TimerEvent.timerRestore, timer, { overdueBy: 0 });
                 restored++;
@@ -663,12 +768,16 @@ class TimersManager {
         await Promise.allSettled(dueNow.map((task) => task()));
         const { emitter } = this.timers;
         if (emitter.listenerCount(types_1.TimerEvent.timersReady)) {
-            emitter.emit(types_1.TimerEvent.timersReady, { event: { restored, dropped } });
+            (0, emit_1.emitSafely)(emitter, types_1.TimerEvent.timersReady, { event: { restored, dropped } });
         }
     }
     /**
-     * Drops a one-shot that's too late, otherwise fires or re-arms it.
-     * @returns Whether it was kept, so the caller can count what startup saved.
+     * Drops it if too late, queues it if due, arms it otherwise.
+     * @param timer Timeout being restored.
+     * @param timing Lateness and the config judging it.
+     * @param run What it runs.
+     * @param dueNow Runs already due, started after the scan.
+     * @returns Whether it was kept, for the timersReady count.
      */
     async _restoreTimeout(timer, timing, run, dueNow) {
         if (timing.late) {
@@ -688,19 +797,17 @@ class TimersManager {
         dueNow.push(async () => {
             if (this.isLive(timer.kind, timer.name))
                 return;
-            await this._claimed(timer.kind, timer.name, async (owns) => {
-                const outcome = await run();
-                if (!owns())
-                    return;
-                this._release(timer.kind, timer.name);
-                await this._settle(timer, outcome);
-            });
+            await this._claimed(timer.kind, timer.name, (owns) => this._fire(timer, run, owns));
         });
         return true;
     }
     /**
-     * Resumes a stored repeating timer, replaying what it missed if it is allowed to.
-     * @returns Always true: an interval past `maxOverdue` skips the stale tick.
+     * Skips to the schedule if too late, replays up to the limit if due, arms it otherwise.
+     * @param timer Interval or cron being restored.
+     * @param timing Lateness and the config judging it.
+     * @param run What it runs every tick.
+     * @param dueNow Replays already due, started after the scan.
+     * @returns Always true, lateness costs a tick and not the timer.
      */
     async _restoreRepeating(timer, timing, run, dueNow) {
         this._report(types_1.TimerEvent.timerRestore, timer, { overdueBy: timing.overdueBy });
@@ -721,28 +828,33 @@ class TimersManager {
                 return;
             await this._claimed(timer.kind, timer.name, async (owns) => {
                 await this._replay(timer, missed, timing.config.restoredTicksLimit, run, owns);
-                // this name could be cancelled or rescheduled while the replay was running
+                // replay takes time, the name may have changed hands
                 if (!owns())
                     return;
-                await this._save(timer.scheduleNext());
-                if (!owns()) {
-                    // cancelled while that write was in flight, take the row back out
-                    if (!this.isLive(timer.kind, timer.name))
-                        await this._forget(timer);
+                await this._saveHeld(timer.scheduleNext(), owns);
+                if (!owns())
                     return;
-                }
-                // arming claims the name again, so what this task held is let go of behind it
+                // _arm takes a fresh claim, _claimed then leaves it alone
                 this._arm(timer, run);
             });
         });
         return true;
     }
+    /**
+     * Unknown kind, likely stored by a newer build. Warn and skip.
+     * @param kind Kind nothing handles.
+     * @param name Timer name.
+     */
     _assertNever(kind, name) {
         logger_1.Logger.warn(`Skipping timer "${name}": unsupported kind "${kind}"`);
     }
     /**
-     * Replays what was missed offline.
-     * @param limit This timer's resolved `restoredTicksLimit`, its own beating its kind's.
+     * Runs missed ticks up to the limit. Stops on an outage or a lost name.
+     * @param timer Interval or cron being restored.
+     * @param missed Ticks missed while down.
+     * @param limit Resolved restoredTicksLimit, the timer's own beats its kind's.
+     * @param run What it runs every tick.
+     * @param owns Whether the name is still ours.
      */
     async _replay(timer, missed, limit, run, owns) {
         if (!limit)

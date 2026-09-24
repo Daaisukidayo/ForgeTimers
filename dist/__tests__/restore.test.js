@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
 const harness_1 = require("./support/harness");
-const snapshotVars_1 = require("../functions/snapshotVars");
+const structures_1 = require("../structures");
 let harness;
 (0, harness_1.useHarness)((booted) => (harness = booted));
 function configure(timeoutConfig, intervalConfig) {
@@ -171,13 +171,13 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
             code: "$testMark[$env[when]]",
             duration: 1000,
             channelID: "chan-1",
-            vars: (0, snapshotVars_1.snapshotVars)({ keywords: {}, environment: { when }, localFunctions: {} }, "test"),
+            vars: (0, structures_1.snapshotVars)({ keywords: {}, environment: { when }, localFunctions: {} }, "test"),
         });
         await (0, harness_1.persist)(timer, Date.now() - 1000);
         await harness.ready();
         strict_1.default.deepEqual(harness_1.marks, [JSON.stringify(when)], "a Date renders quoted, a plain iso string renders bare and a raw envelope renders as an object");
     });
-    // nothing can write this kind today: the row stands in for one a later build adds
+    // nothing writes this kind today, the row stands in for one a later build adds
     (0, node_test_1.it)("leaves a kind this build has no map for alone", async () => {
         const future = new harness_1.Timer({
             name: "later",
@@ -194,6 +194,16 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
         strict_1.default.equal(harness.client.timeouts.has("later"), false);
         strict_1.default.equal(harness.client.intervals.has("later"), false);
         strict_1.default.ok(await harness_1.Database.get("weekly", "later"), "the row was thrown away rather than left alone");
+    });
+});
+(0, node_test_1.describe)("an interval stored with no duration", () => {
+    (0, node_test_1.it)("is picked back up and keeps ticking, rather than dropped or replayed", async () => {
+        await (0, harness_1.persist)(new harness_1.Timer({ name: "spin", kind: harness_1.TimerKind.interval, code: "$testMark[tick]", duration: 0 }), Date.now() - 1000);
+        await harness.ready();
+        const ticked = await (0, harness_1.waitFor)(() => harness_1.marks.filter((mark) => mark === "tick").length >= 2, 2000);
+        harness.disarm();
+        strict_1.default.ok(ticked, `it never came back, ${harness_1.marks.length} ticks ran`);
+        strict_1.default.ok(await harness_1.Database.get(harness_1.TimerKind.interval, "spin"), "its record was thrown away");
     });
 });
 //# sourceMappingURL=restore.test.js.map

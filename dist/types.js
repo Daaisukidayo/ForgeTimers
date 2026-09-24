@@ -5,7 +5,7 @@ var TimerEvent;
 (function (TimerEvent) {
     /** A timer was scheduled */
     TimerEvent["timerStart"] = "timerStart";
-    /** A timer's code ran: a timeout going off, an interval ticking, or a cron coming round */
+    /** A timer's code ran. A timeout going off, an interval ticking or a cron coming round */
     TimerEvent["timerFire"] = "timerFire";
     /** A timer was cancelled by hand */
     TimerEvent["timerCancel"] = "timerCancel";

@@ -12,12 +12,12 @@ export class TimerCommandManager extends BaseCommandManager<TimerEventName> {
 
 export class TimerEventHandler extends BaseEventHandler<ITimerEvents, TimerEventName> {
     public override register(client: ForgeClient) {
-        client.getExtension(ForgeTimers, true).emitter.on(this.name, this.listener.bind(client))
+        ForgeTimers.of(client).emitter.on(this.name, this.listener.bind(client))
     }
 }
 
 export function runCommands(client: ForgeClient, event: TimerEventName, payload: ITimerEventPayload) {
-    const commands = client.getExtension(ForgeTimers, true).commands?.get(event) ?? []
+    const commands = ForgeTimers.of(client).commands?.get(event) ?? []
     if (!commands.length) return
 
     const { timer, previous, event: data } = payload

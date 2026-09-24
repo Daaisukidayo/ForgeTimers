@@ -27,25 +27,25 @@ exports.CRON_NAME = "smoke-cron";
 exports.PAUSED_NAME = "smoke-paused";
 exports.CHANNEL = process.env.SMOKE_CHANNEL;
 exports.SPEED = Math.max(1, Number(process.env.SMOKE_SPEED ?? 2));
-/** How long the two boots take before the deadline can land: a cold login, and discord throttling the second one */
+/** Time the two boots take before the deadline can land. A cold login, then discord throttling the second one. */
 const BOOT_BUDGET = Number(process.env.SMOKE_BOOT_BUDGET ?? 25_000);
-/** How long the bot stays down between the two runs */
+/** How long the bot stays down between the two runs. */
 exports.DOWNTIME = Math.round(Number(process.env.SMOKE_DOWNTIME ?? 25_000) / exports.SPEED);
 const seconds = (ms) => `${Math.max(1, Math.round(ms / 1000))}s`;
-/** Still ahead of the second boot whatever the speed, or the timer would come due before anyone looks */
+/** Still ahead of the second boot at any speed, else the timer comes due before anyone looks. */
 exports.TIMEOUT_DELAY = seconds(Math.max(60_000 / exports.SPEED, exports.DOWNTIME + BOOT_BUDGET));
 exports.INTERVAL_TICK = seconds(20_000 / exports.SPEED);
 /**
- * Seconds between cron runs, kept to a divisor of 60 so every occurrence lands on a whole
- * multiple of it and the restart can be checked against the expression's own beat.
+ * Seconds between cron runs. A divisor of 60, then every occurrence lands on a whole multiple
+ * of it and the restart can be checked against the expression's own beat.
  */
 exports.CRON_SECONDS = [30, 20, 15, 10, 5, 2, 1].find((n) => n <= Math.max(1, 20 / exports.SPEED)) ?? 1;
 exports.CRON_EXPRESSION = `*/${exports.CRON_SECONDS} * * * * *`;
-/** A hold freezes what is left, so this only has to be short enough to wait out once resumed */
+/** A hold freezes what is left. Only has to be short enough to wait out once resumed. */
 exports.PAUSED_DELAY = seconds(Math.max(5_000, 10_000 / exports.SPEED));
-/** Shorter than the downtime, so this one comes due while the bot is off */
+/** Shorter than the downtime, comes due while the bot is off. */
 exports.OVERDUE_DELAY = seconds(Math.min(10_000 / exports.SPEED, exports.DOWNTIME * 0.4));
-/** Set before the timers are scheduled, and read back by one of them after the restart */
+/** Set before scheduling, read back by one of the timers after the restart. */
 exports.CARRIED = "carried-across";
 exports.TOLERANCE = 3000;
 const MARKER = (0, node_path_1.join)(process.cwd(), ".forgetimers-smoke.json");
@@ -73,17 +73,17 @@ exports.SEED_CODE = `$let[carried;${exports.CARRIED}]` +
     `$setTimeout[$smokeReport[woken];${exports.PAUSED_DELAY};${exports.PAUSED_NAME}]$pauseTimer[timeout;${exports.PAUSED_NAME}]` +
     `$smokeReport[seeded]`;
 /**
- * What the second boot runs. The held timer is read before it is let go of, so the restart is
- * caught leaving it alone rather than only the resume being caught working.
+ * What the second boot runs. Reads the held timer before letting it go, which catches the restart
+ * leaving it alone and not only the resume working.
  */
 exports.VERIFY_CODE = `$smokeReport[booted]` +
     `$smokeReport[still-held:$getTimer[timeout;${exports.PAUSED_NAME};paused]]` +
     `$smokeReport[left-alone:$timerRunning[timeout;${exports.PAUSED_NAME}]]` +
     `$smokeReport[let-go:$resumeTimer[timeout;${exports.PAUSED_NAME}]]`;
-/** Every event reports under the name of the timer it is about */
+/** Every event reports under its timer's name. */
 const eventCode = (event) => `$smokeReport[event-${event}:$timerData[name]]`;
 exports.eventCode = eventCode;
-/** An event command runs with no target of its own, so this checks one can still reach discord */
+/** An event command has no target of its own. Checks one still reaches discord. */
 exports.EVENT_MESSAGE_CODE = `$if[$timerData[name]==${exports.TIMEOUT_NAME};` +
     `$let[sent;$sendMessage[${exports.CHANNEL};ForgeTimers event check;true]]$smokeReport[event-message:$get[sent]]]`;
 exports.reports = [];
@@ -144,7 +144,7 @@ async function waitForTheBeat() {
     console.log((0, exports.grey)(`waiting ${Math.round(untilTick / 1000)}s more for the interval's first tick`));
     await wait(untilTick + exports.TOLERANCE);
 }
-/** Resuming happens on the second boot, so what was left of the hold only starts counting there */
+/** Resumed on the second boot. What was left of the hold only starts counting there. */
 async function waitForTheWoken() {
     if (seen("woken", bootedAt))
         return;
@@ -155,7 +155,7 @@ async function waitForTheWoken() {
     console.log((0, exports.grey)(`waiting ${Math.round(untilRun / 1000)}s more for the timer that was let go of`));
     await wait(untilRun + exports.TOLERANCE);
 }
-/** The cron keeps to the clock rather than to a gap, so its next occurrence is never far off */
+/** The cron keeps to the clock, not a gap. Its next occurrence is never far off. */
 async function waitForTheCron() {
     if (seen("cron", bootedAt))
         return;
@@ -191,8 +191,8 @@ async function verify(plan) {
     const overdueRow = await structures_1.Database.get(structures_1.TimerKind.timeout, exports.OVERDUE_NAME);
     const ran = seen("cron", bootedAt);
     const cronRow = await structures_1.Database.get(structures_1.TimerKind.cron, exports.CRON_NAME);
-    // an occurrence of `*/n * * * * *` always lands on a whole n seconds, so a restored cron that
-    // came back on the leftover of a gap instead of on the clock shows up here
+    // `*/n * * * * *` always lands on a whole n seconds, a cron restored on the leftover
+    // of a gap and not on the clock shows up here
     const nextRun = cronRow ? new Date(cronRow.fireAt) : null;
     const onTheBeat = !!nextRun && nextRun.getMilliseconds() === 0 && nextRun.getSeconds() % exports.CRON_SECONDS === 0;
     const stillHeld = seen("still-held", bootedAt)?.label.split(":")[1];
@@ -202,7 +202,7 @@ async function verify(plan) {
     const heldRow = await structures_1.Database.get(structures_1.TimerKind.timeout, exports.PAUSED_NAME);
     const restoreEvent = seen(`event-timerRestore:${exports.TIMEOUT_NAME}`, bootedAt);
     const fireEvent = seen(`event-timerFire:${exports.TIMEOUT_NAME}`, bootedAt);
-    // a snowflake back from $sendMessage is discord saying it accepted the message
+    // a snowflake back from $sendMessage means discord took the message
     const sent = seen("sent", bootedAt)?.label.split(":")[1];
     const eventSent = seen("event-message", bootedAt)?.label.split(":")[1];
     const checks = [

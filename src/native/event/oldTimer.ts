@@ -1,5 +1,5 @@
-import { ArgType, NativeFunction } from "@tryforge/forgescript"
-import { isStructured, TimerProperties, TimerProperty } from "../../properties/timer"
+import { Arg, ArgType, NativeFunction } from "@tryforge/forgescript"
+import { answer, TimerProperty } from "../../properties/timer"
 
 export default new NativeFunction({
     name: "$oldTimer",
@@ -7,22 +7,11 @@ export default new NativeFunction({
     description: "Retrieves a timer as it was before the event changed it",
     unwrap: true,
     brackets: true,
-    args: [
-        {
-            name: "property",
-            description: "The property to pull",
-            rest: false,
-            required: true,
-            type: ArgType.Enum,
-            enum: TimerProperty,
-        },
-    ],
+    args: [Arg.requiredEnum(TimerProperty, "property", "The property to pull")],
     output: [ArgType.Json, ArgType.Unknown],
     execute(ctx, [property]) {
         const old = ctx.states?.timer?.old
         if (!old) return this.success()
-
-        const value = TimerProperties[property](old)
-        return isStructured(value) ? this.successJSON(value) : this.success(value)
+        return answer(this, old, property)
     },
 })

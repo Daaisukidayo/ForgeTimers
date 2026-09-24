@@ -1,4 +1,4 @@
-import { ArgType, NativeFunction } from "@tryforge/forgescript"
+import { Arg, ArgType, NativeFunction } from "@tryforge/forgescript"
 import { TimerEventProperty } from "../../properties/event"
 import { TimerContext } from "../../structures"
 
@@ -8,15 +8,7 @@ export default new NativeFunction({
     description: "Returns what an event carries besides its timer",
     unwrap: true,
     brackets: false,
-    args: [
-        {
-            name: "property",
-            description: "The property to return, or every one of them as JSON",
-            rest: false,
-            type: ArgType.Enum,
-            enum: TimerEventProperty,
-        },
-    ],
+    args: [Arg.optionalEnum(TimerEventProperty, "property", "The property to return, or every one of them as JSON")],
     output: [ArgType.Json, ArgType.Unknown],
     execute(ctx, [property]) {
         const event = ctx instanceof TimerContext ? ctx.event : null

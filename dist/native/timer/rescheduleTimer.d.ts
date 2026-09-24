@@ -1,29 +1,5 @@
 import { ArgType, NativeFunction } from "@tryforge/forgescript";
 import { TimerKind } from "../..";
-declare const _default: NativeFunction<[{
-    name: string;
-    description: string;
-    rest: false;
-    required: true;
-    type: ArgType.Enum;
-    enum: typeof TimerKind;
-}, {
-    name: string;
-    description: string;
-    rest: false;
-    required: true;
-    type: ArgType.String;
-}, {
-    name: string;
-    description: string;
-    rest: false;
-    required: true;
-    type: ArgType.String;
-}, {
-    name: string;
-    description: string;
-    rest: false;
-    type: ArgType.String;
-}], true>;
+declare const _default: NativeFunction<[import("@tryforge/forgescript").IArg<ArgType.Enum, true, false, typeof TimerKind>, import("@tryforge/forgescript").IArg<ArgType.String, true, false, import("@tryforge/forgescript").EnumLike>, import("@tryforge/forgescript").IArg<ArgType.String, true, false, import("@tryforge/forgescript").EnumLike>, import("@tryforge/forgescript").IArg<ArgType.String, boolean, false, import("@tryforge/forgescript").EnumLike>], true>;
 export default _default;
 //# sourceMappingURL=rescheduleTimer.d.ts.map

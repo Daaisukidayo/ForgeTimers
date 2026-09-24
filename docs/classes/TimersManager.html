@@ -11,7 +11,7 @@
 <li><a href="" aria-current="page">TimersManager</a></li></ul>
 <h1>Class TimersManager</h1></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L62">src/managers/TimersManager.ts:62</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L62">src/managers/TimersManager.ts:62</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -46,13 +46,17 @@
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="constructortimersmanager"><span class="tsd-signature-keyword">new</span> <span class="tsd-kind-constructor-signature">TimersManager</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">client</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ForgeClient</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-class">TimersManager</a><a href="#constructortimersmanager" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Restores stored timers once the client is ready and storage is open.</p>
+</div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">client</span>: <span class="tsd-signature-type">ForgeClient</span></span></li></ul></div>
+<li><span><span class="tsd-kind-parameter">client</span>: <span class="tsd-signature-type">ForgeClient</span></span>
+<div class="tsd-comment tsd-typography"><p>Client the timers run on.</p>
+</div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">TimersManager</a></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L71">src/managers/TimersManager.ts:71</a></li></ul></aside></div></li></ul></section></section></details>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L79">src/managers/TimersManager.ts:79</a></li></ul></aside></div></li></ul></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -62,254 +66,253 @@
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="clear-1"><span class="tsd-kind-call-signature">clear</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">kind</span><span class="tsd-signature-symbol">:</span> <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><a href="#clear-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Cancels a running timer, leaving the database untouched.</p>
+<div class="tsd-comment tsd-typography"><p>Disarms only, the row stays. Use <code>stop</code> to forget it too.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">kind</span>: <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a></span>
-<div class="tsd-comment tsd-typography"><p>The kind of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer kind.</p>
 </div></li>
 <li><span><span class="tsd-kind-parameter">name</span>: <span class="tsd-signature-type">string</span></span>
-<div class="tsd-comment tsd-typography"><p>The name of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer name.</p>
 </div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><p>Whether anything was stopped, whether it was scheduled or already mid-run.</p>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><p>True if something was armed or mid-run.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L110">src/managers/TimersManager.ts:110</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L118">src/managers/TimersManager.ts:118</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="execute"><span>execute</span><a href="#execute" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="execute-1"><span class="tsd-kind-call-signature">execute</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">kind</span><span class="tsd-signature-symbol">:</span> <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span><a href="#execute-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Runs a stored timer's code once, on demand.</p>
+<div class="tsd-comment tsd-typography"><p>Runs the stored code once. Schedule, row and events stay untouched.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">kind</span>: <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a></span>
-<div class="tsd-comment tsd-typography"><p>The kind of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer kind.</p>
 </div></li>
 <li><span><span class="tsd-kind-parameter">name</span>: <span class="tsd-signature-type">string</span></span>
-<div class="tsd-comment tsd-typography"><p>The name of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer name.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Whether the code ran.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L367">src/managers/TimersManager.ts:367</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L461">src/managers/TimersManager.ts:461</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="exists"><span>exists</span><a href="#exists" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="exists-1"><span class="tsd-kind-call-signature">exists</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">kind</span><span class="tsd-signature-symbol">:</span> <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span><a href="#exists-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Whether a record is stored under this name, whatever is or is not armed for it.</p>
+<div class="tsd-comment tsd-typography"><p>Is there a row? Whatever is armed does not matter.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">kind</span>: <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a></span>
-<div class="tsd-comment tsd-typography"><p>The kind of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer kind.</p>
 </div></li>
 <li><span><span class="tsd-kind-parameter">name</span>: <span class="tsd-signature-type">string</span></span>
-<div class="tsd-comment tsd-typography"><p>The name of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer name.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L460">src/managers/TimersManager.ts:460</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L549">src/managers/TimersManager.ts:549</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="islive"><span>is<wbr/>Live</span><a href="#islive" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="islive-1"><span class="tsd-kind-call-signature">isLive</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">kind</span><span class="tsd-signature-symbol">:</span> <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><a href="#islive-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Whether a timer under this name is already running.</p>
+<div class="tsd-comment tsd-typography"><p>Armed or claimed in this process. Says nothing about the row.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">kind</span>: <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a></span>
-<div class="tsd-comment tsd-typography"><p>The kind of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer kind.</p>
 </div></li>
 <li><span><span class="tsd-kind-parameter">name</span>: <span class="tsd-signature-type">string</span></span>
-<div class="tsd-comment tsd-typography"><p>The name of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer name.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L435">src/managers/TimersManager.ts:435</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L526">src/managers/TimersManager.ts:526</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="mapof"><span>map<wbr/>Of</span><a href="#mapof" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="mapof-1"><span class="tsd-kind-call-signature">mapOf</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">kind</span><span class="tsd-signature-symbol">:</span> <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Map</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">Timeout</span><span class="tsd-signature-symbol">&gt;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">undefined</span><a href="#mapof-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>The live timer map ForgeScript keeps for a kind.</p>
+<div class="tsd-comment tsd-typography"><p>Handle map for a kind, all three on the client. The cron one is ours, set in <code>init</code>.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">kind</span>: <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a></span>
-<div class="tsd-comment tsd-typography"><p>The kind of the timers.</p>
+<div class="tsd-comment tsd-typography"><p>Timer kind.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Map</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">Timeout</span><span class="tsd-signature-symbol">&gt;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">undefined</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L416">src/managers/TimersManager.ts:416</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L513">src/managers/TimersManager.ts:513</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="pause"><span>pause</span><a href="#pause" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="pause-1"><span class="tsd-kind-call-signature">pause</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">kind</span><span class="tsd-signature-symbol">:</span> <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span><a href="#pause-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Puts a stored timer on hold, keeping what is left of its wait for <a href="#resume" class="tsd-kind-method">resume</a>.</p>
+<div class="tsd-comment tsd-typography"><p>Holds a timer, keeping what is left of its wait. Refuses a firing timeout.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">kind</span>: <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a></span>
-<div class="tsd-comment tsd-typography"><p>The kind of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer kind.</p>
 </div></li>
 <li><span><span class="tsd-kind-parameter">name</span>: <span class="tsd-signature-type">string</span></span>
-<div class="tsd-comment tsd-typography"><p>The name of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer name.</p>
 </div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Whether a running timer was put on hold.</p>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Whether it got held.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L315">src/managers/TimersManager.ts:315</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L410">src/managers/TimersManager.ts:410</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="reschedule"><span>reschedule</span><a href="#reschedule" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="reschedule-1"><span class="tsd-kind-call-signature">reschedule</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">kind</span><span class="tsd-signature-symbol">:</span> <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">duration</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span><a href="#reschedule-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Moves a stored timer's deadline, keeping everything else it was scheduled with.</p>
+<div class="tsd-comment tsd-typography"><p>New duration, everything else kept. Refuses crons, firing timeouts and code that no longer compiles.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">kind</span>: <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a></span>
-<div class="tsd-comment tsd-typography"><p>The kind of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer kind.</p>
 </div></li>
 <li><span><span class="tsd-kind-parameter">name</span>: <span class="tsd-signature-type">string</span></span>
-<div class="tsd-comment tsd-typography"><p>The name of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer name.</p>
 </div></li>
 <li><span><span class="tsd-kind-parameter">duration</span>: <span class="tsd-signature-type">number</span></span>
-<div class="tsd-comment tsd-typography"><p>The new delay for a timeout, or tick length for an interval, in ms.</p>
+<div class="tsd-comment tsd-typography"><p>New delay or tick length, in ms.</p>
 </div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Whether a stored timer was found and moved.</p>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Whether a stored timer moved.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L242">src/managers/TimersManager.ts:242</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L344">src/managers/TimersManager.ts:344</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="reschedulecron"><span>reschedule<wbr/>Cron</span><a href="#reschedulecron" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="reschedulecron-1"><span class="tsd-kind-call-signature">rescheduleCron</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">expression</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">timezone</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span><a href="#reschedulecron-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Gives a stored cron a new expression, keeping everything else it was scheduled with.</p>
+<div class="tsd-comment tsd-typography"><p>New expression for a stored cron. Check it before <code>clear</code>, a bad one would leave the cron cancelled.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">name</span>: <span class="tsd-signature-type">string</span></span>
-<div class="tsd-comment tsd-typography"><p>The name of the cron.</p>
+<div class="tsd-comment tsd-typography"><p>Cron name.</p>
 </div></li>
 <li><span><span class="tsd-kind-parameter">expression</span>: <span class="tsd-signature-type">string</span></span>
-<div class="tsd-comment tsd-typography"><p>The cron expression it should run on from now on.</p>
+<div class="tsd-comment tsd-typography"><p>Expression to run on from now.</p>
 </div></li>
 <li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">timezone</span>: <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span></span>
-<div class="tsd-comment tsd-typography"><p>The zone to read it in, or null to keep the one it already had.</p>
+<div class="tsd-comment tsd-typography"><p>Zone to read it in, null keeps the old one.</p>
 </div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Whether a stored cron was found and moved.</p>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Whether a stored cron moved.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L275">src/managers/TimersManager.ts:275</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L375">src/managers/TimersManager.ts:375</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="resume"><span>resume</span><a href="#resume" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="resume-1"><span class="tsd-kind-call-signature">resume</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">kind</span><span class="tsd-signature-symbol">:</span> <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span><a href="#resume-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Starts a paused timer, from wherever its wait was left.</p>
+<div class="tsd-comment tsd-typography"><p>Restarts a held timer from what was left. A cron jumps to its next occurrence instead.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">kind</span>: <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a></span>
-<div class="tsd-comment tsd-typography"><p>The kind of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer kind.</p>
 </div></li>
 <li><span><span class="tsd-kind-parameter">name</span>: <span class="tsd-signature-type">string</span></span>
-<div class="tsd-comment tsd-typography"><p>The name of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer name.</p>
 </div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Whether a paused timer was started.</p>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Whether it restarted.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L336">src/managers/TimersManager.ts:336</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L431">src/managers/TimersManager.ts:431</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="standdown"><span>stand<wbr/>Down</span><a href="#standdown" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="standdown-1"><span class="tsd-kind-call-signature">standDown</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#standdown-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Stops everything armed and lets every name go, leaving the database alone.
-Unlike <a href="#wipe" class="tsd-kind-method">wipe</a> nothing is forgotten, so the next boot picks the records back up.</p>
+<div class="tsd-comment tsd-typography"><p>Disarms everything, keeps the rows. The next boot restores them.</p>
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L443">src/managers/TimersManager.ts:443</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L533">src/managers/TimersManager.ts:533</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="start"><span>start</span><a href="#start" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="start-1"><span class="tsd-kind-call-signature">start</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">timer</span><span class="tsd-signature-symbol">:</span> <a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">run</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">()</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">&gt;</span><a href="#start-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Schedules a timer and persists it.</p>
+<div class="tsd-comment tsd-typography"><p>Arms and stores a new timer. Anything under the same name gets replaced.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">timer</span>: <a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a></span>
-<div class="tsd-comment tsd-typography"><p>The timer to schedule.</p>
+<div class="tsd-comment tsd-typography"><p>Timer to start.</p>
 </div></li>
 <li><span><span class="tsd-kind-parameter">run</span>: <span class="tsd-signature-symbol">()</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></span>
-<div class="tsd-comment tsd-typography"><p>What it executes when it fires.</p>
+<div class="tsd-comment tsd-typography"><p>Its code, already bound to the calling context.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="Timer.html" class="tsd-signature-type tsd-kind-class">Timer</a><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L85">src/managers/TimersManager.ts:85</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L93">src/managers/TimersManager.ts:93</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="stop"><span>stop</span><a href="#stop" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="stop-1"><span class="tsd-kind-call-signature">stop</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">kind</span><span class="tsd-signature-symbol">:</span> <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/IStopResult.html" class="tsd-signature-type tsd-kind-interface">IStopResult</a><span class="tsd-signature-symbol">&gt;</span><a href="#stop-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Cancels a running timer and deletes it from the database.</p>
+<div class="tsd-comment tsd-typography"><p>Disarms and deletes the row. The delete waits behind any tick still writing.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">kind</span>: <a href="../enums/TimerKind.html" class="tsd-signature-type tsd-kind-enum">TimerKind</a></span>
-<div class="tsd-comment tsd-typography"><p>The kind of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer kind.</p>
 </div></li>
 <li><span><span class="tsd-kind-parameter">name</span>: <span class="tsd-signature-type">string</span></span>
-<div class="tsd-comment tsd-typography"><p>The name of the timer.</p>
+<div class="tsd-comment tsd-typography"><p>Timer name.</p>
 </div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/IStopResult.html" class="tsd-signature-type tsd-kind-interface">IStopResult</a><span class="tsd-signature-symbol">&gt;</span></h4><p>Whether anything was stopped, and whether a stored record was removed.</p>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/IStopResult.html" class="tsd-signature-type tsd-kind-interface">IStopResult</a><span class="tsd-signature-symbol">&gt;</span></h4><p>Whether something was armed, and whether a row went.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L223">src/managers/TimersManager.ts:223</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L326">src/managers/TimersManager.ts:326</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="wipe"><span>wipe</span><a href="#wipe" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="wipe-1"><span class="tsd-kind-call-signature">wipe</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">&gt;</span><a href="#wipe-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Cancels every running timer and empties the table.</p>
+<div class="tsd-comment tsd-typography"><p>Disarms everything and empties storage. Waits for writes in flight first, or they bring rows back.</p>
 </div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">&gt;</span></h4><p>The number of running timers that were cancelled.</p>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">&gt;</span></h4><p>How many armed timers got cancelled.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/15ed23441b7bdddeaab02593c5a739dea6e54001/src/managers/TimersManager.ts#L391">src/managers/TimersManager.ts:391</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/e82e8860bd5374cb455f141a9a550995b1e04599/src/managers/TimersManager.ts#L488">src/managers/TimersManager.ts:488</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

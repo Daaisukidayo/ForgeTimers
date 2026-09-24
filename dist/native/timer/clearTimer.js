@@ -10,25 +10,12 @@ exports.default = new forgescript_1.NativeFunction({
     unwrap: true,
     brackets: true,
     args: [
-        {
-            name: "kind",
-            description: "The kind of the timer to cancel",
-            rest: false,
-            required: true,
-            type: forgescript_1.ArgType.Enum,
-            enum: __1.TimerKind,
-        },
-        {
-            name: "name",
-            description: "The name of the timer to cancel",
-            rest: false,
-            required: true,
-            type: forgescript_1.ArgType.String,
-        },
+        forgescript_1.Arg.requiredEnum(__1.TimerKind, "kind", "The kind of the timer to cancel"),
+        forgescript_1.Arg.requiredString("name", "The name of the timer to cancel"),
     ],
     output: forgescript_1.ArgType.Boolean,
     async execute(ctx, [kind, name]) {
-        const manager = ctx.client.getExtension(__1.ForgeTimers, true).timersManager;
+        const manager = __1.ForgeTimers.of(ctx.client).timersManager;
         const { cleared, forgotten } = await manager.stop(kind, name);
         return this.success(cleared || forgotten);
     },

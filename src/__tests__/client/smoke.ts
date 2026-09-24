@@ -26,34 +26,34 @@ export const CHANNEL = process.env.SMOKE_CHANNEL
 
 export const SPEED = Math.max(1, Number(process.env.SMOKE_SPEED ?? 2))
 
-/** How long the two boots take before the deadline can land: a cold login, and discord throttling the second one */
+/** Time the two boots take before the deadline can land. A cold login, then discord throttling the second one. */
 const BOOT_BUDGET = Number(process.env.SMOKE_BOOT_BUDGET ?? 25_000)
 
-/** How long the bot stays down between the two runs */
+/** How long the bot stays down between the two runs. */
 export const DOWNTIME = Math.round(Number(process.env.SMOKE_DOWNTIME ?? 25_000) / SPEED)
 
 const seconds = (ms: number) => `${Math.max(1, Math.round(ms / 1000))}s`
 
-/** Still ahead of the second boot whatever the speed, or the timer would come due before anyone looks */
+/** Still ahead of the second boot at any speed, else the timer comes due before anyone looks. */
 export const TIMEOUT_DELAY = seconds(Math.max(60_000 / SPEED, DOWNTIME + BOOT_BUDGET))
 
 export const INTERVAL_TICK = seconds(20_000 / SPEED)
 
 /**
- * Seconds between cron runs, kept to a divisor of 60 so every occurrence lands on a whole
- * multiple of it and the restart can be checked against the expression's own beat.
+ * Seconds between cron runs. A divisor of 60, then every occurrence lands on a whole multiple
+ * of it and the restart can be checked against the expression's own beat.
  */
 export const CRON_SECONDS = [30, 20, 15, 10, 5, 2, 1].find((n) => n <= Math.max(1, 20 / SPEED)) ?? 1
 
 export const CRON_EXPRESSION = `*/${CRON_SECONDS} * * * * *`
 
-/** A hold freezes what is left, so this only has to be short enough to wait out once resumed */
+/** A hold freezes what is left. Only has to be short enough to wait out once resumed. */
 export const PAUSED_DELAY = seconds(Math.max(5_000, 10_000 / SPEED))
 
-/** Shorter than the downtime, so this one comes due while the bot is off */
+/** Shorter than the downtime, comes due while the bot is off. */
 export const OVERDUE_DELAY = seconds(Math.min(10_000 / SPEED, DOWNTIME * 0.4))
 
-/** Set before the timers are scheduled, and read back by one of them after the restart */
+/** Set before scheduling, read back by one of the timers after the restart. */
 export const CARRIED = "carried-across"
 
 export const TOLERANCE = 3000
@@ -94,8 +94,8 @@ export const SEED_CODE =
     `$smokeReport[seeded]`
 
 /**
- * What the second boot runs. The held timer is read before it is let go of, so the restart is
- * caught leaving it alone rather than only the resume being caught working.
+ * What the second boot runs. Reads the held timer before letting it go, which catches the restart
+ * leaving it alone and not only the resume working.
  */
 export const VERIFY_CODE =
     `$smokeReport[booted]` +
@@ -103,10 +103,10 @@ export const VERIFY_CODE =
     `$smokeReport[left-alone:$timerRunning[timeout;${PAUSED_NAME}]]` +
     `$smokeReport[let-go:$resumeTimer[timeout;${PAUSED_NAME}]]`
 
-/** Every event reports under the name of the timer it is about */
+/** Every event reports under its timer's name. */
 export const eventCode = (event: string) => `$smokeReport[event-${event}:$timerData[name]]`
 
-/** An event command runs with no target of its own, so this checks one can still reach discord */
+/** An event command has no target of its own. Checks one still reaches discord. */
 export const EVENT_MESSAGE_CODE =
     `$if[$timerData[name]==${TIMEOUT_NAME};` +
     `$let[sent;$sendMessage[${CHANNEL};ForgeTimers event check;true]]$smokeReport[event-message:$get[sent]]]`
@@ -182,7 +182,7 @@ async function waitForTheBeat() {
     await wait(untilTick + TOLERANCE)
 }
 
-/** Resuming happens on the second boot, so what was left of the hold only starts counting there */
+/** Resumed on the second boot. What was left of the hold only starts counting there. */
 async function waitForTheWoken() {
     if (seen("woken", bootedAt)) return
 
@@ -194,7 +194,7 @@ async function waitForTheWoken() {
     await wait(untilRun + TOLERANCE)
 }
 
-/** The cron keeps to the clock rather than to a gap, so its next occurrence is never far off */
+/** The cron keeps to the clock, not a gap. Its next occurrence is never far off. */
 async function waitForTheCron() {
     if (seen("cron", bootedAt)) return
 
@@ -236,8 +236,8 @@ async function verify(plan: ISmokePlan) {
     const ran = seen("cron", bootedAt)
     const cronRow = await Database.get(TimerKind.cron, CRON_NAME)
 
-    // an occurrence of `*/n * * * * *` always lands on a whole n seconds, so a restored cron that
-    // came back on the leftover of a gap instead of on the clock shows up here
+    // `*/n * * * * *` always lands on a whole n seconds, a cron restored on the leftover
+    // of a gap and not on the clock shows up here
     const nextRun = cronRow ? new Date(cronRow.fireAt) : null
     const onTheBeat = !!nextRun && nextRun.getMilliseconds() === 0 && nextRun.getSeconds() % CRON_SECONDS === 0
 
@@ -250,7 +250,7 @@ async function verify(plan: ISmokePlan) {
     const restoreEvent = seen(`event-timerRestore:${TIMEOUT_NAME}`, bootedAt)
     const fireEvent = seen(`event-timerFire:${TIMEOUT_NAME}`, bootedAt)
 
-    // a snowflake back from $sendMessage is discord saying it accepted the message
+    // a snowflake back from $sendMessage means discord took the message
     const sent = seen("sent", bootedAt)?.label.split(":")[1]
     const eventSent = seen("event-message", bootedAt)?.label.split(":")[1]
 

@@ -4,11 +4,10 @@ exports.TimerContext = void 0;
 exports.snapshotRunner = snapshotRunner;
 const forgescript_1 = require("@tryforge/forgescript");
 /**
- * Builds the runner for a scheduled timer.
- *
- * @param ctx The context the timer was scheduled from.
- * @param resolve What to run, given the context built for that run.
- * @returns The runtime the snapshot came from, the runner, and a way to hand it its timer.
+ * Runner for a timer scheduled live. Every tick gets fresh copies of the snapshot vars.
+ * @param ctx Context the timer was scheduled from.
+ * @param resolve What to run, given the tick's context.
+ * @returns Runtime the snapshot came from, the runner, and `carries` to hand it its timer.
  */
 function snapshotRunner(ctx, resolve) {
     const runtime = ctx.cloneRuntime();
@@ -37,10 +36,13 @@ class TimerContext extends forgescript_1.Context {
         this.runtime = runtime;
     }
     get user() {
-        return super.user ?? this.runtime.author ?? null;
+        return this.runtime.author ?? super.user ?? null;
     }
     get member() {
-        return super.member ?? this.runtime.authorMember ?? null;
+        return this.runtime.authorMember ?? super.member ?? null;
+    }
+    cloneEmpty() {
+        return new TimerContext({ ...this.runtime });
     }
     get timer() {
         return this.runtime.timer ?? null;

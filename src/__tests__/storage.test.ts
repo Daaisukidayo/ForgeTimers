@@ -6,7 +6,7 @@ import { ITimerEventPayload, TimerEvent } from "../types"
 
 useTempHome("forgetimers-storage")
 
-/** Subscribed before attach(), which is what calls init() and opens the storage */
+/** Subscribed before attach(), the call that runs init() and opens the storage. */
 function watching(ext: ForgeTimers, event: TimerEvent) {
     const seen: ITimerEventPayload[] = []
     ext.emitter.on(event, (payload) => seen.push(payload))
@@ -15,8 +15,8 @@ function watching(ext: ForgeTimers, event: TimerEvent) {
 }
 
 /**
- * The failure comes first on purpose: blocking forge.db only bites while ForgeDBStore is still
- * uncached, and opening the storage even once would warm it for the rest of the file.
+ * The failure goes first on purpose. Blocking forge.db only bites while ForgeDBStore is still
+ * uncached, and opening the storage even once warms it for the rest of the file.
  */
 describe("the storage being opened", () => {
     it("reports one it could not open, and why", async () => {

@@ -2,11 +2,17 @@ import { EventManager, ForgeClient, ForgeExtension } from "@tryforge/forgescript
 import { EventEmitter } from "node:events"
 import { HANDLER, TimerCommandManager, TimersManager } from "./managers"
 import { Database, TimerKind, TimerStorage } from "./structures"
-import { migrateTimers } from "./functions/migrate"
 import { IForgeTimersOptions, ITimerEvents, ITimerOverrides, TimerEvent } from "./types"
 import { Logger } from "./functions/logger"
+import { emitSafely } from "./functions/emit"
 import { description, version } from "../package.json"
 import path from "path"
+
+declare module "@tryforge/forgescript" {
+    interface ForgeClient {
+        crons: Map<string, NodeJS.Timeout>
+    }
+}
 
 export class ForgeTimers extends ForgeExtension {
     name = "ForgeTimers"
@@ -23,7 +29,27 @@ export class ForgeTimers extends ForgeExtension {
 
     public constructor(public readonly options: IForgeTimersOptions = {}) {
         super()
-        this.requireExtensions = [options.storage === "quorieldb" ? "QuorielDB" : "forge.db"]
+        this.requireExtensions = [Database.extensionOf(options.storage ?? "forgedb")]
+    }
+
+    /**
+     * The extension on a client. Throws when it isn't loaded.
+     * @param client Client to look on.
+     */
+    public static of(client: ForgeClient) {
+        return client.getExtension(ForgeTimers, true)
+    }
+
+    /**
+     * Config of a kind, `{}` when none was given.
+     * @param kind Timer kind.
+     */
+    public configOf(kind: TimerKind): ITimerOverrides {
+        const { timeoutConfig, intervalConfig, cronConfig } = this.options
+        const configs = { timeout: timeoutConfig, interval: intervalConfig, cron: cronConfig }
+
+        // a stored kind can be anything, toString too
+        return (Object.hasOwn(configs, kind) && configs[kind]) || {}
     }
 
     public init(client: ForgeClient) {
@@ -37,6 +63,8 @@ export class ForgeTimers extends ForgeExtension {
         }
 
         this.ready = this._open(client)
+
+        client.crons = new Map()
         this.timersManager = new TimersManager(client)
     }
 
@@ -49,20 +77,30 @@ export class ForgeTimers extends ForgeExtension {
             Logger.error(err)
             const reason = err instanceof Error ? err.message : String(err)
 
-            this.emitter.emit(TimerEvent.databaseFail, { event: { failReason: reason } })
+            emitSafely(this.emitter, TimerEvent.databaseFail, { event: { failReason: reason } })
             return false
         }
 
-        this.emitter.emit(TimerEvent.databaseConnect, {})
+        emitSafely(this.emitter, TimerEvent.databaseConnect, {})
 
         const { migrateFrom, keepSource } = this.options
-        if (migrateFrom) await migrateTimers(client, migrateFrom, storage, keepSource)
+        if (!migrateFrom) return true
+
+        const needed = Database.extensionOf(migrateFrom)
+        if (client.options.extensions?.some((extension) => extension.name === needed)) {
+            await Database.migrate(migrateFrom, keepSource)
+        } else {
+            Logger.error(
+                `Cannot migrate from "${migrateFrom}": the ${needed} extension is not loaded. ` +
+                    "Keep it in `extensions` for one boot, then remove it."
+            )
+        }
 
         return true
     }
 
     private _reviewOptions() {
-        const { storage, migrateFrom, timeoutConfig, intervalConfig, cronConfig, events } = this.options
+        const { storage, migrateFrom, events } = this.options
         const backends: TimerStorage[] = ["forgedb", "quorieldb"]
 
         for (const [option, value] of Object.entries({ storage, migrateFrom })) {
@@ -73,16 +111,10 @@ export class ForgeTimers extends ForgeExtension {
             }
         }
 
-        const configs: Record<TimerKind, ITimerOverrides | undefined> = {
-            [TimerKind.timeout]: timeoutConfig,
-            [TimerKind.interval]: intervalConfig,
-            [TimerKind.cron]: cronConfig,
-        }
-
         for (const kind of Object.values(TimerKind)) {
-            const config = configs[kind]
+            const config = this.configOf(kind)
 
-            const max = config?.maxOverdue
+            const max = config.maxOverdue
             if (max !== undefined && max < 0) {
                 Logger.warn(
                     `${kind}Config.maxOverdue is ${max}, which throws away every ${kind} that comes back late. Use 0, or leave it out, for no limit.`
@@ -91,7 +123,7 @@ export class ForgeTimers extends ForgeExtension {
 
             if (kind === TimerKind.timeout) continue
 
-            const limit = config?.restoredTicksLimit
+            const limit = config.restoredTicksLimit
             if (limit !== undefined && limit < 0) {
                 Logger.warn(
                     `${kind}Config.restoredTicksLimit is ${limit}, which replays nothing. Use Infinity to replay everything it missed.`
@@ -101,10 +133,7 @@ export class ForgeTimers extends ForgeExtension {
 
         for (const event of events ?? []) {
             if (!Object.hasOwn(TimerEvent, event)) {
-                Logger.warn(
-                    `"${event}" is not a timer event, so loading them will fail. ` +
-                        `The ones there are: ${Object.keys(TimerEvent).join(", ")}.`
-                )
+                Logger.warn(`"${event}" is not a timer event.`)
             }
         }
     }
@@ -113,5 +142,3 @@ export class ForgeTimers extends ForgeExtension {
 export * from "./managers"
 export * from "./structures"
 export * from "./types"
-export * from "./functions/snapshotVars"
-export * from "./functions/migrate"

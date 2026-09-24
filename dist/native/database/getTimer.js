@@ -10,43 +10,22 @@ exports.default = new forgescript_1.NativeFunction({
     unwrap: true,
     brackets: true,
     args: [
-        {
-            name: "kind",
-            description: "The kind of the timer to look for",
-            rest: false,
-            required: true,
-            type: forgescript_1.ArgType.Enum,
-            enum: __1.TimerKind
-        },
-        {
-            name: "name",
-            description: "The name of the timer to get",
-            rest: false,
-            required: true,
-            type: forgescript_1.ArgType.String,
-        },
-        {
-            name: "property",
-            description: "The property of the timer to return",
-            rest: false,
-            type: forgescript_1.ArgType.Enum,
-            enum: timer_1.TimerProperty
-        }
+        forgescript_1.Arg.requiredEnum(__1.TimerKind, "kind", "The kind of the timer to look for"),
+        forgescript_1.Arg.requiredString("name", "The name of the timer to get"),
+        forgescript_1.Arg.optionalEnum(timer_1.TimerProperty, "property", "The property of the timer to return")
     ],
     output: [
         forgescript_1.ArgType.Json,
         forgescript_1.ArgType.Unknown
     ],
     async execute(ctx, [kind, name, prop]) {
-        if (!(await ctx.client.getExtension(__1.ForgeTimers, true).ready))
+        if (!(await __1.ForgeTimers.of(ctx.client).ready))
             return this.success();
         const timer = await __1.Database.get(kind, name);
         if (!timer)
             return this.success();
-        if (prop) {
-            const value = timer_1.TimerProperties[prop](timer);
-            return (0, timer_1.isStructured)(value) ? this.successJSON(value) : this.success(value);
-        }
+        if (prop)
+            return (0, timer_1.answer)(this, timer, prop);
         return this.successJSON((0, timer_1.readProperties)(timer));
     }
 });

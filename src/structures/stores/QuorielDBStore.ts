@@ -5,7 +5,7 @@ import { IDeleteResult, ITimerStore } from "./ITimerStore"
 /** The QuorielDB record type timers live under */
 export const QUORIEL_TYPE = "timers"
 
-/** No entity to derive a key from, so the id is the key */
+/** No entity to derive a key from, the id is the key */
 const SCHEMA: QuorielDB.TypeSchema = { type: null, guild: false }
 
 /** Keeps timers in QuorielDB's LMDB store, under its own record type */

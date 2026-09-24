@@ -81,7 +81,7 @@ let seeded = false
 
 export const marks: string[] = []
 
-/** Waits for something to become true instead of guessing how long it takes */
+/** Waits for something to become true instead of guessing how long it takes. */
 export async function waitFor(condition: () => boolean | Promise<boolean>, timeout = 5000) {
     const deadline = Date.now() + timeout
 
@@ -140,7 +140,7 @@ function registerMark() {
     )
 }
 
-/** forge.db arms this on every connection and never clears it, so the process idles it out */
+/** forge.db arms this on every connection and never clears it. Unref'd below, the process won't wait on it. */
 const FORGE_DB_WATCHDOG = 10_000
 
 const realSetTimeout = globalThis.setTimeout
@@ -150,7 +150,7 @@ globalThis.setTimeout = ((handler: never, ms?: number, ...rest: never[]) => {
     return handle
 }) as typeof globalThis.setTimeout
 
-/** Wraps an extension in a client it can believe in, without any of the setup boot() does */
+/** Wraps an extension in a client it can believe in, without any of the setup boot() does. */
 export function attach(ext: ForgeTimers): ITestClient {
     const booted = structuredClone({
         timeoutConfig: ext.options.timeoutConfig,
@@ -178,7 +178,7 @@ export function attach(ext: ForgeTimers): ITestClient {
             for (const handler of handlers) await handler()
         },
         disarm() {
-            // the manager's own stand-down, so claims are let go of too and a name stops reading as live
+            // the manager's own stand-down, it lets claims go too and a name stops reading as live
             ext.timersManager?.standDown()
         },
         reset() {
@@ -358,7 +358,7 @@ export function useTempHome(prefix: string) {
         process.chdir(home)
 
         try {
-            // only the store in use is closed above, so a backend read alongside it may still hold the folder
+            // only the store in use is closed above, a backend read alongside it may still hold the folder
             rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
         } catch {
             void 0
@@ -374,8 +374,8 @@ export const apiError = (status: number, code: number, message: string) =>
     new DiscordAPIError({ message, code } as never, code, status, "GET", "/channels/x", {})
 
 export async function contentsOf(storage: TimerStorage) {
-    // not destroyed: both backends hand out one handle per process, and closing this one
-    // would shut the live Database out from under whatever is still running
+    // not destroyed, both backends hand out one handle per process and closing this one
+    // would pull the live Database out from under whatever still runs
     const store = await Database.open(storage)
     const all = await store.getAll()
 

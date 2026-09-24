@@ -8,7 +8,7 @@ const node_test_1 = require("node:test");
 const harness_1 = require("./support/harness");
 let harness;
 (0, harness_1.useHarness)((booted) => (harness = booted));
-/** What a tick wrote down, in the order the ticks ran */
+/** What a tick wrote down, in the order the ticks ran. */
 const ticks = () => harness_1.marks.filter((mark) => mark.startsWith("saw:"));
 (0, node_test_1.describe)("what a timer writes to its own variables", () => {
     (0, node_test_1.it)("never reaches the script that scheduled it", async () => {

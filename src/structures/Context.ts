@@ -10,31 +10,30 @@ declare module "@tryforge/forgescript" {
 }
 
 export interface ITimerRunnable extends IRunnable {
-    /** Scheduling user, refetched on restore - fills in once the original message is gone */
+    /** Who scheduled it, refetched on restore. Wins over the target's own author */
     author?: User | null
 
     /**
-     * The scheduling user as a guild member, when the timer belongs to a guild.
+     * The same user as a guild member, when the timer has a guild.
      */
     authorMember?: GuildMember | null
 
     /**
-     * The timer this run is about.
+     * Timer this run is about, for `$timerData`.
      */
     timer?: Timer | null
 
     /**
-     * What the event added on top of its timer, read by the `event/` natives
+     * Event extras, for `$eventData`.
      */
     event?: ITimerEventData | null
 }
 
 /**
- * Builds the runner for a scheduled timer.
- *
- * @param ctx The context the timer was scheduled from.
- * @param resolve What to run, given the context built for that run.
- * @returns The runtime the snapshot came from, the runner, and a way to hand it its timer.
+ * Runner for a timer scheduled live. Every tick gets fresh copies of the snapshot vars.
+ * @param ctx Context the timer was scheduled from.
+ * @param resolve What to run, given the tick's context.
+ * @returns Runtime the snapshot came from, the runner, and `carries` to hand it its timer.
  */
 export function snapshotRunner(ctx: BaseContext, resolve: (tick: BaseContext) => Promise<unknown>) {
     const runtime = ctx.cloneRuntime()
@@ -68,11 +67,15 @@ export class TimerContext extends BaseContext {
     }
 
     public override get user() {
-        return super.user ?? this.runtime.author ?? null
+        return this.runtime.author ?? super.user ?? null
     }
 
     public override get member() {
-        return super.member ?? this.runtime.authorMember ?? null
+        return this.runtime.authorMember ?? super.member ?? null
+    }
+
+    public override cloneEmpty() {
+        return new TimerContext({ ...this.runtime })
     }
 
     public get timer() {

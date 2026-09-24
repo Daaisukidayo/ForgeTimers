@@ -9,15 +9,7 @@ exports.default = new forgescript_1.NativeFunction({
     description: "Returns what an event's timer was scheduled with",
     unwrap: true,
     brackets: false,
-    args: [
-        {
-            name: "property",
-            description: "The property to return, or every one of them as JSON",
-            rest: false,
-            type: forgescript_1.ArgType.Enum,
-            enum: timer_1.TimerProperty,
-        },
-    ],
+    args: [forgescript_1.Arg.optionalEnum(timer_1.TimerProperty, "property", "The property to return, or every one of them as JSON")],
     output: [forgescript_1.ArgType.Json, forgescript_1.ArgType.Unknown],
     execute(ctx, [prop]) {
         const timer = ctx instanceof structures_1.TimerContext ? ctx.timer : null;
@@ -25,8 +17,7 @@ exports.default = new forgescript_1.NativeFunction({
             return this.success();
         if (!prop)
             return this.successJSON((0, timer_1.readProperties)(timer));
-        const value = timer_1.TimerProperties[prop](timer);
-        return (0, timer_1.isStructured)(value) ? this.successJSON(value) : this.success(value);
+        return (0, timer_1.answer)(this, timer, prop);
     },
 });
 //# sourceMappingURL=timerData.js.map

@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TimerProperties = exports.TimerProperty = void 0;
 exports.isStructured = isStructured;
+exports.answer = answer;
 exports.textOf = textOf;
 exports.readFilters = readFilters;
 exports.matches = matches;
@@ -26,11 +27,28 @@ var TimerProperty;
     TimerProperty["args"] = "args";
     TimerProperty["config"] = "config";
 })(TimerProperty || (exports.TimerProperty = TimerProperty = {}));
-/** Whether a value has to go back as JSON, since plain text flattens it to [object Object] */
+/**
+ * Objects go back as JSON, plain text would flatten them to [object Object].
+ * @param value Value to check.
+ */
 function isStructured(value) {
     return typeof value === "object" && value !== null;
 }
-/** How a property reads as text, so every one of them can be matched the same way */
+/**
+ * Answers with one property, JSON for objects and plain text for the rest.
+ * @param fn The native answering.
+ * @param timer Timer to read.
+ * @param property Property to answer with.
+ */
+function answer(fn, timer, property) {
+    const value = exports.TimerProperties[property](timer);
+    return isStructured(value) ? fn.successJSON(value) : fn.success(value);
+}
+/**
+ * A property as text, the form every filter compares against.
+ * @param timer Timer to read.
+ * @param property Property to read.
+ */
 function textOf(timer, property) {
     const value = exports.TimerProperties[property](timer);
     if (value === null || value === undefined)
@@ -38,9 +56,9 @@ function textOf(timer, property) {
     return typeof value === "object" ? JSON.stringify(value) : String(value);
 }
 /**
- * Reads a flat list of property and value pairs.
- * @param filters The arguments as they were given, each property followed by what it has to read as.
- * @returns The pairs, or why the list could not be read.
+ * Reads flat property and value pairs.
+ * @param filters Arguments as given, each property followed by the value it must read as.
+ * @returns The pairs, or why they could not be read.
  */
 function readFilters(filters) {
     if (filters.length % 2) {
@@ -58,9 +76,9 @@ function readFilters(filters) {
     return { ok: true, pairs };
 }
 /**
- * Whether a timer answers to every pair.
- * @param timer The timer to look at.
- * @param pairs What it has to match, all of them.
+ * Whether a timer matches every pair.
+ * @param timer Timer to check.
+ * @param pairs All of them have to match.
  */
 function matches(timer, pairs) {
     return pairs.every(([named, wanted]) => textOf(timer, named) === wanted);

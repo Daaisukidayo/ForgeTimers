@@ -9,7 +9,7 @@ exports.default = new forgescript_1.NativeFunction({
     unwrap: true,
     output: forgescript_1.ArgType.Number,
     async execute(ctx) {
-        const manager = ctx.client.getExtension(__1.ForgeTimers, true).timersManager;
+        const manager = __1.ForgeTimers.of(ctx.client).timersManager;
         return this.success(await manager.wipe());
     }
 });

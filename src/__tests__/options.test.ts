@@ -12,7 +12,7 @@ beforeEach(async () => {
     await Database.wipe().catch(() => undefined)
 })
 
-/** What the extension said about the config, and what it did with the timers it found */
+/** What the extension said about the config, and what it did with the timers it found. */
 async function boots(
     options: IForgeTimersOptions,
     seed: (harness: ITestClient) => Promise<void> = async () => undefined

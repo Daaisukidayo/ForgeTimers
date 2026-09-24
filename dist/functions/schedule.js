@@ -6,11 +6,10 @@ exports.setLongInterval = setLongInterval;
 exports.MAX_DELAY = 2_147_483_647;
 /**
  * `setTimeout` for any length, chunked past {@link MAX_DELAY}.
- *
- * @param delay How long to wait, in ms.
- * @param fn What to run once the delay has elapsed.
- * @param onArm Every chunk's handle, so callers can cancel the pending one.
- * @returns The first chunk's handle.
+ * @param delay Wait in ms.
+ * @param fn What to run once it is over.
+ * @param onArm Gets every chunk's handle. Cancel the latest one, not the first.
+ * @returns First chunk's handle.
  */
 function setLongTimeout(delay, fn, onArm) {
     const deadline = Date.now() + delay;
@@ -28,11 +27,10 @@ function setLongTimeout(delay, fn, onArm) {
 }
 /**
  * `setInterval` for any tick length. Re-arms before running.
- *
- * @param duration How long each tick lasts, in ms.
- * @param fn What to run on every tick.
- * @param onArm Every chunk's handle, so callers can cancel the pending one.
- * @returns The first chunk's handle.
+ * @param duration Tick length in ms.
+ * @param fn What to run every tick.
+ * @param onArm Gets every chunk's handle. Cancel the latest one, not the first.
+ * @returns First chunk's handle.
  */
 function setLongInterval(duration, fn, onArm) {
     const arm = () => setLongTimeout(duration, () => {

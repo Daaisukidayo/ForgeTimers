@@ -29,10 +29,19 @@ const stored = (name, duration, code = "$testMark[ran]") => new harness_1.Timer(
     (0, node_test_1.it)("says no for a name nothing was scheduled under", async () => {
         strict_1.default.equal(await (0, harness_1.run)(harness, "$rescheduleTimer[timeout;never;1h]"), "false");
     });
-    (0, node_test_1.it)("refuses a duration an interval could never tick on", async () => {
-        await (0, harness_1.run)(harness, "$setInterval[x;1h;beat]");
-        await (0, harness_1.run)(harness, "$rescheduleTimer[interval;beat;0]");
-        strict_1.default.equal((await harness_1.Database.get(harness_1.TimerKind.interval, "beat")).duration, 3_600_000, "it must be untouched");
+    (0, node_test_1.it)("takes any duration the set natives would take", async () => {
+        await (0, harness_1.run)(harness, "$setInterval[$testMark[tick];1h;beat]");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$rescheduleTimer[interval;beat;0]"), "true");
+        const ticked = await (0, harness_1.waitFor)(() => harness_1.marks.filter((mark) => mark === "tick").length >= 2, 2000);
+        harness.disarm();
+        strict_1.default.ok(ticked, "the new schedule was never armed");
+        strict_1.default.equal((await harness_1.Database.get(harness_1.TimerKind.interval, "beat")).duration, 0, "it is stored as it was given");
+    });
+    (0, node_test_1.it)("still refuses a schedule it cannot read at all", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[ran];1h;n]");
+        strict_1.default.notEqual(await (0, harness_1.run)(harness, "$rescheduleTimer[timeout;n;banana]"), "true", "it reported a move it never made");
+        strict_1.default.ok(!(await (0, harness_1.waitFor)(() => harness_1.marks.includes("ran"), 300)), "an unreadable schedule fired the timer at once");
+        strict_1.default.ok(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), "and then spent its record");
     });
 });
 (0, node_test_1.describe)("$pauseTimer and $resumeTimer", () => {
@@ -273,6 +282,51 @@ const stored = (name, duration, code = "$testMark[ran]") => new harness_1.Timer(
     });
     (0, node_test_1.it)("is zero when nothing is stored", async () => {
         strict_1.default.equal(await (0, harness_1.run)(harness, "$timersCount"), "0");
+    });
+});
+(0, node_test_1.describe)("a context a native cloned", () => {
+    (0, node_test_1.it)("still knows its timer, the way $scope and the await natives clone one", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[$testMark[out=$timerData[name]|in=$scope[$timerData[name]]];60;probe]");
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.length > 0, 2000), "it never ran");
+        strict_1.default.equal(harness_1.marks[0], "out=probe|in=probe", "a cloned context left the run without its timer");
+    });
+});
+(0, node_test_1.describe)("standing every timer down", () => {
+    (0, node_test_1.it)("lets go of every name without touching what is stored", async () => {
+        await (0, harness_1.run)(harness, "$setTimeout[x;1h;a]$setInterval[x;1h;b]$setCron[x;0 9 * * *;c]");
+        const manager = harness.ext.timersManager;
+        strict_1.default.equal(manager.isLive(harness_1.TimerKind.timeout, "a"), true, "nothing was armed to stand down");
+        manager.standDown();
+        for (const [kind, name] of [
+            [harness_1.TimerKind.timeout, "a"],
+            [harness_1.TimerKind.interval, "b"],
+            [harness_1.TimerKind.cron, "c"],
+        ]) {
+            strict_1.default.equal(manager.isLive(kind, name), false, `the ${kind} is still live`);
+            strict_1.default.ok(await harness_1.Database.get(kind, name), `the ${kind} lost its record, which is what wipe is for`);
+        }
+        strict_1.default.equal(harness.client.timeouts.size, 0);
+        strict_1.default.equal(harness.client.intervals.size, 0);
+    });
+});
+(0, node_test_1.describe)("a stored timer whose code will not compile", () => {
+    // only something besides $setTimeout can store this, the outer command compiles first
+    const broken = (name) => (0, harness_1.persist)(new harness_1.Timer({ name, kind: harness_1.TimerKind.timeout, code: "$if[", duration: 3_600_000 }), Date.now() + 3_600_000);
+    (0, node_test_1.it)("is refused a new schedule, and left where it was", async () => {
+        await broken("n");
+        const before = (await harness_1.Database.get(harness_1.TimerKind.timeout, "n"));
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$rescheduleTimer[timeout;n;30m]"), "false");
+        strict_1.default.equal((await harness_1.Database.get(harness_1.TimerKind.timeout, "n")).fireAt, before.fireAt, "it was moved anyway");
+    });
+    (0, node_test_1.it)("is refused a release, and stays held", async () => {
+        await broken("n");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$pauseTimer[timeout;n]"), "true", "a hold asks nothing of the compiler");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$resumeTimer[timeout;n]"), "false");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$getTimer[timeout;n;paused]"), "true");
+    });
+    (0, node_test_1.it)("is refused a run by hand", async () => {
+        await broken("n");
+        strict_1.default.equal(await (0, harness_1.run)(harness, "$executeTimer[timeout;n]"), "false");
     });
 });
 //# sourceMappingURL=control.test.js.map

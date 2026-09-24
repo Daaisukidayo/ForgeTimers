@@ -8,23 +8,13 @@ exports.default = new forgescript_1.NativeFunction({
     description: "Retrieves a timer as it was before the event changed it",
     unwrap: true,
     brackets: true,
-    args: [
-        {
-            name: "property",
-            description: "The property to pull",
-            rest: false,
-            required: true,
-            type: forgescript_1.ArgType.Enum,
-            enum: timer_1.TimerProperty,
-        },
-    ],
+    args: [forgescript_1.Arg.requiredEnum(timer_1.TimerProperty, "property", "The property to pull")],
     output: [forgescript_1.ArgType.Json, forgescript_1.ArgType.Unknown],
     execute(ctx, [property]) {
         const old = ctx.states?.timer?.old;
         if (!old)
             return this.success();
-        const value = timer_1.TimerProperties[property](old);
-        return (0, timer_1.isStructured)(value) ? this.successJSON(value) : this.success(value);
+        return (0, timer_1.answer)(this, old, property);
     },
 });
 //# sourceMappingURL=oldTimer.js.map

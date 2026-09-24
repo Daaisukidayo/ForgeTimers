@@ -10,33 +10,16 @@ exports.default = new forgescript_1.NativeFunction({
     unwrap: true,
     brackets: false,
     args: [
-        {
-            name: "kind",
-            description: "Only return timers of this kind",
-            rest: false,
-            type: forgescript_1.ArgType.Enum,
-            enum: __1.TimerKind
-        },
-        {
-            name: "property",
-            description: "Return only this property of every timer, instead of all of them",
-            rest: false,
-            type: forgescript_1.ArgType.Enum,
-            enum: timer_1.TimerProperty
-        },
-        {
-            name: "separator",
-            description: "Join the properties with this, instead of listing them as JSON",
-            rest: false,
-            type: forgescript_1.ArgType.String
-        }
+        forgescript_1.Arg.optionalEnum(__1.TimerKind, "kind", "Only return timers of this kind"),
+        forgescript_1.Arg.optionalEnum(timer_1.TimerProperty, "property", "Return only this property of every timer, instead of all of them"),
+        forgescript_1.Arg.optionalString("separator", "Join the properties with this, instead of listing them as JSON")
     ],
     output: [
         forgescript_1.ArgType.Json,
         forgescript_1.ArgType.Unknown
     ],
     async execute(ctx, [kind, prop, sep]) {
-        if (!(await ctx.client.getExtension(__1.ForgeTimers, true).ready))
+        if (!(await __1.ForgeTimers.of(ctx.client).ready))
             return this.successJSON([]);
         const timers = kind ? await __1.Database.getAllOf(kind) : await __1.Database.getAll();
         if (!prop)

@@ -1,17 +1,16 @@
 import { IStoredOverrides, ITimerOverrides } from "../types"
 
-/** What `Infinity` is written as, since JSON cannot carry the number itself */
+/** How `Infinity` gets stored. JSON has no such number */
 const INFINITY = "Infinity"
 
-/** An argument left blank arrives as an empty string, and one the call never reached as null */
+/** A blank argument arrives as an empty string, one the call never reached as null */
 const given = (config: ITimerOverrides | IStoredOverrides) =>
     Object.entries(config).filter(([, value]) => value !== undefined && value !== null && value !== "")
 
 /**
- * Keeps only the options a call actually spelled out.
- *
+ * Keeps only the options a call spelled out.
  * @param passed Every override the call could carry, filled in or not.
- * @returns What to store, or null when the call named nothing.
+ * @returns What to store, null when the call named nothing.
  */
 export function overridesOf(passed: ITimerOverrides): IStoredOverrides | null {
     const named = given(passed)
@@ -25,7 +24,7 @@ export function overridesOf(passed: ITimerOverrides): IStoredOverrides | null {
 
 /**
  * Reads back what {@link overridesOf} wrote.
- * @param stored The overrides a timer came out of the database with.
+ * @param stored Overrides as stored.
  */
 export function readOverrides(stored: IStoredOverrides): ITimerOverrides {
     const config: ITimerOverrides = Object.fromEntries(given(stored))

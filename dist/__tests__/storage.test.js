@@ -9,15 +9,15 @@ const harness_1 = require("./support/harness");
 const __1 = require("..");
 const types_1 = require("../types");
 (0, harness_1.useTempHome)("forgetimers-storage");
-/** Subscribed before attach(), which is what calls init() and opens the storage */
+/** Subscribed before attach(), the call that runs init() and opens the storage. */
 function watching(ext, event) {
     const seen = [];
     ext.emitter.on(event, (payload) => seen.push(payload));
     return seen;
 }
 /**
- * The failure comes first on purpose: blocking forge.db only bites while ForgeDBStore is still
- * uncached, and opening the storage even once would warm it for the rest of the file.
+ * The failure goes first on purpose. Blocking forge.db only bites while ForgeDBStore is still
+ * uncached, and opening the storage even once warms it for the rest of the file.
  */
 (0, node_test_1.describe)("the storage being opened", () => {
     (0, node_test_1.it)("reports one it could not open, and why", async () => {

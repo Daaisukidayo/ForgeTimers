@@ -24,7 +24,7 @@ let harness;
         strict_1.default.equal(harness.client.timeouts.has("n"), true, "a guild it never uses must not hold its code back");
     });
     (0, node_test_1.it)("takes only the guilds its own shards own, whether or not they are in cache", async () => {
-        // discord hands a guild to (id >> 22) % count, so ask it which shard each of these is for
+        // discord hands a guild to (id >> 22) % count, ask it which shard each one is for
         const ours = "1234567890123456789";
         const mine = discord_js_1.ShardClientUtil.shardIdForGuildId(ours, 4);
         const theirs = "9876543210987654321";

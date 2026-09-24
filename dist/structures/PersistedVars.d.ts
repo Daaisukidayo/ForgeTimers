@@ -11,12 +11,11 @@ export interface IPersistedVars {
 /** v0 was plain json. v1 tags dates, maps, sets, regexps and bigints, and drops per value instead of per key */
 export declare const VARS_SCHEMA_VERSION = 1;
 /**
- * Writes a timer's variables down so a restart can hand them back.
- * Whatever a function left in them travels - strings, numbers, arrays, plain objects, and the tagged dates, maps, sets, regexps and bigints that `$js` or another extension may have put there.
- * Functions, class instances and live discord structures cannot survive a restart, so they are dropped and named in the log instead.
- *
- * @param runtime The variables to write down.
- * @param label What to call this timer in that log.
+ * Writes a timer's variables down for a restart to hand back.
+ * Plain JSON travels, and the tagged dates, maps, sets, regexps and bigints `$js` or an extension may leave.
+ * Functions, class instances and discord structures can't survive a restart. They get dropped and named in the log.
+ * @param runtime Variables to write down.
+ * @param label What to call the timer in that log.
  */
 export declare function snapshotVars(runtime: {
     keywords?: Record<string, unknown>;
@@ -25,11 +24,15 @@ export declare function snapshotVars(runtime: {
 }, label: string): IPersistedVars;
 /**
  * Reads back a record written by {@link snapshotVars}.
- *
- * @param source The stored record.
- * @param version The schema the timer was written under.
+ * @param source Stored record.
+ * @param version Schema it was written under.
  */
 export declare function restoreVars(source: Record<string, unknown> | undefined, version: number): Record<string, unknown>;
-/** Rebuilds `localFunctions` by recompiling each stored code. */
+/**
+ * Rebuilds `localFunctions` by recompiling each stored code. One that won't compile is dropped.
+ * @param stored Local functions as stored.
+ * @param path Command path to compile against.
+ * @param label What to call the timer in the log.
+ */
 export declare function rehydrateLocalFunctions(stored: Record<string, IPersistedLocalFunction> | undefined, path: string | null | undefined, label: string): Record<string, ILocalFunctionData>;
-//# sourceMappingURL=snapshotVars.d.ts.map
+//# sourceMappingURL=PersistedVars.d.ts.map

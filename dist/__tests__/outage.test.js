@@ -8,7 +8,7 @@ const node_test_1 = require("node:test");
 const harness_1 = require("./support/harness");
 let harness;
 (0, harness_1.useHarness)((booted) => (harness = booted));
-/** Takes a call away the way a connection dropped after startup would */
+/** Takes a call away the way a connection dropped after startup would. */
 function breaks(...calls) {
     for (const call of calls) {
         (0, harness_1.patchDatabase)(call, () => async () => {

@@ -1,5 +1,5 @@
 import { Snowflake } from "discord.js"
-import { IPersistedVars, VARS_SCHEMA_VERSION } from "../functions/snapshotVars"
+import { IPersistedVars, VARS_SCHEMA_VERSION } from "./PersistedVars"
 import { missedRuns, nextRun } from "../functions/cron"
 import { IStoredOverrides } from "../types"
 
@@ -30,7 +30,7 @@ export interface IBaseTimerOptions {
     path?: string | null
 
     /**
-     * The name of the command this timer was scheduled from.
+     * Name of the command it was scheduled from.
      */
     commandName?: string | null
 
@@ -45,7 +45,7 @@ export interface IBaseTimerOptions {
     args?: string[]
 
     /**
-     * The options this timer was scheduled with.
+     * Options the call spelled out.
      */
     config?: IStoredOverrides | null
 
@@ -88,7 +88,7 @@ export interface ICronStartOptions extends IBaseTimerOptions {
     cron: string
 
     /**
-     * The zone that expression is read in, or null for whatever the process runs in.
+     * Zone the expression is read in, null for the process zone.
      */
     timezone?: string | null
 }
@@ -123,7 +123,7 @@ export interface ITimer extends IBaseTimerOptions {
     cron?: string | null
 
     /**
-     * The zone that expression is read in, or null for whatever the process runs in.
+     * Zone the expression is read in, null for the process zone.
      */
     timezone?: string | null
 
@@ -140,7 +140,7 @@ export interface ITimer extends IBaseTimerOptions {
 
 export class Timer implements ITimer {
     /**
-     * What this build writes.
+     * Variable schema this build writes.
      */
     public static readonly SCHEMA_VERSION = VARS_SCHEMA_VERSION
 
@@ -150,32 +150,32 @@ export class Timer implements ITimer {
     public static readonly MAX_ID_LENGTH = 255
 
     /**
-     * The id of this timer, in the form `kind:name`.
+     * Primary key, `kind:name`.
      */
     public id: string
 
     /**
-     * The name this timer was scheduled under.
+     * Name it was scheduled under.
      */
     public name: string
 
     /**
-     * The kind of the timer.
+     * Timeout, interval or cron.
      */
     public kind: TimerKind
 
     /**
-     * The ForgeScript code this timer executes.
+     * ForgeScript code it runs.
      */
     public code: string
 
     /**
-     * The path of the command this timer was scheduled from.
+     * Path of the command it was scheduled from.
      */
     public path?: string | null
 
     /**
-     * The name of the command this timer was scheduled from.
+     * Name of the command it was scheduled from.
      */
     public commandName?: string | null
 
@@ -186,67 +186,67 @@ export class Timer implements ITimer {
     public version?: number | null
 
     /**
-     * The delay of this timeout, or the tick length of this interval, in ms. Always 0 for a cron.
+     * Delay of a timeout or tick length of an interval, in ms. Always 0 for a cron.
      */
     public duration: number
 
     /**
-     * The cron expression this timer runs on, when it is one.
+     * Cron expression, when it is a cron.
      */
     public cron?: string | null
 
     /**
-     * The zone that expression is read in, or null for whatever the process runs in.
+     * Zone the expression is read in, null for the process zone.
      */
     public timezone?: string | null
 
     /**
-     * The timestamp this timer has been created at.
+     * When it was scheduled, unix ms.
      */
     public timestamp: number
 
     /**
-     * The timestamp this timer is next due to fire at.
+     * When it is next due, unix ms.
      */
     public fireAt: number
 
     /**
-     * The timestamp this timer was paused at, or null while it is running.
+     * When it was paused, null while running.
      */
     public pausedAt?: number | null
 
     /**
-     * The id of the guild this timer has been created on.
+     * Guild it was scheduled in.
      */
     public guildID?: Snowflake | null
 
     /**
-     * The id of the channel this timer has been created in, if any.
+     * Channel it was scheduled in, if any.
      */
     public channelID?: Snowflake | null
 
     /**
-     * The id of the user that scheduled this timer.
+     * User who scheduled it.
      */
     public authorID?: Snowflake | null
 
     /**
-     * The id of the message this timer was scheduled from.
+     * Message it was scheduled from.
      */
     public messageID?: Snowflake | null
 
     /**
-     * The command arguments this timer was scheduled with.
+     * Command arguments at scheduling time.
      */
     public args?: string[]
 
     /**
-     * The options this timer was scheduled with.
+     * Options the call spelled out.
      */
     public config?: IStoredOverrides | null
 
     /**
-     * The serializable variables present when this timer was scheduled.
+     * Variables at scheduling time, the serializable ones.
      */
     public vars?: IPersistedVars
 
@@ -284,8 +284,8 @@ export class Timer implements ITimer {
 
     /**
      * A timer with nothing but its identity, for reporting one that is already gone.
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
+     * @param kind Timer kind.
+     * @param name Timer name.
      */
     public static stub(kind: TimerKind, name: string) {
         const now = Date.now()
@@ -304,22 +304,22 @@ export class Timer implements ITimer {
     }
 
     /**
-     * Whether this timer keeps to an expression rather than to a gap.
+     * Whether it keeps to an expression rather than a gap.
      */
     public isCron(): this is Timer & { cron: string } {
         return this.kind === TimerKind.cron && typeof this.cron === "string" && this.cron.length > 0
     }
 
     /**
-     * Whether this timer is on hold, and so neither running nor falling behind.
+     * Whether it is on hold, neither running nor falling behind.
      */
     public isPaused() {
         return typeof this.pausedAt === "number"
     }
 
     /**
-     * Rebuilds a timer from a stored row, for a backend that hands back plain data.
-     * @param data The row to rebuild from.
+     * Rebuilds a timer from a stored row, for a backend that hands back plain data. Folds a pre-2.0.0 `hostID` into `authorID`.
+     * @param data Row to rebuild.
      */
     public static from(data: ITimer) {
         const timer = Object.assign(Object.create(Timer.prototype), data) as Timer & { hostID?: Snowflake | null }
@@ -332,8 +332,8 @@ export class Timer implements ITimer {
 
     /**
      * Builds the primary key for a timer.
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
+     * @param kind Timer kind.
+     * @param name Timer name.
      */
     public static idOf(kind: TimerKind, name: string) {
         return `${kind}:${name}`
@@ -341,14 +341,14 @@ export class Timer implements ITimer {
 
     /**
      * Longest usable name, since the id carries the kind too.
-     * @param kind The kind of the timer.
+     * @param kind Timer kind.
      */
     public static maxNameLength(kind: TimerKind) {
         return Timer.MAX_ID_LENGTH - Timer.idOf(kind, "").length
     }
 
     /**
-     * Returns the time left before this timer is due.
+     * Time left before it is due.
      */
     public timeLeft() {
         // a paused timer stopped counting down the moment it was paused
@@ -356,7 +356,7 @@ export class Timer implements ITimer {
     }
 
     /**
-     * Returns how long past due this timer is, or 0 if it isn't yet.
+     * How long past due it is, 0 when not yet.
      */
     public overdueBy() {
         if (this.isPaused()) return 0
@@ -364,7 +364,7 @@ export class Timer implements ITimer {
     }
 
     /**
-     * Returns whether this timer was due while the app was down.
+     * Whether it came due while the app was down.
      */
     public isOverdue() {
         if (this.isPaused()) return false
@@ -373,6 +373,7 @@ export class Timer implements ITimer {
 
     /**
      * Ticks elapsed since it was last due. Always 0 for timeouts, they fire once.
+     * @param limit Most worth counting. A cron counts them one by one.
      */
     public missedTicks(limit = Infinity) {
         if (this.isPaused()) return 0
@@ -393,10 +394,10 @@ export class Timer implements ITimer {
     }
 
     /**
-     * Steps whole ticks into the future, keeping the phase — a slow run shifts by ticks, not by itself.
+     * Steps whole ticks into the future, keeping the phase. A slow run shifts by ticks, not by itself.
      */
     public advance() {
-        // measured from the occurrence just run, so a slow one shifts by occurrences rather than by itself
+        // measured from the occurrence just run, a slow one shifts by whole occurrences
         if (this.isCron()) {
             this.fireAt = nextRun(this.cron, Math.max(this.fireAt, Date.now()), this.timezone)
             return this

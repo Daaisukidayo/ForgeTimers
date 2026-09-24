@@ -2,14 +2,12 @@ import assert from "node:assert/strict"
 import { beforeEach, describe, it } from "node:test"
 import { ForgeClient } from "@tryforge/forgescript"
 import { contentsOf, Database, GapKind, Timer, TimerKind, useTempHome } from "./support/harness"
-import { migrateTimers, TimerStorage } from ".."
+import { ForgeTimers, TimerStorage } from ".."
 
 useTempHome("forgetimers-migrate")
 
 const clientWith = (...extensions: string[]) =>
     ({ options: { extensions: extensions.map((name) => ({ name })) } }) as unknown as ForgeClient
-
-const both = clientWith("forge.db", "QuorielDB")
 
 beforeEach(async () => {
     for (const storage of ["forgedb", "quorieldb"] as TimerStorage[]) {
@@ -21,7 +19,7 @@ beforeEach(async () => {
 const timer = (name: string, dueIn = 3_600_000, kind: GapKind = TimerKind.timeout) =>
     new Timer({ name, kind, code: `$testMark[${name}]`, duration: dueIn, channelID: "chan-1" })
 
-/** Fills `from` with timers, then opens `to` ready for a migration */
+/** Fills `from` with timers, then opens `to` ready for a migration. */
 async function seed(from: TimerStorage, to: TimerStorage, timers: Timer[]) {
     await Database.use(from)
     for (const t of timers) await Database.set(t)
@@ -38,7 +36,7 @@ describe("moving timers between backends", () => {
             const original = timer("reminder")
             await seed(from, to, [original, timer("beat", 60_000, TimerKind.interval)])
 
-            const result = await migrateTimers(both, from, to)
+            const result = await Database.migrate(from)
 
             assert.deepEqual(result, { moved: 2, skipped: [], drained: true })
             assert.deepEqual(await contentsOf(to), ["interval:beat", "timeout:reminder"])
@@ -49,7 +47,7 @@ describe("moving timers between backends", () => {
             const original = timer("reminder")
             await seed(from, to, [original])
 
-            await migrateTimers(both, from, to)
+            await Database.migrate(from)
 
             const back = await Database.get(TimerKind.timeout, "reminder")
             assert.equal(back!.fireAt, original.fireAt)
@@ -77,7 +75,7 @@ describe("moving timers between backends", () => {
         })
 
         await seed("forgedb", "quorieldb", [original])
-        await migrateTimers(both, "forgedb", "quorieldb")
+        await Database.migrate("forgedb")
 
         const back = await Database.get(TimerKind.timeout, "full")
         assert.equal(back!.guildID, "guild-1")
@@ -95,9 +93,9 @@ describe("moving timers between backends", () => {
 describe("running it more than once", () => {
     it("does nothing the second time", async () => {
         await seed("forgedb", "quorieldb", [timer("once")])
-        await migrateTimers(both, "forgedb", "quorieldb")
+        await Database.migrate("forgedb")
 
-        const again = await migrateTimers(both, "forgedb", "quorieldb")
+        const again = await Database.migrate("forgedb")
 
         assert.deepEqual(again, { moved: 0, skipped: [], drained: true })
         assert.deepEqual(await contentsOf("quorieldb"), ["timeout:once"])
@@ -105,11 +103,11 @@ describe("running it more than once", () => {
 
     it("cannot resurrect a timer that already fired", async () => {
         await seed("forgedb", "quorieldb", [timer("spent")])
-        await migrateTimers(both, "forgedb", "quorieldb")
+        await Database.migrate("forgedb")
 
         // the timeout runs and clears itself, the way a restored one would
         await Database.delete(TimerKind.timeout, "spent")
-        await migrateTimers(both, "forgedb", "quorieldb")
+        await Database.migrate("forgedb")
 
         assert.deepEqual(await contentsOf("quorieldb"), [])
     })
@@ -120,7 +118,7 @@ describe("names already taken", () => {
         await seed("forgedb", "quorieldb", [timer("shared", 1000), timer("free")])
         await Database.set(timer("shared", 7_200_000))
 
-        const result = await migrateTimers(both, "forgedb", "quorieldb")
+        const result = await Database.migrate("forgedb")
 
         assert.equal(result!.moved, 1)
         assert.deepEqual(result!.skipped, ["timeout:shared"])
@@ -136,7 +134,7 @@ describe("copying instead of moving", () => {
     it("leaves the source untouched", async () => {
         await seed("forgedb", "quorieldb", [timer("kept")])
 
-        const result = await migrateTimers(both, "forgedb", "quorieldb", true)
+        const result = await Database.migrate("forgedb", true)
 
         assert.equal(result!.moved, 1)
         assert.equal(result!.drained, false)
@@ -150,12 +148,12 @@ describe("a target that loses a write", () => {
         await seed("forgedb", "quorieldb", [timer("fragile"), timer("fine")])
 
         const real = Database.get
-        // accepts the write and does not keep it - exactly what the read-back guards against
+        // accepts the write and doesn't keep it, exactly what the read-back guards against
         Database.get = (async (kind: TimerKind, name: string) =>
             name === "fragile" ? null : await real.call(Database, kind, name)) as typeof Database.get
 
         try {
-            assert.equal(await migrateTimers(both, "forgedb", "quorieldb"), null)
+            assert.equal(await Database.migrate("forgedb"), null)
         } finally {
             Database.get = real
         }
@@ -171,14 +169,15 @@ describe("refusing to run", () => {
     it("says so when the source extension is missing", async () => {
         await seed("forgedb", "quorieldb", [timer("stranded")])
 
-        const result = await migrateTimers(clientWith("QuorielDB"), "forgedb", "quorieldb")
+        // the check lives where the client does, ForgeDB opened without its extension would hang
+        const extension = new ForgeTimers({ storage: "quorieldb", migrateFrom: "forgedb" })
+        assert.equal(await extension["_open"](clientWith("QuorielDB")), true)
 
-        assert.equal(result, null)
         assert.deepEqual(await contentsOf("forgedb"), ["timeout:stranded"], "nothing may move")
     })
 
     it("says so when both ends are the same backend", async () => {
         await Database.use("quorieldb")
-        assert.equal(await migrateTimers(both, "quorieldb", "quorieldb"), null)
+        assert.equal(await Database.migrate("quorieldb"), null)
     })
 })

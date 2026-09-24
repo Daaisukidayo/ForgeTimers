@@ -94,4 +94,27 @@ const store = () => (0, node_path_1.join)(process.cwd(), "database");
         strict_1.default.deepEqual(harness_1.marks, ["kept"]);
     });
 });
+(0, node_test_1.describe)("a record an older version wrote", () => {
+    (0, node_test_1.it)("still reads back its author, which went under hostID before 2.0.0", async () => {
+        const { putRecord } = require("@quoriel/db");
+        await harness_1.Database.wipe();
+        const now = Date.now();
+        await putRecord(structures_1.QUORIEL_TYPE, "timeout:legacy", {
+            id: "timeout:legacy",
+            name: "legacy",
+            kind: harness_1.TimerKind.timeout,
+            code: "$testMark[old]",
+            duration: 3_600_000,
+            timestamp: now,
+            fireAt: now + 3_600_000,
+            channelID: "chan-1",
+            hostID: "user-1",
+        });
+        const back = await harness_1.Database.get(harness_1.TimerKind.timeout, "legacy");
+        strict_1.default.ok(back, "an upgrade must not lose the timers already stored");
+        strict_1.default.equal(back.authorID, "user-1");
+        strict_1.default.equal(back.hostID, undefined, "and the old field is not carried on");
+        await harness_1.Database.wipe();
+    });
+});
 //# sourceMappingURL=quoriel.test.js.map

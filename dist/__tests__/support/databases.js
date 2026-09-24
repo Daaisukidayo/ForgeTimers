@@ -55,7 +55,7 @@ function persistenceSuite(target) {
         });
         if (target === "mongodb") {
             (0, node_test_1.it)("reads the author an older build wrote under hostID", async () => {
-                // mongo stores an entity under its property names, so this is the document 1.x left behind
+                // mongo stores an entity under its property names, this is the document 1.x left behind
                 const legacy = sample();
                 legacy.authorID = null;
                 legacy.hostID = "user-1";

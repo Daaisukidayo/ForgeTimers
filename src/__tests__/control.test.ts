@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { Database, marks, run, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./support/harness"
+import { Database, marks, persist, run, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./support/harness"
 
 let harness: TestHarness
 
@@ -35,11 +35,27 @@ describe("$rescheduleTimer", () => {
         assert.equal(await run(harness, "$rescheduleTimer[timeout;never;1h]"), "false")
     })
 
-    it("refuses a duration an interval could never tick on", async () => {
-        await run(harness, "$setInterval[x;1h;beat]")
-        await run(harness, "$rescheduleTimer[interval;beat;0]")
+    it("takes any duration the set natives would take", async () => {
+        await run(harness, "$setInterval[$testMark[tick];1h;beat]")
+        assert.equal(await run(harness, "$rescheduleTimer[interval;beat;0]"), "true")
 
-        assert.equal((await Database.get(TimerKind.interval, "beat"))!.duration, 3_600_000, "it must be untouched")
+        const ticked = await waitFor(() => marks.filter((mark) => mark === "tick").length >= 2, 2000)
+        harness.disarm()
+
+        assert.ok(ticked, "the new schedule was never armed")
+        assert.equal((await Database.get(TimerKind.interval, "beat"))!.duration, 0, "it is stored as it was given")
+    })
+
+    it("still refuses a schedule it cannot read at all", async () => {
+        await run(harness, "$setTimeout[$testMark[ran];1h;n]")
+
+        assert.notEqual(
+            await run(harness, "$rescheduleTimer[timeout;n;banana]"),
+            "true",
+            "it reported a move it never made"
+        )
+        assert.ok(!(await waitFor(() => marks.includes("ran"), 300)), "an unreadable schedule fired the timer at once")
+        assert.ok(await Database.get(TimerKind.timeout, "n"), "and then spent its record")
     })
 })
 
@@ -371,5 +387,64 @@ describe("$timersCount", () => {
 
     it("is zero when nothing is stored", async () => {
         assert.equal(await run(harness, "$timersCount"), "0")
+    })
+})
+
+describe("a context a native cloned", () => {
+    it("still knows its timer, the way $scope and the await natives clone one", async () => {
+        await run(harness, "$setTimeout[$testMark[out=$timerData[name]|in=$scope[$timerData[name]]];60;probe]")
+
+        assert.ok(await waitFor(() => marks.length > 0, 2000), "it never ran")
+        assert.equal(marks[0], "out=probe|in=probe", "a cloned context left the run without its timer")
+    })
+})
+
+describe("standing every timer down", () => {
+    it("lets go of every name without touching what is stored", async () => {
+        await run(harness, "$setTimeout[x;1h;a]$setInterval[x;1h;b]$setCron[x;0 9 * * *;c]")
+
+        const manager = harness.ext.timersManager
+        assert.equal(manager.isLive(TimerKind.timeout, "a"), true, "nothing was armed to stand down")
+
+        manager.standDown()
+
+        for (const [kind, name] of [
+            [TimerKind.timeout, "a"],
+            [TimerKind.interval, "b"],
+            [TimerKind.cron, "c"],
+        ] as const) {
+            assert.equal(manager.isLive(kind, name), false, `the ${kind} is still live`)
+            assert.ok(await Database.get(kind, name), `the ${kind} lost its record, which is what wipe is for`)
+        }
+
+        assert.equal(harness.client.timeouts.size, 0)
+        assert.equal(harness.client.intervals.size, 0)
+    })
+})
+
+describe("a stored timer whose code will not compile", () => {
+    // only something besides $setTimeout can store this, the outer command compiles first
+    const broken = (name: string) =>
+        persist(new Timer({ name, kind: TimerKind.timeout, code: "$if[", duration: 3_600_000 }), Date.now() + 3_600_000)
+
+    it("is refused a new schedule, and left where it was", async () => {
+        await broken("n")
+        const before = (await Database.get(TimerKind.timeout, "n"))!
+
+        assert.equal(await run(harness, "$rescheduleTimer[timeout;n;30m]"), "false")
+        assert.equal((await Database.get(TimerKind.timeout, "n"))!.fireAt, before.fireAt, "it was moved anyway")
+    })
+
+    it("is refused a release, and stays held", async () => {
+        await broken("n")
+
+        assert.equal(await run(harness, "$pauseTimer[timeout;n]"), "true", "a hold asks nothing of the compiler")
+        assert.equal(await run(harness, "$resumeTimer[timeout;n]"), "false")
+        assert.equal(await run(harness, "$getTimer[timeout;n;paused]"), "true")
+    })
+
+    it("is refused a run by hand", async () => {
+        await broken("n")
+        assert.equal(await run(harness, "$executeTimer[timeout;n]"), "false")
     })
 })

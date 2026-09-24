@@ -13,7 +13,7 @@ const logger_1 = require("../functions/logger");
     harness_1.marks.length = 0;
     await harness_1.Database.wipe().catch(() => undefined);
 });
-/** What the extension said about the config, and what it did with the timers it found */
+/** What the extension said about the config, and what it did with the timers it found. */
 async function boots(options, seed = async () => undefined) {
     const said = [];
     const warn = logger_1.Logger.warn;

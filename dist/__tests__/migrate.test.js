@@ -9,7 +9,6 @@ const harness_1 = require("./support/harness");
 const __1 = require("..");
 (0, harness_1.useTempHome)("forgetimers-migrate");
 const clientWith = (...extensions) => ({ options: { extensions: extensions.map((name) => ({ name })) } });
-const both = clientWith("forge.db", "QuorielDB");
 (0, node_test_1.beforeEach)(async () => {
     for (const storage of ["forgedb", "quorieldb"]) {
         await harness_1.Database.use(storage);
@@ -17,7 +16,7 @@ const both = clientWith("forge.db", "QuorielDB");
     }
 });
 const timer = (name, dueIn = 3_600_000, kind = harness_1.TimerKind.timeout) => new harness_1.Timer({ name, kind, code: `$testMark[${name}]`, duration: dueIn, channelID: "chan-1" });
-/** Fills `from` with timers, then opens `to` ready for a migration */
+/** Fills `from` with timers, then opens `to` ready for a migration. */
 async function seed(from, to, timers) {
     await harness_1.Database.use(from);
     for (const t of timers)
@@ -32,7 +31,7 @@ async function seed(from, to, timers) {
         (0, node_test_1.it)(`moves them from ${from} to ${to}`, async () => {
             const original = timer("reminder");
             await seed(from, to, [original, timer("beat", 60_000, harness_1.TimerKind.interval)]);
-            const result = await (0, __1.migrateTimers)(both, from, to);
+            const result = await harness_1.Database.migrate(from);
             strict_1.default.deepEqual(result, { moved: 2, skipped: [], drained: true });
             strict_1.default.deepEqual(await (0, harness_1.contentsOf)(to), ["interval:beat", "timeout:reminder"]);
             strict_1.default.deepEqual(await (0, harness_1.contentsOf)(from), [], "the source was not drained");
@@ -40,7 +39,7 @@ async function seed(from, to, timers) {
         (0, node_test_1.it)(`keeps the deadline intact from ${from} to ${to}`, async () => {
             const original = timer("reminder");
             await seed(from, to, [original]);
-            await (0, __1.migrateTimers)(both, from, to);
+            await harness_1.Database.migrate(from);
             const back = await harness_1.Database.get(harness_1.TimerKind.timeout, "reminder");
             strict_1.default.equal(back.fireAt, original.fireAt);
             strict_1.default.equal(back.duration, original.duration);
@@ -65,7 +64,7 @@ async function seed(from, to, timers) {
             vars: { keywords: { k: "v" }, environment: { n: 1 }, localFunctions: {} },
         });
         await seed("forgedb", "quorieldb", [original]);
-        await (0, __1.migrateTimers)(both, "forgedb", "quorieldb");
+        await harness_1.Database.migrate("forgedb");
         const back = await harness_1.Database.get(harness_1.TimerKind.timeout, "full");
         strict_1.default.equal(back.guildID, "guild-1");
         strict_1.default.equal(back.authorID, "user-1");
@@ -81,17 +80,17 @@ async function seed(from, to, timers) {
 (0, node_test_1.describe)("running it more than once", () => {
     (0, node_test_1.it)("does nothing the second time", async () => {
         await seed("forgedb", "quorieldb", [timer("once")]);
-        await (0, __1.migrateTimers)(both, "forgedb", "quorieldb");
-        const again = await (0, __1.migrateTimers)(both, "forgedb", "quorieldb");
+        await harness_1.Database.migrate("forgedb");
+        const again = await harness_1.Database.migrate("forgedb");
         strict_1.default.deepEqual(again, { moved: 0, skipped: [], drained: true });
         strict_1.default.deepEqual(await (0, harness_1.contentsOf)("quorieldb"), ["timeout:once"]);
     });
     (0, node_test_1.it)("cannot resurrect a timer that already fired", async () => {
         await seed("forgedb", "quorieldb", [timer("spent")]);
-        await (0, __1.migrateTimers)(both, "forgedb", "quorieldb");
+        await harness_1.Database.migrate("forgedb");
         // the timeout runs and clears itself, the way a restored one would
         await harness_1.Database.delete(harness_1.TimerKind.timeout, "spent");
-        await (0, __1.migrateTimers)(both, "forgedb", "quorieldb");
+        await harness_1.Database.migrate("forgedb");
         strict_1.default.deepEqual(await (0, harness_1.contentsOf)("quorieldb"), []);
     });
 });
@@ -99,7 +98,7 @@ async function seed(from, to, timers) {
     (0, node_test_1.it)("leaves the target's own timer alone", async () => {
         await seed("forgedb", "quorieldb", [timer("shared", 1000), timer("free")]);
         await harness_1.Database.set(timer("shared", 7_200_000));
-        const result = await (0, __1.migrateTimers)(both, "forgedb", "quorieldb");
+        const result = await harness_1.Database.migrate("forgedb");
         strict_1.default.equal(result.moved, 1);
         strict_1.default.deepEqual(result.skipped, ["timeout:shared"]);
         strict_1.default.equal(result.drained, false, "a skipped timer means the source still holds something");
@@ -111,7 +110,7 @@ async function seed(from, to, timers) {
 (0, node_test_1.describe)("copying instead of moving", () => {
     (0, node_test_1.it)("leaves the source untouched", async () => {
         await seed("forgedb", "quorieldb", [timer("kept")]);
-        const result = await (0, __1.migrateTimers)(both, "forgedb", "quorieldb", true);
+        const result = await harness_1.Database.migrate("forgedb", true);
         strict_1.default.equal(result.moved, 1);
         strict_1.default.equal(result.drained, false);
         strict_1.default.deepEqual(await (0, harness_1.contentsOf)("forgedb"), ["timeout:kept"]);
@@ -122,10 +121,10 @@ async function seed(from, to, timers) {
     (0, node_test_1.it)("stops without dropping anything from the source", async () => {
         await seed("forgedb", "quorieldb", [timer("fragile"), timer("fine")]);
         const real = harness_1.Database.get;
-        // accepts the write and does not keep it - exactly what the read-back guards against
+        // accepts the write and doesn't keep it, exactly what the read-back guards against
         harness_1.Database.get = (async (kind, name) => name === "fragile" ? null : await real.call(harness_1.Database, kind, name));
         try {
-            strict_1.default.equal(await (0, __1.migrateTimers)(both, "forgedb", "quorieldb"), null);
+            strict_1.default.equal(await harness_1.Database.migrate("forgedb"), null);
         }
         finally {
             harness_1.Database.get = real;
@@ -136,13 +135,14 @@ async function seed(from, to, timers) {
 (0, node_test_1.describe)("refusing to run", () => {
     (0, node_test_1.it)("says so when the source extension is missing", async () => {
         await seed("forgedb", "quorieldb", [timer("stranded")]);
-        const result = await (0, __1.migrateTimers)(clientWith("QuorielDB"), "forgedb", "quorieldb");
-        strict_1.default.equal(result, null);
+        // the check lives where the client does, ForgeDB opened without its extension would hang
+        const extension = new __1.ForgeTimers({ storage: "quorieldb", migrateFrom: "forgedb" });
+        strict_1.default.equal(await extension["_open"](clientWith("QuorielDB")), true);
         strict_1.default.deepEqual(await (0, harness_1.contentsOf)("forgedb"), ["timeout:stranded"], "nothing may move");
     });
     (0, node_test_1.it)("says so when both ends are the same backend", async () => {
         await harness_1.Database.use("quorieldb");
-        strict_1.default.equal(await (0, __1.migrateTimers)(both, "quorieldb", "quorieldb"), null);
+        strict_1.default.equal(await harness_1.Database.migrate("quorieldb"), null);
     });
 });
 //# sourceMappingURL=migrate.test.js.map

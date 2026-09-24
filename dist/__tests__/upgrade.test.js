@@ -7,15 +7,15 @@ const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
 const harness_1 = require("./support/harness");
 (0, harness_1.useTempHome)("forgetimers-upgrade");
-/** The store keeps its connection to itself, and only a test has business running DDL on it */
+/** The store keeps its connection to itself, and only a test has business running DDL on it. */
 const sourceOf = (store) => store.source;
 const columnsOf = async (store) => {
     const columns = (await sourceOf(store).query("PRAGMA table_info(timer)"));
     return columns.map((column) => column.name);
 };
 /**
- * Every other suite opens a database it just created, so nothing else covers the one upgrade
- * path every existing bot takes: a file written by a build that had fewer columns.
+ * Every other suite opens a database it just created. Nothing else covers the upgrade path
+ * every existing bot takes, a file written by a build with fewer columns.
  */
 (0, node_test_1.describe)("opening a database an older build left behind", () => {
     (0, node_test_1.it)("adds the columns it is missing, and keeps the rows", async () => {
@@ -28,7 +28,7 @@ const columnsOf = async (store) => {
             channelID: "chan-1",
             config: { restoredTicksLimit: "Infinity" },
         }));
-        // strip what this build added, so the file looks like one an older build wrote
+        // strip what this build added, the file then looks like one an older build wrote
         for (const column of ["config", "pausedAt"]) {
             await sourceOf(store).query(`ALTER TABLE timer DROP COLUMN ${column}`);
         }

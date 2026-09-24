@@ -27,7 +27,7 @@ describe("ownership across processes", () => {
     })
 
     it("takes only the guilds its own shards own, whether or not they are in cache", async () => {
-        // discord hands a guild to (id >> 22) % count, so ask it which shard each of these is for
+        // discord hands a guild to (id >> 22) % count, ask it which shard each one is for
         const ours = "1234567890123456789"
         const mine = ShardClientUtil.shardIdForGuildId(ours, 4)
 

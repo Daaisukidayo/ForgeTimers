@@ -5,25 +5,22 @@ export interface IForgeTimersOptions {
     intervalConfig?: IIntervalConfig;
     cronConfig?: ICronConfig;
     /**
-     * Delete timers whose guild this process can't see on startup.
-     * Off by default.
-     * That's usually an outage or a sibling shard.
-     * Only safe unsharded.
+     * Deletes timers of guilds this process can't see on startup. Off by default.
+     * Usually that's an outage or a sibling shard, only safe unsharded.
      */
     pruneUnknownGuilds?: boolean;
     /**
-     * Which extension keeps the timers: `"forgedb"` (default) or `"quorieldb"`.
+     * Which extension keeps the timers, `"forgedb"` by default or `"quorieldb"`.
      */
     storage?: TimerStorage;
     /**
-     * Move stored timers out of this database and into {@link storage} on startup, once.
-     * Both extensions have to be loaded for that boot.
-     * Names already taken in the target are left alone.
+     * Moves stored timers from this backend into {@link storage} on startup, once.
+     * Both extensions have to be loaded for that boot. Names taken in the target stay where they are.
      */
     migrateFrom?: TimerStorage;
     /**
-     * Copy on migration instead of moving. The source keeps its timers, which means the
-     * migration runs again on every boot until `migrateFrom` is removed.
+     * Copies on migration instead of moving.
+     * The source keeps its timers and the migration reruns every boot until `migrateFrom` goes.
      */
     keepSource?: boolean;
     /**
@@ -38,9 +35,9 @@ export interface IBaseTimerConfig {
      */
     persist?: boolean;
     /**
-     * How late (in ms) a timer may be when the app comes back up.
-     * Omitted / 0 means no limit. A timeout past it is discarded instead of fired,
-     * while an interval skips the stale tick and resumes its schedule from now.
+     * How late in ms a timer may be when the app comes back. Omitted or 0 is no limit.
+     * Past it a timeout is discarded.
+     * An interval skips the stale tick and carries on from now, a cron from its next occurrence.
      */
     maxOverdue?: number;
 }
@@ -48,7 +45,7 @@ export type ITimeoutConfig = IBaseTimerConfig;
 /** A cron replays what it slept through the same way an interval does */
 export type ICronConfig = IIntervalConfig;
 export interface IIntervalConfig extends IBaseTimerConfig {
-    /** Ticks missed while down to run on startup: at most `n`, all at `Infinity`, none at `0` (default) or below. */
+    /** Missed ticks to run on startup. At most `n`, all at `Infinity`, none at `0` (default) or below. */
     restoredTicksLimit?: number;
 }
 /**
@@ -61,7 +58,7 @@ export type IStoredOverrides = Omit<ITimerOverrides, "restoredTicksLimit"> & {
 export declare enum TimerEvent {
     /** A timer was scheduled */
     timerStart = "timerStart",
-    /** A timer's code ran: a timeout going off, an interval ticking, or a cron coming round */
+    /** A timer's code ran. A timeout going off, an interval ticking or a cron coming round */
     timerFire = "timerFire",
     /** A timer was cancelled by hand */
     timerCancel = "timerCancel",

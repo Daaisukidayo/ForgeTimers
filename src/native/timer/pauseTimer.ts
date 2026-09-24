@@ -1,4 +1,4 @@
-import { ArgType, NativeFunction } from "@tryforge/forgescript"
+import { Arg, ArgType, NativeFunction } from "@tryforge/forgescript"
 import { ForgeTimers, TimerKind } from "../.."
 
 export default new NativeFunction({
@@ -8,25 +8,12 @@ export default new NativeFunction({
     unwrap: true,
     brackets: true,
     args: [
-        {
-            name: "kind",
-            description: "The kind of the timer to pause",
-            rest: false,
-            required: true,
-            type: ArgType.Enum,
-            enum: TimerKind,
-        },
-        {
-            name: "name",
-            description: "The name of the timer to pause",
-            rest: false,
-            required: true,
-            type: ArgType.String,
-        },
+        Arg.requiredEnum(TimerKind, "kind", "The kind of the timer to pause"),
+        Arg.requiredString("name", "The name of the timer to pause"),
     ],
     output: ArgType.Boolean,
     async execute(ctx, [kind, name]) {
-        const manager = ctx.client.getExtension(ForgeTimers, true).timersManager
+        const manager = ForgeTimers.of(ctx.client).timersManager
         return this.success(await manager.pause(kind, name))
     },
 })

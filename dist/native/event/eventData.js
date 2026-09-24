@@ -9,15 +9,7 @@ exports.default = new forgescript_1.NativeFunction({
     description: "Returns what an event carries besides its timer",
     unwrap: true,
     brackets: false,
-    args: [
-        {
-            name: "property",
-            description: "The property to return, or every one of them as JSON",
-            rest: false,
-            type: forgescript_1.ArgType.Enum,
-            enum: event_1.TimerEventProperty,
-        },
-    ],
+    args: [forgescript_1.Arg.optionalEnum(event_1.TimerEventProperty, "property", "The property to return, or every one of them as JSON")],
     output: [forgescript_1.ArgType.Json, forgescript_1.ArgType.Unknown],
     execute(ctx, [property]) {
         const event = ctx instanceof structures_1.TimerContext ? ctx.event : null;

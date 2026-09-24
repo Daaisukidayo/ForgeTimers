@@ -4,7 +4,7 @@ import { ITimer, MongoTimer, Timer, TimerKind } from "../Timer"
 import { IDeleteResult, ITimerStore } from "./ITimerStore"
 import { Logger } from "../../functions/logger"
 
-/** Epoch ms overflows an int32 on mysql and postgres, so these columns are bigint */
+/** Epoch ms overflows int32 on mysql and postgres, hence bigint */
 const numeric = {
     to: (value?: number) => value,
     from: (value?: string | number | null) => (value === null || value === undefined ? value : Number(value)),
@@ -54,7 +54,7 @@ export const MongoTimerSchema = new EntitySchema<MongoTimer>({
 
 export type AnyTimer = EntitySchema<ITimer> | EntitySchema<MongoTimer>
 
-/** Keeps timers in whatever ForgeDB is already connected to: sqlite, postgres, mysql or mongodb */
+/** Keeps timers in whatever database ForgeDB already uses, be it sqlite, postgres, mysql or mongodb */
 export class ForgeDBStore extends DataBaseManager implements ITimerStore {
     public database = "timers.db"
 
@@ -106,7 +106,10 @@ export class ForgeDBStore extends DataBaseManager implements ITimerStore {
         return this.source.getRepository(this.entity)
     }
 
-    /** A mongo document an older build wrote carries the author under hostID, where no column alias reaches */
+    /**
+     * Mongo rows from before 2.0.0 keep the author under hostID. Mongo can't alias a column, it gets read here.
+     * @param timer Row as read, or null.
+     */
     private static fold<T extends Timer | null>(timer: T): T {
         const row = timer as (Timer & { hostID?: MongoTimer["hostID"] }) | null
         if (!row) return timer

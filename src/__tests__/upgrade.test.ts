@@ -5,7 +5,7 @@ import { Database, Timer, TimerKind, useTempHome } from "./support/harness"
 
 useTempHome("forgetimers-upgrade")
 
-/** The store keeps its connection to itself, and only a test has business running DDL on it */
+/** The store keeps its connection to itself, and only a test has business running DDL on it. */
 const sourceOf = (store: unknown) => (store as { source: DataSource }).source
 
 const columnsOf = async (store: unknown): Promise<string[]> => {
@@ -14,8 +14,8 @@ const columnsOf = async (store: unknown): Promise<string[]> => {
 }
 
 /**
- * Every other suite opens a database it just created, so nothing else covers the one upgrade
- * path every existing bot takes: a file written by a build that had fewer columns.
+ * Every other suite opens a database it just created. Nothing else covers the upgrade path
+ * every existing bot takes, a file written by a build with fewer columns.
  */
 describe("opening a database an older build left behind", () => {
     it("adds the columns it is missing, and keeps the rows", async () => {
@@ -31,7 +31,7 @@ describe("opening a database an older build left behind", () => {
             })
         )
 
-        // strip what this build added, so the file looks like one an older build wrote
+        // strip what this build added, the file then looks like one an older build wrote
         for (const column of ["config", "pausedAt"]) {
             await sourceOf(store).query(`ALTER TABLE timer DROP COLUMN ${column}`)
         }

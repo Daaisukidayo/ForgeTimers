@@ -1,9 +1,9 @@
 import { ForgeClient } from "@tryforge/forgescript";
 import { Timer, TimerKind } from "../structures";
 export interface IStopResult {
-    /** Whether a timer was actually running, or mid-run, under that name. */
+    /** Something was armed or mid-run under the name. */
     cleared: boolean;
-    /** Whether a stored record was removed. */
+    /** A row got deleted. */
     forgotten: boolean;
 }
 export declare class TimersManager {
@@ -11,178 +11,302 @@ export declare class TimersManager {
     private readonly timers;
     private claims;
     private readonly generations;
-    private readonly crons;
+    /** Last queued write per timer. Only `_queue` writes here. */
+    private readonly writes;
+    /** Timeouts mid-run. */
+    private readonly firing;
+    /**
+     * Restores stored timers once the client is ready and storage is open.
+     * @param client Client the timers run on.
+     */
     constructor(client: ForgeClient);
     /**
-     * Schedules a timer and persists it.
-     * @param timer The timer to schedule.
-     * @param run What it executes when it fires.
+     * Arms and stores a new timer. Anything under the same name gets replaced.
+     * @param timer Timer to start.
+     * @param run Its code, already bound to the calling context.
      */
     start(timer: Timer, run: () => Promise<void>): Promise<Timer>;
     /**
-     * Cancels a running timer, leaving the database untouched.
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
-     * @returns Whether anything was stopped, whether it was scheduled or already mid-run.
+     * Disarms only, the row stays. Use `stop` to forget it too.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @returns True if something was armed or mid-run.
      */
     clear(kind: TimerKind, name: string): boolean;
+    /**
+     * Every write for one timer goes through here, in call order.
+     * Skip it and a tick landing late can undo a pause.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @param write Runs once earlier writes have landed.
+     */
+    private _queue;
+    /**
+     * Pending writes for this timer. Await before reading the row.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     */
+    private _settled;
+    /**
+     * Read, change and write in one queue turn.
+     * Inside `change` write through Database directly, `_save` would wait on itself.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @param change Gets the stored timer, or null.
+     * @returns Whatever `change` said, false with no backend.
+     */
+    private _locked;
+    /**
+     * Queued write of the timer as it is now.
+     * @param timer Timer to write.
+     */
     private _save;
+    /**
+     * Tick write. Dropped if the name changed hands before its turn, the new owner already wrote.
+     * @param timer Timer to write.
+     * @param owns Checked when the turn comes, not now.
+     */
+    private _saveHeld;
+    /**
+     * Queued delete of the row.
+     * @param timer Timer to forget.
+     */
     private _forget;
-    /** Reports how a one-shot ended, and spends its record only once the run is really over */
+    /**
+     * Runs a timeout and spends it. Pause and reschedule refuse it until done, or it runs twice.
+     * @param timer Timeout that fires.
+     * @param run What it runs.
+     * @param owns Whether the name is still ours.
+     */
+    private _fire;
+    /**
+     * Reports the fire and drops the row. On an outage (`ran` false) the row stays for the next boot.
+     * @param timer Timeout that ran.
+     * @param outcome How the run went.
+     */
     private _settle;
     /**
-     * @param previous The timer as it was before this event changed it, for `$oldTimer`.
+     * Emits only with listeners. A throwing listener gets logged, never rethrown.
+     * @param name Event to emit.
+     * @param timer For `$timerData` and `$newTimer`.
+     * @param event Extras for `$eventData`.
+     * @param previous For `$oldTimer`.
      */
     private _report;
-    /** A copy of a timer as it stands, to hand to an event once the original has moved on */
+    /**
+     * Copy for events. The original keeps changing after the report.
+     * @param timer Timer to copy.
+     */
     private _snapshot;
+    /**
+     * timerCancel with the stored row, or a stub when only an armed timer existed.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @param wasLive Report a stub even without a row.
+     */
     private _reportCancel;
     /**
-     * Runs a task that holds a name outright, with nothing scheduled to hold it for them.
-     *
-     * The claim is always handed back, because a name left claimed by a run that never finished
-     * would read as live for ever. Arming inside the task takes a claim of its own, and that one
-     * is left alone.
-     *
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
-     * @param task What to do while the name is held, given a check for whether it still is.
+     * Holds the name for a restored run with nothing armed yet.
+     * Always releases, else the name reads live forever.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @param task Gets a check for whether the name is still held.
      */
     private _claimed;
-    /** Takes the name over and hands back a check for whether it's still ours */
+    /**
+     * Takes the name. The check turns false once anyone claims it after.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     */
     private _claim;
     /**
-     * Forgets a name nothing is armed under any more.
+     * Drops the claim. Only when nothing is armed under the name.
+     * @param kind Timer kind.
+     * @param name Timer name.
      */
     private _release;
     /**
-     * Cancels a running timer and deletes it from the database.
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
-     * @returns Whether anything was stopped, and whether a stored record was removed.
+     * Disarms and deletes the row. The delete waits behind any tick still writing.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @returns Whether something was armed, and whether a row went.
      */
     stop(kind: TimerKind, name: string): Promise<IStopResult>;
     /**
-     * Moves a stored timer's deadline, keeping everything else it was scheduled with.
-     *
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
-     * @param duration The new delay for a timeout, or tick length for an interval, in ms.
-     * @returns Whether a stored timer was found and moved.
+     * New duration, everything else kept. Refuses crons, firing timeouts and code that no longer compiles.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @param duration New delay or tick length, in ms.
+     * @returns Whether a stored timer moved.
      */
     reschedule(kind: TimerKind, name: string, duration: number): Promise<boolean>;
     /**
-     * Gives a stored cron a new expression, keeping everything else it was scheduled with.
-     *
-     * @param name The name of the cron.
-     * @param expression The cron expression it should run on from now on.
-     * @param timezone The zone to read it in, or null to keep the one it already had.
-     * @returns Whether a stored cron was found and moved.
+     * New expression for a stored cron. Check it before `clear`, a bad one would leave the cron cancelled.
+     * @param name Cron name.
+     * @param expression Expression to run on from now.
+     * @param timezone Zone to read it in, null keeps the old one.
+     * @returns Whether a stored cron moved.
      */
     rescheduleCron(name: string, expression: string, timezone?: string | null): Promise<boolean>;
     /**
-     * Puts a stored timer on hold, keeping what is left of its wait for {@link resume}.
-     *
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
-     * @returns Whether a running timer was put on hold.
+     * Holds a timer, keeping what is left of its wait. Refuses a firing timeout.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @returns Whether it got held.
      */
     pause(kind: TimerKind, name: string): Promise<boolean>;
     /**
-     * Starts a paused timer, from wherever its wait was left.
-     *
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
-     * @returns Whether a paused timer was started.
+     * Restarts a held timer from what was left. A cron jumps to its next occurrence instead.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @returns Whether it restarted.
      */
     resume(kind: TimerKind, name: string): Promise<boolean>;
     /**
-     * Runs a stored timer's code once, on demand.
-     *
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
+     * Runs the stored code once. Schedule, row and events stay untouched.
+     * @param kind Timer kind.
+     * @param name Timer name.
      * @returns Whether the code ran.
      */
     execute(kind: TimerKind, name: string): Promise<boolean>;
-    /** The stored record for a name, or null when there is no backend or no such row */
+    /**
+     * The row once pending writes land. null without a backend.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     */
     private _stored;
     /**
-     * Cancels every running timer and empties the table.
-     * @returns The number of running timers that were cancelled.
+     * Disarms everything and empties storage. Waits for writes in flight first, or they bring rows back.
+     * @returns How many armed timers got cancelled.
      */
     wipe(): Promise<number>;
     /**
-     * The live timer map ForgeScript keeps for a kind.
-     * @param kind The kind of the timers.
+     * Handle map for a kind, all three on the client. The cron one is ours, set in `init`.
+     * @param kind Timer kind.
      */
     mapOf(kind: TimerKind): Map<string, NodeJS.Timeout> | undefined;
     /**
-     * Whether a timer under this name is already running.
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
+     * Armed or claimed in this process. Says nothing about the row.
+     * @param kind Timer kind.
+     * @param name Timer name.
      */
     isLive(kind: TimerKind, name: string): boolean;
     /**
-     * Stops everything armed and lets every name go, leaving the database alone.
-     * Unlike {@link wipe} nothing is forgotten, so the next boot picks the records back up.
+     * Disarms everything, keeps the rows. The next boot restores them.
      */
     standDown(): void;
     /**
-     * Whether a record is stored under this name, whatever is or is not armed for it.
-     *
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
+     * Is there a row? Whatever is armed does not matter.
+     * @param kind Timer kind.
+     * @param name Timer name.
      */
     exists(kind: TimerKind, name: string): Promise<boolean>;
     /**
-     * A kind's config with the timer's own options laid over it, so a call beats the config.
-     * @param timer The timer to resolve the config of.
+     * Kind config with the timer's own options on top.
+     * @param timer Timer to resolve for.
      */
     private configFor;
     /**
-     * Why a stored cron could never be armed, or null when it can.
-     * @param timer The cron to look over.
+     * Why this cron cannot be armed, null when it can.
+     * @param timer Cron to check.
      */
     private _cronFault;
-    /** Arms `fn`, keeping the live map on the pending chunk so {@link clear} cancels the right one */
+    /**
+     * setLongTimeout plus the map entry. The map holds the pending chunk, the one `clear` has to cancel.
+     * A throw inside gets logged, the timer stays as it was.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     * @param delay Wait in ms.
+     * @param fn Tick body.
+     */
     private _schedule;
+    /**
+     * Claims the name and schedules by kind.
+     * @param timer Timer to arm.
+     * @param run What it runs.
+     */
     private _arm;
+    /**
+     * One run, then the row is spent. Checks the claim before running, an orphaned handle must not fire.
+     * @param timer Timeout to schedule.
+     * @param run What it runs.
+     * @param owns Whether the name is still ours.
+     */
     private _armTimeout;
+    /**
+     * Writes the next due time, re-arms, then runs. Lost the name during the write? Stop there.
+     * @param timer Interval or cron to schedule.
+     * @param run What it runs every tick.
+     * @param owns Whether the name is still ours.
+     */
     private _armRepeating;
     /**
-     * Compiles now, fetches later.
-     * @param timer The timer to build a runner for.
+     * Compiles now, fetches from discord on the first run.
+     * @param timer Timer to build a runner for.
      */
     private _runnerFor;
     /**
-     * Finds the live command.
-     * @param timer The timer to look up.
+     * The runner, or null with a warning when the timer can't run.
+     * @param timer Timer to build a runner for.
+     * @param doing What the caller was about to do, for the warning.
+     */
+    private _runnable;
+    /**
+     * Live command by path, then by name. null once it is gone.
+     * @param timer Timer to look up.
      */
     private _commandFor;
-    /** Fetches everything a run needs from discord */
+    /**
+     * Target, author and member for a restored run. Author gets refetched unless the target is theirs.
+     * @param timer Timer about to run.
+     */
     private _resolve;
+    /**
+     * Message, else channel, else nothing. A 404 channel still runs, other errors retry next boot.
+     * @param timer Timer to rebuild the target for.
+     */
     private _rebuildTarget;
     /**
-     * Whether this process is the one meant to run a timer.
-     *
-     * @param timer The timer being restored.
+     * Should this process run it? Guildless ones go to shard 0, the rest by the shard formula.
+     * Unknown guilds stay unless pruneUnknownGuilds, it may be an outage.
+     * @param timer Timer being restored.
      */
     private _owns;
+    /**
+     * Re-arms stored timers on boot and drops what cannot run. Due runs start after the scan.
+     */
     private _restore;
     /**
-     * Drops a one-shot that's too late, otherwise fires or re-arms it.
-     * @returns Whether it was kept, so the caller can count what startup saved.
+     * Drops it if too late, queues it if due, arms it otherwise.
+     * @param timer Timeout being restored.
+     * @param timing Lateness and the config judging it.
+     * @param run What it runs.
+     * @param dueNow Runs already due, started after the scan.
+     * @returns Whether it was kept, for the timersReady count.
      */
     private _restoreTimeout;
     /**
-     * Resumes a stored repeating timer, replaying what it missed if it is allowed to.
-     * @returns Always true: an interval past `maxOverdue` skips the stale tick.
+     * Skips to the schedule if too late, replays up to the limit if due, arms it otherwise.
+     * @param timer Interval or cron being restored.
+     * @param timing Lateness and the config judging it.
+     * @param run What it runs every tick.
+     * @param dueNow Replays already due, started after the scan.
+     * @returns Always true, lateness costs a tick and not the timer.
      */
     private _restoreRepeating;
+    /**
+     * Unknown kind, likely stored by a newer build. Warn and skip.
+     * @param kind Kind nothing handles.
+     * @param name Timer name.
+     */
     private _assertNever;
     /**
-     * Replays what was missed offline.
-     * @param limit This timer's resolved `restoredTicksLimit`, its own beating its kind's.
+     * Runs missed ticks up to the limit. Stops on an outage or a lost name.
+     * @param timer Interval or cron being restored.
+     * @param missed Ticks missed while down.
+     * @param limit Resolved restoredTicksLimit, the timer's own beats its kind's.
+     * @param run What it runs every tick.
+     * @param owns Whether the name is still ours.
      */
     private _replay;
 }

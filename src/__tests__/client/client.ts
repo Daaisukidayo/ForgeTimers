@@ -9,16 +9,16 @@ import { ForgeDB } from "@tryforge/forge.db"
 import { CHANNEL, eventCode, EVENT_MESSAGE_CODE, readPlan, runSmoke, SEED_CODE, VERIFY_CODE } from "./smoke"
 config()
 
-/** Set by the restart check. Without it this file is the playground it has always been */
+/** Set by the restart check. Without it this file is just the playground. */
 const smoke = process.env.SMOKE === "1"
 
-/** Which backend to boot against. The playground stays on ForgeDB */
+/** Backend to boot against. The playground stays on ForgeDB. */
 const storage = (process.env.SMOKE_STORAGE as TimerStorage) ?? "forgedb"
 
-/** Set when this boot is the one that moves timers over */
+/** Set when this boot moves the timers over. */
 const migrateFrom = process.env.SMOKE_MIGRATE_FROM as TimerStorage | undefined
 
-/** The events the restart check watches. The playground keeps them off, as a bot would by default */
+/** Events the restart check watches. Off in the playground, like a bot by default. */
 const WATCHED = [TimerEvent.timerStart, TimerEvent.timerFire, TimerEvent.timerRestore]
 
 const timer = new ForgeTimers({
@@ -29,7 +29,7 @@ const timer = new ForgeTimers({
         // maxOverdue: 5_000
     },
     intervalConfig: {
-        // replaying missed ticks would blur what the check is measuring
+        // replayed ticks would blur what the check measures
         restoredTicksLimit: smoke ? 0 : Infinity,
         // maxOverdue: 30_000
     },
@@ -43,7 +43,7 @@ function quorielDB(): ForgeExtension {
 const databaseFor = (which: TimerStorage) =>
     which === "quorieldb" ? quorielDB() : new ForgeDB({ type: "better-sqlite3" })
 
-// the backend being migrated out of has to be loaded too, or its store cannot be read
+// the old backend has to be loaded too, else its store can't be read
 const databases =
     migrateFrom && migrateFrom !== storage ? [databaseFor(storage), databaseFor(migrateFrom)] : [databaseFor(storage)]
 
@@ -98,7 +98,7 @@ if (smoke) {
 
     for (const event of WATCHED) timer.commands.add({ type: event, code: eventCode(event) })
 
-    // one message from an event command is enough to know they can reach discord at all
+    // one message from an event command proves they reach discord
     if (CHANNEL) timer.commands.add({ type: TimerEvent.timerFire, code: EVENT_MESSAGE_CODE })
 
     client.once(Events.ClientReady, () => void runSmoke(plan))

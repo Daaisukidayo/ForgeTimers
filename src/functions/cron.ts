@@ -1,32 +1,39 @@
 import { CronExpressionParser } from "cron-parser"
 
 /**
- * When an expression next comes round.
- *
- * @param expression The cron expression to read.
- * @param from The moment to look forward from, in unix ms.
- * @param timezone The zone to read it in. Empty or null is whatever the process runs in.
- * @returns The next matching moment, in unix ms.
+ * An expression walking forward from `from`. Throws on one that can't be read.
+ * @param expression Cron expression.
+ * @param from Moment to start at, unix ms.
+ * @param timezone Zone to read it in. Empty or null is the process zone.
  */
-export function nextRun(expression: string, from: number, timezone?: string | null) {
-    const parsed = CronExpressionParser.parse(expression, { currentDate: new Date(from), tz: timezone || undefined })
-    return parsed.next().getTime()
+function parse(expression: string, from: number, timezone?: string | null) {
+    return CronExpressionParser.parse(expression, { currentDate: new Date(from), tz: timezone || undefined })
 }
 
 /**
- * Counts what an expression came round to.
- *
- * @param expression The cron expression to read.
- * @param from The moment it was last due, in unix ms.
- * @param limit How many are worth counting, since nothing will replay more than that.
- * @param timezone The zone to read it in. Empty or null is whatever the process runs in.
- * @returns How many fell between `from` and now, or `limit + 1` when more did than anyone will replay.
+ * When an expression next comes round.
+ * @param expression Cron expression.
+ * @param from Moment to look forward from, unix ms.
+ * @param timezone Zone to read it in. Empty or null is the process zone.
+ * @returns Next match, unix ms.
+ */
+export function nextRun(expression: string, from: number, timezone?: string | null) {
+    return parse(expression, from, timezone).next().getTime()
+}
+
+/**
+ * Counts occurrences since `from`, up to `limit`.
+ * @param expression Cron expression.
+ * @param from When it was last due, unix ms.
+ * @param limit Most worth counting, nothing replays more.
+ * @param timezone Zone to read it in. Empty or null is the process zone.
+ * @returns How many fell between `from` and now, `limit + 1` once past the limit.
  */
 export function missedRuns(expression: string, from: number, limit: number, timezone?: string | null) {
     const now = Date.now()
     if (limit <= 0 || from > now) return 0
 
-    const parsed = CronExpressionParser.parse(expression, { currentDate: new Date(from), tz: timezone || undefined })
+    const parsed = parse(expression, from, timezone)
 
     let missed = 1
 
@@ -36,11 +43,10 @@ export function missedRuns(expression: string, from: number, limit: number, time
 }
 
 /**
- * Reads an expression without scheduling anything.
- *
- * @param expression The cron expression to read.
- * @param timezone The zone to read it in. Empty or null is whatever the process runs in.
- * @returns What is wrong with it, or null when nothing is.
+ * Parses an expression without scheduling anything.
+ * @param expression Cron expression.
+ * @param timezone Zone to read it in. Empty or null is the process zone.
+ * @returns What is wrong with it, null when nothing is.
  */
 export function cronError(expression: string, timezone?: string | null) {
     try {

@@ -8,7 +8,7 @@ const node_test_1 = require("node:test");
 const harness_1 = require("./support/harness");
 const __1 = require("..");
 (0, harness_1.useTempHome)("forgetimers-boot");
-/** Makes forge.db unresolvable, and hands back the undo */
+/** Makes forge.db unresolvable. Returns the undo. */
 function blockForgeDB() {
     const resolve = require("module")._resolveFilename;
     require("module")._resolveFilename = function (request, ...rest) {
@@ -21,7 +21,7 @@ function blockForgeDB() {
         require("module")._resolveFilename = resolve;
     };
 }
-/** Runs `fn` against an extension whose backend could not be required at all */
+/** Runs `fn` against an extension whose backend can't be required at all. */
 async function withoutForgeDB(fn) {
     const restore = blockForgeDB();
     const harness = (0, harness_1.attach)(new __1.ForgeTimers());

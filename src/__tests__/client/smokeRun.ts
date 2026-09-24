@@ -24,9 +24,9 @@ const BOT = join(__dirname, "client.js")
 const BOOT_TIMEOUT = 60_000
 const VERIFY_TIMEOUT = 180_000
 
-/** One boot schedules, the next checks. When the two differ, the timers have to move between them */
+/** One boot schedules, the next checks. Different backends mean the timers move between them. */
 interface IScenario {
-    /** What SMOKE_ONLY matches, exactly */
+    /** What SMOKE_ONLY matches exactly. */
     id: string
     label: string
     seed: string
@@ -41,18 +41,18 @@ const SCENARIOS: IScenario[] = [
 ]
 
 interface IPhase {
-    /** What the bot printed that ended the phase, or null if it timed out */
+    /** The line that ended the phase, null on a timeout. */
     matched: string | null
     code: number | null
 }
 
 /**
- * Runs the bot until it prints one of `sentinels`, or until it exits on its own.
- * @param env What to hand the bot on top of this process's own environment.
- * @param label What to call this phase in the log.
+ * Runs the bot until it prints one of `sentinels` or exits on its own.
+ * @param env Extra environment on top of this process's own.
+ * @param label Phase name for the log.
  * @param sentinels Lines that end the phase.
  * @param timeout How long to give it.
- * @param killOnMatch Whether a match should stop the bot rather than wait for it to exit.
+ * @param killOnMatch Stop the bot on a match instead of waiting for it to exit.
  */
 function phase(env: Record<string, string>, label: string, sentinels: string[], timeout: number, killOnMatch: boolean) {
     return new Promise<IPhase>((resolve) => {
@@ -110,13 +110,13 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
  * Schedules on one boot and checks on the next.
- * @param scenario Which backends the two boots run on.
+ * @param scenario Backends the two boots run on.
  * @returns Whether the timers came back intact.
  */
 async function check(scenario: IScenario) {
     console.log("\n" + bold(cyan(`########## ${scenario.label} ##########`)))
 
-    // a run that died mid-way would otherwise send us straight to verifying
+    // else a run that died mid-way sends us straight to verifying
     clearPlan()
 
     const first = await phase({ SMOKE_STORAGE: scenario.seed }, "run 1 of 2 - scheduling", [SEEDED], BOOT_TIMEOUT, true)
@@ -128,7 +128,7 @@ async function check(scenario: IScenario) {
     console.log("\n" + grey(`stopped. staying down ${Math.round(DOWNTIME / 1000)}s`))
     await wait(DOWNTIME)
 
-    // a differing backend means the second boot has to migrate before it can restore
+    // different backends, the second boot migrates before it restores
     const moving = scenario.seed !== scenario.verify
     const env: Record<string, string> = { SMOKE_STORAGE: scenario.verify }
     if (moving) env.SMOKE_MIGRATE_FROM = scenario.seed
@@ -144,7 +144,7 @@ async function check(scenario: IScenario) {
 }
 
 async function main() {
-    // one scenario when named, otherwise all of them, because each can break alone
+    // the named scenario, else all of them, each can break alone
     const only = process.env.SMOKE_ONLY?.split(",")
         .map((id) => id.trim())
         .filter(Boolean)
