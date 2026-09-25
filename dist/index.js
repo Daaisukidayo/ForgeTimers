@@ -22,9 +22,9 @@ const forgescript_1 = require("@tryforge/forgescript");
 const node_events_1 = require("node:events");
 const managers_1 = require("./managers");
 const structures_1 = require("./structures");
-const migrate_1 = require("./functions/migrate");
 const types_1 = require("./types");
 const logger_1 = require("./functions/logger");
+const emit_1 = require("./functions/emit");
 const package_json_1 = require("../package.json");
 const path_1 = __importDefault(require("path"));
 class ForgeTimers extends forgescript_1.ForgeExtension {
@@ -39,7 +39,24 @@ class ForgeTimers extends forgescript_1.ForgeExtension {
     constructor(options = {}) {
         super();
         this.options = options;
-        this.requireExtensions = [options.storage === "quorieldb" ? "QuorielDB" : "forge.db"];
+        this.requireExtensions = [structures_1.Database.extensionOf(options.storage ?? "forgedb")];
+    }
+    /**
+     * The extension on a client. Throws when it isn't loaded.
+     * @param client Client to look on.
+     */
+    static of(client) {
+        return client.getExtension(ForgeTimers, true);
+    }
+    /**
+     * Config of a kind, `{}` when none was given.
+     * @param kind Timer kind.
+     */
+    configOf(kind) {
+        const { timeoutConfig, intervalConfig, cronConfig } = this.options;
+        const configs = { timeout: timeoutConfig, interval: intervalConfig, cron: cronConfig };
+        // a stored kind can be anything, toString too
+        return (Object.hasOwn(configs, kind) && configs[kind]) || {};
     }
     init(client) {
         this._reviewOptions();
@@ -50,6 +67,7 @@ class ForgeTimers extends forgescript_1.ForgeExtension {
             client.events.load(managers_1.HANDLER, this.options.events);
         }
         this.ready = this._open(client);
+        client.crons = new Map();
         this.timersManager = new managers_1.TimersManager(client);
     }
     async _open(client) {
@@ -59,34 +77,49 @@ class ForgeTimers extends forgescript_1.ForgeExtension {
         }
         catch (err) {
             logger_1.Logger.error(err);
+            const reason = err instanceof Error ? err.message : String(err);
+            (0, emit_1.emitSafely)(this.emitter, types_1.TimerEvent.databaseFail, { event: { failReason: reason } });
             return false;
         }
+        (0, emit_1.emitSafely)(this.emitter, types_1.TimerEvent.databaseConnect, {});
         const { migrateFrom, keepSource } = this.options;
-        if (migrateFrom)
-            await (0, migrate_1.migrateTimers)(client, migrateFrom, storage, keepSource);
+        if (!migrateFrom)
+            return true;
+        const needed = structures_1.Database.extensionOf(migrateFrom);
+        if (client.options.extensions?.some((extension) => extension.name === needed)) {
+            await structures_1.Database.migrate(migrateFrom, keepSource);
+        }
+        else {
+            logger_1.Logger.error(`Cannot migrate from "${migrateFrom}": the ${needed} extension is not loaded. ` +
+                "Keep it in `extensions` for one boot, then remove it.");
+        }
         return true;
     }
     _reviewOptions() {
-        const { storage, migrateFrom, timeoutConfig, intervalConfig, events } = this.options;
+        const { storage, migrateFrom, events } = this.options;
         const backends = ["forgedb", "quorieldb"];
         for (const [option, value] of Object.entries({ storage, migrateFrom })) {
             if (value !== undefined && !backends.includes(value)) {
                 logger_1.Logger.warn(`${option}: "${value}" is not a backend. ForgeDB is used instead. Pick one of: ${backends.join(", ")}.`);
             }
         }
-        for (const [kind, config] of Object.entries({ timeout: timeoutConfig, interval: intervalConfig })) {
-            const max = config?.maxOverdue;
+        for (const kind of Object.values(structures_1.TimerKind)) {
+            const config = this.configOf(kind);
+            const max = config.maxOverdue;
             if (max !== undefined && max < 0) {
                 logger_1.Logger.warn(`${kind}Config.maxOverdue is ${max}, which throws away every ${kind} that comes back late. Use 0, or leave it out, for no limit.`);
             }
-        }
-        const limit = intervalConfig?.restoredTicksLimit;
-        if (limit !== undefined && limit < 0) {
-            logger_1.Logger.warn(`intervalConfig.restoredTicksLimit is ${limit}, which replays nothing. Use Infinity to replay every missed tick.`);
+            if (kind === structures_1.TimerKind.timeout)
+                continue;
+            const limit = config.restoredTicksLimit;
+            if (limit !== undefined && limit < 0) {
+                logger_1.Logger.warn(`${kind}Config.restoredTicksLimit is ${limit}, which replays nothing. Use Infinity to replay everything it missed.`);
+            }
         }
         for (const event of events ?? []) {
-            if (!(event in types_1.TimerEvent))
-                logger_1.Logger.warn(`"${event}" is not a timer event, so nothing will listen to it.`);
+            if (!Object.hasOwn(types_1.TimerEvent, event)) {
+                logger_1.Logger.warn(`"${event}" is not a timer event.`);
+            }
         }
     }
 }
@@ -94,6 +127,4 @@ exports.ForgeTimers = ForgeTimers;
 __exportStar(require("./managers"), exports);
 __exportStar(require("./structures"), exports);
 __exportStar(require("./types"), exports);
-__exportStar(require("./functions/snapshotVars"), exports);
-__exportStar(require("./functions/migrate"), exports);
 //# sourceMappingURL=index.js.map

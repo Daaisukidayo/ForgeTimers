@@ -4,6 +4,7 @@ import {
     Database,
     marks,
     patchDatabase,
+    persist,
     restoreDatabase,
     run,
     TestHarness,
@@ -11,7 +12,7 @@ import {
     TimerKind,
     useHarness,
     waitFor,
-} from "./harness"
+} from "./support/harness"
 
 let harness: TestHarness
 
@@ -161,5 +162,143 @@ describe("the claim a name is on", () => {
 
         await run(harness, "$clearInterval[beat]")
         assert.equal(claims().size, 0)
+    })
+})
+
+describe("cancelling while startup is writing", () => {
+    it("takes the row back out when the restored write lands after the cancel", async () => {
+        await persist(
+            new Timer({ name: "pulse", kind: TimerKind.interval, code: "$testMark[tick]", duration: 60 }),
+            Date.now() - 1000
+        )
+
+        await withSlowWrites(600, async () => {
+            const booted = harness.ready()
+            await sleep(150)
+
+            assert.equal(await run(harness, "$clearInterval[pulse]"), "true")
+            await booted
+        })
+
+        assert.equal(await Database.get(TimerKind.interval, "pulse"), null, "the row came back after the cancel")
+        assert.equal(harness.client.intervals.has("pulse"), false, "and it armed itself again")
+    })
+})
+
+/** Slows only the writes the predicate picks. Makes one write land after another. */
+async function withSlowWritesOf<T>(slow: (timer: Timer) => boolean, fn: () => Promise<T>) {
+    patchDatabase("set", (real) => async (timer) => {
+        if (slow(timer)) await sleep(400)
+        return real(timer)
+    })
+
+    try {
+        return await fn()
+    } finally {
+        restoreDatabase()
+    }
+}
+
+describe("holding or moving a timer while its tick is writing", () => {
+    it("keeps a hold that lands while the tick writes, rather than losing the timer", async () => {
+        await run(harness, "$setInterval[$testMark[tick];60;pulse]")
+        await waitFor(() => marks.length >= 1)
+
+        // the tick writes the timer running, the hold writes it held
+        await withSlowWritesOf(
+            (timer) => !timer.isPaused(),
+            async () => {
+                await sleep(100)
+                assert.equal(await run(harness, "$pauseTimer[interval;pulse]"), "true")
+            }
+        )
+
+        // long enough for the tick's write to have landed, however soon the hold came back
+        await sleep(600)
+
+        const row = await Database.get(TimerKind.interval, "pulse")
+        assert.ok(row, "holding the timer threw it away")
+        assert.equal(row.isPaused(), true, "and it came back running")
+        assert.equal(harness.client.intervals.has("pulse"), false)
+    })
+
+    it("keeps a hold that lands first, rather than letting the tick write over it", async () => {
+        await run(harness, "$setInterval[$testMark[tick];60;pulse]")
+        await waitFor(() => marks.length >= 1)
+
+        // the hold reads slowly, a tick comes due meanwhile and queues its write behind it
+        patchDatabase("get", (real) => async (kind, name) => {
+            await sleep(300)
+            return real(kind, name)
+        })
+
+        try {
+            assert.equal(await run(harness, "$pauseTimer[interval;pulse]"), "true")
+        } finally {
+            restoreDatabase()
+        }
+
+        await sleep(200)
+        assert.equal((await Database.get(TimerKind.interval, "pulse"))!.isPaused(), true, "the tick wrote it running")
+    })
+
+    it("keeps a new schedule that lands while the tick writes", async () => {
+        await run(harness, "$setInterval[$testMark[tick];60;beat]")
+        await waitFor(() => marks.length >= 1)
+
+        await withSlowWritesOf(
+            (timer) => timer.duration === 60,
+            async () => {
+                await sleep(100)
+                assert.equal(await run(harness, "$rescheduleTimer[interval;beat;1h]"), "true")
+            }
+        )
+
+        await sleep(600)
+
+        const row = await Database.get(TimerKind.interval, "beat")
+        assert.equal(row!.duration, 3_600_000, "the tick wrote the old schedule back")
+        harness.disarm()
+    })
+})
+
+describe("a timeout whose code is already running", () => {
+    it("can be neither held nor moved, since either would run it a second time", async () => {
+        await run(harness, "$setTimeout[$testMark[ran]$wait[300];60;n]")
+        await waitFor(() => marks.includes("ran"), 2000)
+
+        assert.equal(await run(harness, "$pauseTimer[timeout;n]"), "false")
+        assert.equal(await run(harness, "$rescheduleTimer[timeout;n;1h]"), "false")
+
+        await sleep(500)
+        assert.equal(await run(harness, "$resumeTimer[timeout;n]"), "false")
+        await sleep(200)
+
+        assert.equal(marks.filter((mark) => mark === "ran").length, 1, "it ran twice")
+        assert.equal(await Database.get(TimerKind.timeout, "n"), null, "and it is not spent")
+    })
+})
+
+describe("releasing a held timeout twice at once", () => {
+    it("starts it once, whichever release comes first", async () => {
+        await run(harness, "$setTimeout[$testMark[ran];200;n]")
+        assert.equal(await run(harness, "$pauseTimer[timeout;n]"), "true")
+
+        // both releases would read the timer held before either write landed
+        let said: unknown[] = []
+        await withSlowWritesOf(
+            () => true,
+            async () => {
+                said = await Promise.all([
+                    run(harness, "$resumeTimer[timeout;n]"),
+                    run(harness, "$resumeTimer[timeout;n]"),
+                ])
+            }
+        )
+
+        assert.deepEqual([...said].sort(), ["false", "true"], "both releases took")
+
+        await sleep(600)
+        assert.equal(marks.filter((mark) => mark === "ran").length, 1, "it ran once per release")
     })
 })

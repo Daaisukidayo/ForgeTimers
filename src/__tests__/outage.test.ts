@@ -8,16 +8,17 @@ import {
     run,
     TestHarness,
     Timer,
+    GapKind,
     TimerKind,
     useHarness,
     waitFor,
-} from "./harness"
+} from "./support/harness"
 
 let harness: TestHarness
 
 useHarness((booted) => (harness = booted))
 
-/** Takes a call away the way a connection dropped after startup would */
+/** Takes a call away the way a connection dropped after startup would. */
 function breaks(...calls: Parameters<typeof patchDatabase>[0][]) {
     for (const call of calls) {
         patchDatabase(call, () => async () => {
@@ -26,7 +27,7 @@ function breaks(...calls: Parameters<typeof patchDatabase>[0][]) {
     }
 }
 
-const timer = (name: string, kind = TimerKind.timeout, duration = 50) =>
+const timer = (name: string, kind: GapKind = TimerKind.timeout, duration = 50) =>
     new Timer({ name, kind, code: `$testMark[${name}]`, duration, channelID: "chan-1" })
 
 describe("a database that fails after startup", () => {
@@ -59,7 +60,7 @@ describe("a database that fails after startup", () => {
 
         assert.deepEqual(
             await harness.ext.timersManager.stop(TimerKind.timeout, "n"),
-            [true, false],
+            { cleared: true, forgotten: false },
             "a failed delete must not be reported as a forgotten timer"
         )
         assert.equal(harness.client.timeouts.has("n"), false, "the live timer was left armed")

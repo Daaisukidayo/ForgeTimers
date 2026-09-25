@@ -1,0 +1,1 @@
+{"version":3,"file":"timersReady.js","sourceRoot":"","sources":["../../src/events/timersReady.ts"],"names":[],"mappings":";;AAAA,0CAA4D;AAE5D,kBAAe,IAAI,4BAAiB,CAAC;IACjC,IAAI,EAAE,aAAa;IACnB,OAAO,EAAE,OAAO;IAChB,WAAW,EAAE,0DAA0D;IACvE,QAAQ,CAAC,WAAW;QAChB,IAAA,sBAAW,EAAC,IAAI,EAAE,aAAa,EAAE,WAAW,CAAC,CAAA;IACjD,CAAC;CACJ,CAAC,CAAA"}

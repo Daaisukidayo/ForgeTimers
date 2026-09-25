@@ -5,10 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
-const harness_1 = require("./harness");
+const harness_1 = require("./support/harness");
 let harness;
 (0, harness_1.useHarness)((booted) => (harness = booted));
-/** What a tick wrote down, in the order the ticks ran */
+/** What a tick wrote down, in the order the ticks ran. */
 const ticks = () => harness_1.marks.filter((mark) => mark.startsWith("saw:"));
 (0, node_test_1.describe)("what a timer writes to its own variables", () => {
     (0, node_test_1.it)("never reaches the script that scheduled it", async () => {

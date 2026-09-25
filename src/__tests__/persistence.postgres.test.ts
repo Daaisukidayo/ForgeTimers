@@ -1,3 +1,3 @@
-import { persistenceSuite } from "./databases"
+import { persistenceSuite } from "./support/databases"
 
 persistenceSuite("postgres")

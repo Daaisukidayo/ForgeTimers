@@ -1,10 +1,11 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { Timer, TimerKind } from "../structures"
+import { GapKind, Timer, TimerKind } from "../structures"
 import { MAX_DELAY, setLongInterval, setLongTimeout } from "../functions/schedule"
-import { waitFor } from "./harness"
+import { waitFor } from "./support/harness"
 
-const make = (duration: number, kind = TimerKind.interval) => new Timer({ name: "t", kind, duration, channelID: "c" })
+const make = (duration: number, kind: GapKind = TimerKind.interval) =>
+    new Timer({ name: "t", kind, duration, channelID: "c" })
 
 describe("Timer arithmetic", () => {
     it("starts due one duration out", () => {

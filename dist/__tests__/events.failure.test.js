@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
-const harness_1 = require("./harness");
+const harness_1 = require("./support/harness");
 const types_1 = require("../types");
 const WATCHED = [types_1.TimerEvent.timerStart, types_1.TimerEvent.timerFire, types_1.TimerEvent.timerCancel];
 let harness;

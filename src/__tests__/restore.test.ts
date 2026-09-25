@@ -1,7 +1,18 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { Database, marks, persist, run, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./harness"
-import { snapshotVars } from "../functions/snapshotVars"
+import {
+    Database,
+    GapKind,
+    marks,
+    persist,
+    run,
+    TestHarness,
+    Timer,
+    TimerKind,
+    useHarness,
+    waitFor,
+} from "./support/harness"
+import { snapshotVars } from "../structures"
 import { IIntervalConfig, ITimeoutConfig } from "../types"
 
 let harness: TestHarness
@@ -12,7 +23,7 @@ function configure(timeoutConfig: ITimeoutConfig, intervalConfig: IIntervalConfi
     Object.assign(harness.ext.options, { timeoutConfig, intervalConfig })
 }
 
-const stored = (kind: TimerKind, duration: number, dueIn: number, name = "n") =>
+const stored = (kind: GapKind, duration: number, dueIn: number, name = "n") =>
     persist(new Timer({ name, kind, code: `$testMark[${name}]`, duration, channelID: "chan-1" }), Date.now() + dueIn)
 
 describe("restoring timeouts", () => {
@@ -94,6 +105,44 @@ describe("restoring intervals", () => {
         await harness.ready()
 
         assert.equal(marks.length, 2)
+    })
+
+    it("stops a replay $wipeTimers reaches, which finds nothing scheduled to cancel", async () => {
+        configure({}, { restoredTicksLimit: Infinity })
+        await persist(
+            new Timer({
+                name: "n",
+                kind: TimerKind.interval,
+                code: "$testMark[n]$wipeTimers",
+                duration: 10_000,
+                channelID: "chan-1",
+            }),
+            Date.now() - 35_000
+        )
+        await harness.ready()
+
+        assert.equal(marks.length, 1, `4 ticks were due, the replay ran ${marks.length} past the wipe`)
+        assert.equal(harness.client.intervals.has("n"), false, "a wiped interval must not be re-armed")
+        assert.equal(await Database.get(TimerKind.interval, "n"), null, "the wiped record was written back")
+    })
+
+    it("stops a replay the script cancels partway through", async () => {
+        configure({}, { restoredTicksLimit: Infinity })
+        await persist(
+            new Timer({
+                name: "n",
+                kind: TimerKind.interval,
+                code: "$testMark[n]$clearInterval[n]",
+                duration: 10_000,
+                channelID: "chan-1",
+            }),
+            Date.now() - 35_000
+        )
+        await harness.ready()
+
+        assert.equal(marks.length, 1, `4 ticks were due, the replay ran ${marks.length} past the cancel`)
+        assert.equal(harness.client.intervals.has("n"), false, "a cancelled interval must not be re-armed")
+        assert.equal(await Database.get(TimerKind.interval, "n"), null, "the cancelled record was written back")
     })
 
     it("resumes on the time left rather than a whole fresh tick", { timeout: 60_000 }, async () => {
@@ -196,11 +245,11 @@ describe("the stored schema", () => {
         )
     })
 
-    // nothing can write this kind today: the row stands in for one a later build adds
+    // nothing writes this kind today, the row stands in for one a later build adds
     it("leaves a kind this build has no map for alone", async () => {
         const future = new Timer({
             name: "later",
-            kind: "cron" as never,
+            kind: "weekly" as never,
             code: "$testMark[later]",
             duration: 1000,
             channelID: "chan-1",
@@ -215,6 +264,23 @@ describe("the stored schema", () => {
 
         assert.equal(harness.client.timeouts.has("later"), false)
         assert.equal(harness.client.intervals.has("later"), false)
-        assert.ok(await Database.get("cron" as never, "later"), "the row was thrown away rather than left alone")
+        assert.ok(await Database.get("weekly" as never, "later"), "the row was thrown away rather than left alone")
+    })
+})
+
+describe("an interval stored with no duration", () => {
+    it("is picked back up and keeps ticking, rather than dropped or replayed", async () => {
+        await persist(
+            new Timer({ name: "spin", kind: TimerKind.interval, code: "$testMark[tick]", duration: 0 }),
+            Date.now() - 1000
+        )
+
+        await harness.ready()
+
+        const ticked = await waitFor(() => marks.filter((mark) => mark === "tick").length >= 2, 2000)
+        harness.disarm()
+
+        assert.ok(ticked, `it never came back, ${marks.length} ticks ran`)
+        assert.ok(await Database.get(TimerKind.interval, "spin"), "its record was thrown away")
     })
 })

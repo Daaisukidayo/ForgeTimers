@@ -4,7 +4,7 @@ exports.QuorielDBStore = exports.QUORIEL_TYPE = void 0;
 const Timer_1 = require("../Timer");
 /** The QuorielDB record type timers live under */
 exports.QUORIEL_TYPE = "timers";
-/** No entity to derive a key from, so the id is the key */
+/** No entity to derive a key from, the id is the key */
 const SCHEMA = { type: null, guild: false };
 /** Keeps timers in QuorielDB's LMDB store, under its own record type */
 class QuorielDBStore {

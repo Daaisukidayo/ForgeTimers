@@ -1,77 +1,102 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MongoTimer = exports.Timer = exports.TimerKind = void 0;
-const snapshotVars_1 = require("../functions/snapshotVars");
+const PersistedVars_1 = require("./PersistedVars");
+const cron_1 = require("../functions/cron");
 var TimerKind;
 (function (TimerKind) {
     TimerKind["timeout"] = "timeout";
     TimerKind["interval"] = "interval";
+    TimerKind["cron"] = "cron";
 })(TimerKind || (exports.TimerKind = TimerKind = {}));
 class Timer {
-    /** What this build writes */
-    static SCHEMA_VERSION = snapshotVars_1.VARS_SCHEMA_VERSION;
-    /** Primary keys are `varchar(255)` on mysql, and a longer id is rejected, not truncated */
+    /**
+     * Variable schema this build writes.
+     */
+    static SCHEMA_VERSION = PersistedVars_1.VARS_SCHEMA_VERSION;
+    /**
+     * Primary keys are `varchar(255)` on mysql, and a longer id is rejected.
+     */
     static MAX_ID_LENGTH = 255;
     /**
-     * The id of this timer, in the form `kind:name`.
+     * Primary key, `kind:name`.
      */
     id;
     /**
-     * The name this timer was scheduled under.
+     * Name it was scheduled under.
      */
     name;
     /**
-     * The kind of the timer.
+     * Timeout, interval or cron.
      */
     kind;
     /**
-     * The ForgeScript code this timer executes.
+     * ForgeScript code it runs.
      */
     code;
     /**
-     * The path of the command this timer was scheduled from.
+     * Path of the command it was scheduled from.
      */
     path;
     /**
-     * The name of the command this timer was scheduled from.
+     * Name of the command it was scheduled from.
      */
     commandName;
-    /** Variable schema this row was written under. Null predates it and means v0 */
+    /**
+     * Variable schema this row was written under.
+     * Null predates it and means v0.
+     */
     version;
     /**
-     * The delay of this timeout, or the tick length of this interval, in ms.
+     * Delay of a timeout or tick length of an interval, in ms. Always 0 for a cron.
      */
     duration;
     /**
-     * The timestamp this timer has been created at.
+     * Cron expression, when it is a cron.
+     */
+    cron;
+    /**
+     * Zone the expression is read in, null for the process zone.
+     */
+    timezone;
+    /**
+     * When it was scheduled, unix ms.
      */
     timestamp;
     /**
-     * The timestamp this timer is next due to fire at.
+     * When it is next due, unix ms.
      */
     fireAt;
     /**
-     * The id of the guild this timer has been created on.
+     * When it was paused, null while running.
+     */
+    pausedAt;
+    /**
+     * Guild it was scheduled in.
      */
     guildID;
     /**
-     * The id of the channel this timer has been created in, if any.
+     * Channel it was scheduled in, if any.
      */
     channelID;
     /**
-     * The id of the user that scheduled this timer.
+     * User who scheduled it.
      */
-    hostID;
+    authorID;
     /**
-     * The id of the message this timer was scheduled from.
+     * Message it was scheduled from.
      */
     messageID;
     /**
-     * The command arguments this timer was scheduled with.
+     * Command arguments at scheduling time.
      */
     args;
     /**
-     * The serializable variables present when this timer was scheduled.
+     * Options the call spelled out.
+     */
+    config;
+    /**
+     * Variables at scheduling time, the serializable ones.
      */
     vars;
     constructor(options) {
@@ -82,60 +107,119 @@ class Timer {
         this.path = options?.path ?? null;
         this.commandName = options?.commandName ?? null;
         this.version = Timer.SCHEMA_VERSION;
-        this.duration = options?.duration ?? 0;
         this.guildID = options?.guildID ?? null;
         this.channelID = options?.channelID ?? null;
-        this.hostID = options?.hostID ?? null;
+        this.authorID = options?.authorID ?? null;
         this.messageID = options?.messageID ?? null;
         this.args = options?.args;
+        this.config = options?.config ?? null;
         this.vars = options?.vars;
         this.timestamp = Date.now();
-        this.fireAt = this.timestamp + this.duration;
+        this.pausedAt = null;
+        // a cron owns no gap
+        if (options?.kind === TimerKind.cron) {
+            this.cron = options.cron;
+            this.timezone = options.timezone ?? null;
+            this.duration = 0;
+            this.fireAt = (0, cron_1.nextRun)(this.cron, this.timestamp, this.timezone);
+        }
+        else {
+            this.cron = null;
+            this.timezone = null;
+            this.duration = options?.duration ?? 0;
+            this.fireAt = this.timestamp + this.duration;
+        }
     }
     /**
-     * Rebuilds a timer from a stored row, for a backend that hands back plain data.
-     * @param data The row to rebuild from.
+     * A timer with nothing but its identity, for reporting one that is already gone.
+     * @param kind Timer kind.
+     * @param name Timer name.
+     */
+    static stub(kind, name) {
+        const now = Date.now();
+        return Timer.from({
+            id: Timer.idOf(kind, name),
+            name,
+            kind,
+            code: "",
+            duration: 0,
+            version: Timer.SCHEMA_VERSION,
+            timestamp: now,
+            fireAt: now,
+            pausedAt: null,
+        });
+    }
+    /**
+     * Whether it keeps to an expression rather than a gap.
+     */
+    isCron() {
+        return this.kind === TimerKind.cron && typeof this.cron === "string" && this.cron.length > 0;
+    }
+    /**
+     * Whether it is on hold, neither running nor falling behind.
+     */
+    isPaused() {
+        return typeof this.pausedAt === "number";
+    }
+    /**
+     * Rebuilds a timer from a stored row, for a backend that hands back plain data. Folds a pre-2.0.0 `hostID` into `authorID`.
+     * @param data Row to rebuild.
      */
     static from(data) {
-        return Object.assign(Object.create(Timer.prototype), data);
+        const timer = Object.assign(Object.create(Timer.prototype), data);
+        if (timer.authorID === undefined)
+            timer.authorID = timer.hostID ?? null;
+        delete timer.hostID;
+        return timer;
     }
     /**
      * Builds the primary key for a timer.
-     * @param kind The kind of the timer.
-     * @param name The name of the timer.
+     * @param kind Timer kind.
+     * @param name Timer name.
      */
     static idOf(kind, name) {
         return `${kind}:${name}`;
     }
     /**
      * Longest usable name, since the id carries the kind too.
-     * @param kind The kind of the timer.
+     * @param kind Timer kind.
      */
     static maxNameLength(kind) {
         return Timer.MAX_ID_LENGTH - Timer.idOf(kind, "").length;
     }
     /**
-     * Returns the time left before this timer is due.
+     * Time left before it is due.
      */
     timeLeft() {
-        return Math.max(this.fireAt - Date.now(), 0);
+        // a paused timer stopped counting down the moment it was paused
+        return Math.max(this.fireAt - (this.pausedAt ?? Date.now()), 0);
     }
     /**
-     * Returns how long past due this timer is, or 0 if it isn't yet.
+     * How long past due it is, 0 when not yet.
      */
     overdueBy() {
+        if (this.isPaused())
+            return 0;
         return Math.max(Date.now() - this.fireAt, 0);
     }
     /**
-     * Returns whether this timer was due while the app was down.
+     * Whether it came due while the app was down.
      */
     isOverdue() {
+        if (this.isPaused())
+            return false;
         return this.fireAt <= Date.now();
     }
     /**
      * Ticks elapsed since it was last due. Always 0 for timeouts, they fire once.
+     * @param limit Most worth counting. A cron counts them one by one.
      */
-    missedTicks() {
+    missedTicks(limit = Infinity) {
+        if (this.isPaused())
+            return 0;
+        // an expression has no gap to divide by, only up to the limit
+        if (this.isCron())
+            return (0, cron_1.missedRuns)(this.cron, this.fireAt, limit, this.timezone);
         if (this.kind !== TimerKind.interval || this.duration <= 0)
             return 0;
         return Math.floor(this.overdueBy() / this.duration) + 1;
@@ -144,13 +228,18 @@ class Timer {
      * Pushes the due time a full duration out, dropping the phase. For an abandoned tick.
      */
     scheduleNext() {
-        this.fireAt = Date.now() + this.duration;
+        this.fireAt = this.isCron() ? (0, cron_1.nextRun)(this.cron, Date.now(), this.timezone) : Date.now() + this.duration;
         return this;
     }
     /**
-     * Steps whole ticks into the future, keeping the phase — a slow run shifts by ticks, not by itself.
+     * Steps whole ticks into the future, keeping the phase. A slow run shifts by ticks, not by itself.
      */
     advance() {
+        // measured from the occurrence just run, a slow one shifts by whole occurrences
+        if (this.isCron()) {
+            this.fireAt = (0, cron_1.nextRun)(this.cron, Math.max(this.fireAt, Date.now()), this.timezone);
+            return this;
+        }
         if (this.duration <= 0)
             return this.scheduleNext();
         const ticks = Math.max(1, Math.floor((Date.now() - this.fireAt) / this.duration) + 1);
@@ -164,6 +253,10 @@ class MongoTimer extends Timer {
      * The object id for MongoDB.
      */
     mongoId;
+    /**
+     * What builds before 2.0.0 wrote the author under, read beside {@link Timer.authorID} on mongo alone.
+     */
+    hostID;
 }
 exports.MongoTimer = MongoTimer;
 //# sourceMappingURL=Timer.js.map

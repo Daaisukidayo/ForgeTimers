@@ -8,7 +8,7 @@ export default new NativeFunction({
     unwrap: true,
     output: ArgType.Number,
     async execute(ctx) {
-        const manager = ctx.client.getExtension(ForgeTimers, true).timersManager
+        const manager = ForgeTimers.of(ctx.client).timersManager
         return this.success(await manager.wipe())
     }
 })

@@ -15,17 +15,23 @@
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="rehydratelocalfunctions"><span class="tsd-kind-call-signature">rehydrateLocalFunctions</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">stored</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a href="../interfaces/IPersistedLocalFunction.html" class="tsd-signature-type tsd-kind-interface">IPersistedLocalFunction</a><span class="tsd-signature-symbol">&gt;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">path</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">label</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">ILocalFunctionData</span><span class="tsd-signature-symbol">&gt;</span><a href="#rehydratelocalfunctions" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Rebuilds <code>localFunctions</code> by recompiling each stored code.</p>
+<div class="tsd-comment tsd-typography"><p>Rebuilds <code>localFunctions</code> by recompiling each stored code. One that won't compile is dropped.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">stored</span>: <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a href="../interfaces/IPersistedLocalFunction.html" class="tsd-signature-type tsd-kind-interface">IPersistedLocalFunction</a><span class="tsd-signature-symbol">&gt;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">undefined</span></span></li>
-<li><span><span class="tsd-kind-parameter">path</span>: <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">undefined</span></span></li>
-<li><span><span class="tsd-kind-parameter">label</span>: <span class="tsd-signature-type">string</span></span></li></ul></div>
+<li><span><span class="tsd-kind-parameter">stored</span>: <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a href="../interfaces/IPersistedLocalFunction.html" class="tsd-signature-type tsd-kind-interface">IPersistedLocalFunction</a><span class="tsd-signature-symbol">&gt;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">undefined</span></span>
+<div class="tsd-comment tsd-typography"><p>Local functions as stored.</p>
+</div></li>
+<li><span><span class="tsd-kind-parameter">path</span>: <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">undefined</span></span>
+<div class="tsd-comment tsd-typography"><p>Command path to compile against.</p>
+</div></li>
+<li><span><span class="tsd-kind-parameter">label</span>: <span class="tsd-signature-type">string</span></span>
+<div class="tsd-comment tsd-typography"><p>What to call the timer in the log.</p>
+</div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">ILocalFunctionData</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/30e8f5f9e67a77319562beb5aacf25375f50fb3c/src/functions/snapshotVars.ts#L273">src/functions/snapshotVars.ts:273</a></li></ul></aside></div></li></ul></section></div>
+<li>Defined in <a href="https://github.com/Daaisukidayo/ForgeTimers/blob/78800c83d8b0a0922ccdf258eae515b9c588d20d/src/structures/PersistedVars.ts#L294">src/structures/PersistedVars.ts:294</a></li></ul></aside></div></li></ul></section></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

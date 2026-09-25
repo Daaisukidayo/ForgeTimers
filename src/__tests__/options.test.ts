@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { beforeEach, describe, it } from "node:test"
-import { attach, Database, ITestClient, marks, Timer, TimerKind, useTempHome, waitFor } from "./harness"
+import { attach, Database, ITestClient, marks, Timer, TimerKind, useTempHome, waitFor } from "./support/harness"
 import { ForgeTimers } from ".."
 import { IForgeTimersOptions, TimerEvent } from "../types"
 import { Logger } from "../functions/logger"
@@ -12,7 +12,7 @@ beforeEach(async () => {
     await Database.wipe().catch(() => undefined)
 })
 
-/** What the extension said about the config, and what it did with the timers it found */
+/** What the extension said about the config, and what it did with the timers it found. */
 async function boots(
     options: IForgeTimersOptions,
     seed: (harness: ITestClient) => Promise<void> = async () => undefined
@@ -99,6 +99,21 @@ describe("a config nobody meant to write", () => {
             `nothing was said about it: ${said}`
         )
         assert.ok(!(await waitFor(() => ticks() > 0, 200)), "a negative limit replayed ticks")
+
+        harness.disarm()
+    })
+
+    it("reviews a cron's config too, which it used to skip over entirely", async () => {
+        const { said, harness } = await boots({ cronConfig: { maxOverdue: -5, restoredTicksLimit: -1 } })
+
+        assert.ok(
+            said.some((line) => line.includes("cronConfig.maxOverdue") && line.includes("throws away")),
+            `a negative maxOverdue went unmentioned: ${said}`
+        )
+        assert.ok(
+            said.some((line) => line.includes("cronConfig.restoredTicksLimit") && line.includes("Infinity")),
+            `a negative tick limit went unmentioned: ${said}`
+        )
 
         harness.disarm()
     })

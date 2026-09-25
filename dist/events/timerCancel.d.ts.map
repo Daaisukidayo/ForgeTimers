@@ -1,1 +1,1 @@
-{"version":3,"file":"timerCancel.d.ts","sourceRoot":"","sources":["../../src/events/timerCancel.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,iBAAiB,EAAe,MAAM,aAAa,CAAA;;AAG5D,wBAOE"}
+{"version":3,"file":"timerCancel.d.ts","sourceRoot":"","sources":["../../src/events/timerCancel.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,iBAAiB,EAAe,MAAM,aAAa,CAAA;;AAE5D,wBAOE"}

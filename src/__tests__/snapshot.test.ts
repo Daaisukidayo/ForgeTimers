@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { Compiler, FunctionManager } from "@tryforge/forgescript"
-import { rehydrateLocalFunctions, restoreVars, snapshotVars, VARS_SCHEMA_VERSION } from "../functions/snapshotVars"
+import { rehydrateLocalFunctions, restoreVars, snapshotVars, VARS_SCHEMA_VERSION } from "../structures"
 
 FunctionManager.loadNative()
 

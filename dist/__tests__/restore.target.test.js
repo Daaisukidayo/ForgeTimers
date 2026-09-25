@@ -5,7 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
-const harness_1 = require("./harness");
+const harness_1 = require("./support/harness");
+const structures_1 = require("../structures");
 let harness;
 (0, harness_1.useHarness)((booted) => (harness = booted));
 const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new harness_1.Timer({ name, kind, code: `$testMark[${name}]`, duration, channelID: "chan-1" }), Date.now() + dueIn);
@@ -25,24 +26,25 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
             strict_1.default.deepEqual(harness_1.marks, []);
         }
     });
-    (0, node_test_1.it)("drops the record once a due timer finds its channel gone", async () => {
+    (0, node_test_1.it)("runs a due timer whose channel is gone, rather than throwing its code away", async () => {
         await stored(harness_1.TimerKind.timeout, 3_600_000, -60_000);
         harness.channelError = (0, harness_1.apiError)(404, 10003, "Unknown Channel");
         await harness.ready();
-        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), null);
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.includes("n"), 2000), "a missing channel stopped code that never used it");
+        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), null, "and a spent timeout still gives up its record");
     });
     (0, node_test_1.it)("drops the record when the code no longer compiles", async () => {
         await (0, harness_1.persist)(new harness_1.Timer({ name: "n", kind: harness_1.TimerKind.timeout, code: "$if[", duration: 1000, channelID: "chan-1" }), Date.now() + 60_000);
         await harness.ready();
         strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.timeout, "n"), null);
     });
-    (0, node_test_1.it)("stops an interval whose target turns out to be gone", async () => {
+    (0, node_test_1.it)("keeps an interval ticking once its target is gone, since the code decides what it needs", async () => {
         await stored(harness_1.TimerKind.interval, 60, -1000);
         harness.channelError = (0, harness_1.apiError)(404, 10003, "Unknown Channel");
         await harness.ready();
-        await (0, harness_1.waitFor)(async () => (await harness_1.Database.get(harness_1.TimerKind.interval, "n")) === null);
-        strict_1.default.equal(await harness_1.Database.get(harness_1.TimerKind.interval, "n"), null);
-        strict_1.default.equal(harness.client.intervals.has("n"), false);
+        strict_1.default.ok(await (0, harness_1.waitFor)(() => harness_1.marks.length >= 2, 2000), `it ticked ${harness_1.marks.length} times`);
+        strict_1.default.ok(await harness_1.Database.get(harness_1.TimerKind.interval, "n"), "its record was thrown away anyway");
+        strict_1.default.equal(harness.client.intervals.has("n"), true, "it was stood down anyway");
     });
 });
 (0, node_test_1.describe)("rebuilding lazily", () => {
@@ -154,14 +156,14 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
     });
 });
 (0, node_test_1.describe)("the message a timer was scheduled from", () => {
-    const withMessage = (messageID) => (0, harness_1.persist)(new harness_1.Timer({
+    const withMessage = (messageID, code = "$testMark[$authorID]", authorID = "user-1") => (0, harness_1.persist)(new harness_1.Timer({
         name: "n",
         kind: harness_1.TimerKind.timeout,
-        code: "$testMark[$authorID]",
+        code,
         duration: 1000,
         channelID: "chan-msg",
         messageID,
-        hostID: "user-1",
+        authorID,
     }), Date.now() - 1000);
     (0, node_test_1.beforeEach)(() => {
         harness.channels.set("chan-msg", {
@@ -170,10 +172,18 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
         });
     });
     (0, node_test_1.it)("is fetched again and becomes the target", async () => {
+        // a prefix command is the scheduler's own message, its author proves the message is the target
+        await withMessage("msg-1", "$testMark[$authorID]", "author-1");
+        await harness.ready();
+        await (0, harness_1.waitFor)(() => harness_1.marks.length > 0);
+        strict_1.default.deepEqual(harness_1.marks, ["author-1"], "the run should be answering on the message, not on the channel");
+    });
+    (0, node_test_1.it)("does not hand the run its author, who only wrote the message a component sat on", async () => {
+        harness.users.set("user-1", { id: "user-1" });
         await withMessage("msg-1");
         await harness.ready();
         await (0, harness_1.waitFor)(() => harness_1.marks.length > 0);
-        strict_1.default.deepEqual(harness_1.marks, ["author-1"], "the run should see the original author");
+        strict_1.default.deepEqual(harness_1.marks, ["user-1"], "a button's message belongs to whoever posted it, not to who clicked it");
     });
     (0, node_test_1.it)("falls back to the channel once the message is gone", async () => {
         harness.users.set("user-1", { id: "user-1" });
@@ -190,7 +200,7 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
         code: "$testMark[$authorID]",
         duration: 1000,
         channelID: "chan-1",
-        hostID: "user-1",
+        authorID: "user-1",
         guildID,
     }), Date.now() - 1000);
     (0, node_test_1.it)("stands in as the author when the target has none", async () => {
@@ -203,11 +213,20 @@ const stored = (kind, duration, dueIn, name = "n") => (0, harness_1.persist)(new
     (0, node_test_1.it)("is looked up as a member when the timer belongs to a guild", async () => {
         harness.guilds.add("guild-1");
         harness.users.set("user-1", { id: "user-1" });
-        harness.members.set("user-1", { id: "user-1", nickname: "host" });
+        harness.members.set("user-1", { id: "user-1", nickname: "scheduler" });
         await hosted("guild-1");
         await harness.ready();
         await (0, harness_1.waitFor)(() => harness_1.marks.length > 0);
         strict_1.default.deepEqual(harness_1.marks, ["user-1"]);
+    });
+    (0, node_test_1.it)("stands in as the member too, which is what the lookup above is for", () => {
+        const member = { id: "user-1", nickname: "scheduler" };
+        // a restored run targets a channel at best, and the base context only takes a member
+        // off a real message, without this the run would have none at all
+        const ctx = new structures_1.TimerContext({ client: {}, data: {}, obj: {}, authorMember: member });
+        strict_1.default.equal(ctx.member, member, "a run with no member of its own must borrow the scheduler's");
+        const alone = new structures_1.TimerContext({ client: {}, data: {}, obj: {} });
+        strict_1.default.equal(alone.member, null, "and with nobody to borrow from it stays empty");
     });
     (0, node_test_1.it)("leaves the run without an author when the user is gone", async () => {
         await hosted();

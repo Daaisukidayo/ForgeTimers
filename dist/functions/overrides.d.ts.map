@@ -1,0 +1,1 @@
+{"version":3,"file":"overrides.d.ts","sourceRoot":"","sources":["../../src/functions/overrides.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,gBAAgB,EAAE,eAAe,EAAE,MAAM,UAAU,CAAA;AAS5D;;;;GAIG;AACH,wBAAgB,WAAW,CAAC,MAAM,EAAE,eAAe,GAAG,gBAAgB,GAAG,IAAI,CAQ5E;AAED;;;GAGG;AACH,wBAAgB,aAAa,CAAC,MAAM,EAAE,gBAAgB,GAAG,eAAe,CAKvE"}

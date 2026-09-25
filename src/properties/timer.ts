@@ -1,3 +1,4 @@
+import { CompiledFunction } from "@tryforge/forgescript"
 import { Timer } from "../structures"
 
 export enum TimerProperty {
@@ -6,14 +7,87 @@ export enum TimerProperty {
     kind = "kind",
     code = "code",
     duration = "duration",
+    cron = "cron",
+    timezone = "timezone",
     timestamp = "timestamp",
     fireAt = "fireAt",
     timeLeft = "timeLeft",
+    paused = "paused",
     guildID = "guildID",
     channelID = "channelID",
-    hostID = "hostID",
+    authorID = "authorID",
     messageID = "messageID",
     args = "args",
+    config = "config",
+}
+
+export type ITimerFilter = [TimerProperty, string]
+
+export type IFilterResult = { ok: true; pairs: ITimerFilter[] } | { ok: false; reason: string }
+
+/**
+ * Objects go back as JSON, plain text would flatten them to [object Object].
+ * @param value Value to check.
+ */
+export function isStructured(value: unknown) {
+    return typeof value === "object" && value !== null
+}
+
+/**
+ * Answers with one property, JSON for objects and plain text for the rest.
+ * @param fn The native answering.
+ * @param timer Timer to read.
+ * @param property Property to answer with.
+ */
+export function answer(fn: Pick<CompiledFunction, "success" | "successJSON">, timer: Timer, property: TimerProperty) {
+    const value = TimerProperties[property](timer)
+    return isStructured(value) ? fn.successJSON(value) : fn.success(value)
+}
+
+/**
+ * A property as text, the form every filter compares against.
+ * @param timer Timer to read.
+ * @param property Property to read.
+ */
+export function textOf(timer: Timer, property: TimerProperty) {
+    const value = TimerProperties[property](timer)
+
+    if (value === null || value === undefined) return ""
+    return typeof value === "object" ? JSON.stringify(value) : String(value)
+}
+
+/**
+ * Reads flat property and value pairs.
+ * @param filters Arguments as given, each property followed by the value it must read as.
+ * @returns The pairs, or why they could not be read.
+ */
+export function readFilters(filters: string[]): IFilterResult {
+    if (filters.length % 2) {
+        const reason = `Every filter needs a property and a value, and "${filters.at(-1)}" was left without one.`
+        return { ok: false, reason }
+    }
+
+    const pairs: ITimerFilter[] = []
+
+    for (let i = 0; i < filters.length; i += 2) {
+        const named = filters[i] as TimerProperty
+
+        // "in" reaches the prototype, where toString would match every timer and __proto__ would throw
+        if (!Object.hasOwn(TimerProperties, named)) return { ok: false, reason: `"${named}" is not a timer property.` }
+
+        pairs.push([named, filters[i + 1]])
+    }
+
+    return { ok: true, pairs }
+}
+
+/**
+ * Whether a timer matches every pair.
+ * @param timer Timer to check.
+ * @param pairs All of them have to match.
+ */
+export function matches(timer: Timer, pairs: ITimerFilter[]) {
+    return pairs.every(([named, wanted]) => textOf(timer, named) === wanted)
 }
 
 export function readProperties(timer: Timer) {
@@ -29,12 +103,16 @@ export const TimerProperties: Record<TimerProperty, (timer: Timer) => unknown> =
     [TimerProperty.kind]: (t) => t.kind,
     [TimerProperty.code]: (t) => t.code,
     [TimerProperty.duration]: (t) => t.duration,
+    [TimerProperty.cron]: (t) => t.cron ?? null,
+    [TimerProperty.timezone]: (t) => t.timezone ?? null,
     [TimerProperty.timestamp]: (t) => t.timestamp,
     [TimerProperty.fireAt]: (t) => t.fireAt,
     [TimerProperty.timeLeft]: (t) => t.timeLeft(),
+    [TimerProperty.paused]: (t) => t.isPaused(),
     [TimerProperty.guildID]: (t) => t.guildID,
     [TimerProperty.channelID]: (t) => t.channelID,
-    [TimerProperty.hostID]: (t) => t.hostID,
+    [TimerProperty.authorID]: (t) => t.authorID,
     [TimerProperty.messageID]: (t) => t.messageID,
     [TimerProperty.args]: (t) => t.args ?? [],
+    [TimerProperty.config]: (t) => t.config ?? {},
 }

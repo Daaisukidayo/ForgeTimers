@@ -1,11 +1,10 @@
 import { TimerEventHandler, runCommands } from "../managers"
-import { TimerEvent } from "../types"
 
 export default new TimerEventHandler({
-    name: TimerEvent.timerFire,
-    description: "Triggered when a timer's code runs: a timeout going off, or an interval ticking",
+    name: "timerFire",
     version: "1.3.0",
+    description: "Triggered when a timer's code runs: a timeout going off, an interval ticking, or a cron coming round",
     listener(environment) {
-        runCommands(this, TimerEvent.timerFire, environment)
+        runCommands(this, "timerFire", environment)
     },
 })

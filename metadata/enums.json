@@ -1,1 +1,1 @@
-{"TimerKind":["timeout","interval"],"TimerProperty":["id","name","kind","code","duration","timestamp","fireAt","timeLeft","guildID","channelID","hostID","messageID","args"]}
+{"TimerKind":["timeout","interval","cron"],"TimerProperty":["id","name","kind","code","duration","cron","timezone","timestamp","fireAt","timeLeft","paused","guildID","channelID","authorID","messageID","args","config"],"TimerEventProperty":["dropReason","failReason","overdueBy","restored","dropped"]}

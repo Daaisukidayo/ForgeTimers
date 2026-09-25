@@ -9,13 +9,13 @@ const node_path_1 = require("node:path");
 const forge_db_1 = require("@tryforge/forge.db");
 const smoke_1 = require("./smoke");
 (0, dotenv_1.config)();
-/** Set by the restart check. Without it this file is the playground it has always been */
+/** Set by the restart check. Without it this file is just the playground. */
 const smoke = process.env.SMOKE === "1";
-/** Which backend to boot against. The playground stays on ForgeDB */
+/** Backend to boot against. The playground stays on ForgeDB. */
 const storage = process.env.SMOKE_STORAGE ?? "forgedb";
-/** Set when this boot is the one that moves timers over */
+/** Set when this boot moves the timers over. */
 const migrateFrom = process.env.SMOKE_MIGRATE_FROM;
-/** The events the restart check watches. The playground keeps them off, as a bot would by default */
+/** Events the restart check watches. Off in the playground, like a bot by default. */
 const WATCHED = [types_1.TimerEvent.timerStart, types_1.TimerEvent.timerFire, types_1.TimerEvent.timerRestore];
 const timer = new index_1.ForgeTimers({
     storage,
@@ -25,7 +25,7 @@ const timer = new index_1.ForgeTimers({
     // maxOverdue: 5_000
     },
     intervalConfig: {
-        // replaying missed ticks would blur what the check is measuring
+        // replayed ticks would blur what the check measures
         restoredTicksLimit: smoke ? 0 : Infinity,
         // maxOverdue: 30_000
     },
@@ -35,7 +35,7 @@ function quorielDB() {
     return new QuorielDB();
 }
 const databaseFor = (which) => which === "quorieldb" ? quorielDB() : new forge_db_1.ForgeDB({ type: "better-sqlite3" });
-// the backend being migrated out of has to be loaded too, or its store cannot be read
+// the old backend has to be loaded too, else its store can't be read
 const databases = migrateFrom && migrateFrom !== storage ? [databaseFor(storage), databaseFor(migrateFrom)] : [databaseFor(storage)];
 const client = new forgescript_1.ForgeClient({
     logLevel: forgescript_1.LogPriority.High,
@@ -78,11 +78,11 @@ if (smoke) {
     const plan = (0, smoke_1.readPlan)();
     client.commands.add({
         type: discord_js_1.Events.ClientReady,
-        code: plan ? `$smokeReport[booted]` : smoke_1.SEED_CODE,
+        code: plan ? smoke_1.VERIFY_CODE : smoke_1.SEED_CODE,
     });
     for (const event of WATCHED)
         timer.commands.add({ type: event, code: (0, smoke_1.eventCode)(event) });
-    // one message from an event command is enough to know they can reach discord at all
+    // one message from an event command proves they reach discord
     if (smoke_1.CHANNEL)
         timer.commands.add({ type: types_1.TimerEvent.timerFire, code: smoke_1.EVENT_MESSAGE_CODE });
     client.once(discord_js_1.Events.ClientReady, () => void (0, smoke_1.runSmoke)(plan));

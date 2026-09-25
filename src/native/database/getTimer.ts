@@ -1,5 +1,5 @@
-import { ArgType, NativeFunction } from "@tryforge/forgescript"
-import { readProperties, TimerProperties, TimerProperty } from "../../properties/timer"
+import { Arg, ArgType, NativeFunction } from "@tryforge/forgescript"
+import { answer, readProperties, TimerProperty } from "../../properties/timer"
 import { Database, ForgeTimers, TimerKind } from "../.."
 
 export default new NativeFunction({
@@ -9,45 +9,21 @@ export default new NativeFunction({
     unwrap: true,
     brackets: true,
     args: [
-        {
-            name: "kind",
-            description: "Whether to look for a timeout or an interval",
-            rest: false,
-            required: true,
-            type: ArgType.Enum,
-            enum: TimerKind
-        },
-        {
-            name: "name",
-            description: "The name of the timer to get",
-            rest: false,
-            required: true,
-            type: ArgType.String,
-        },
-        {
-            name: "property",
-            description: "The property of the timer to return",
-            rest: false,
-            type: ArgType.Enum,
-            enum: TimerProperty
-        }
+        Arg.requiredEnum(TimerKind, "kind", "The kind of the timer to look for"),
+        Arg.requiredString("name", "The name of the timer to get"),
+        Arg.optionalEnum(TimerProperty, "property", "The property of the timer to return")
     ],
     output: [
         ArgType.Json,
         ArgType.Unknown
     ],
     async execute(ctx, [kind, name, prop]) {
-        if (!(await ctx.client.getExtension(ForgeTimers, true).ready)) return this.success()
+        if (!(await ForgeTimers.of(ctx.client).ready)) return this.success()
 
         const timer = await Database.get(kind, name)
         if (!timer) return this.success()
 
-        if (prop) {
-            const value = TimerProperties[prop](timer)
-            return typeof value === "object" && value !== null
-                ? this.successJSON(value)
-                : this.success(value)
-        }
+        if (prop) return answer(this, timer, prop)
         return this.successJSON(readProperties(timer))
     }
 })

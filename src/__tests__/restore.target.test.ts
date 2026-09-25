@@ -1,12 +1,24 @@
 import assert from "node:assert/strict"
 import { beforeEach, describe, it } from "node:test"
-import { apiError, Database, marks, persist, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./harness"
+import {
+    apiError,
+    Database,
+    marks,
+    persist,
+    TestHarness,
+    Timer,
+    GapKind,
+    TimerKind,
+    useHarness,
+    waitFor,
+} from "./support/harness"
+import { TimerContext } from "../structures"
 
 let harness: TestHarness
 
 useHarness((booted) => (harness = booted))
 
-const stored = (kind: TimerKind, duration: number, dueIn: number, name = "n") =>
+const stored = (kind: GapKind, duration: number, dueIn: number, name = "n") =>
     persist(new Timer({ name, kind, code: `$testMark[${name}]`, duration, channelID: "chan-1" }), Date.now() + dueIn)
 
 describe("when a timer cannot be rebuilt", () => {
@@ -30,12 +42,14 @@ describe("when a timer cannot be rebuilt", () => {
         }
     })
 
-    it("drops the record once a due timer finds its channel gone", async () => {
+    it("runs a due timer whose channel is gone, rather than throwing its code away", async () => {
         await stored(TimerKind.timeout, 3_600_000, -60_000)
         harness.channelError = apiError(404, 10003, "Unknown Channel")
 
         await harness.ready()
-        assert.equal(await Database.get(TimerKind.timeout, "n"), null)
+
+        assert.ok(await waitFor(() => marks.includes("n"), 2000), "a missing channel stopped code that never used it")
+        assert.equal(await Database.get(TimerKind.timeout, "n"), null, "and a spent timeout still gives up its record")
     })
 
     it("drops the record when the code no longer compiles", async () => {
@@ -47,15 +61,15 @@ describe("when a timer cannot be rebuilt", () => {
         assert.equal(await Database.get(TimerKind.timeout, "n"), null)
     })
 
-    it("stops an interval whose target turns out to be gone", async () => {
+    it("keeps an interval ticking once its target is gone, since the code decides what it needs", async () => {
         await stored(TimerKind.interval, 60, -1000)
         harness.channelError = apiError(404, 10003, "Unknown Channel")
 
         await harness.ready()
-        await waitFor(async () => (await Database.get(TimerKind.interval, "n")) === null)
 
-        assert.equal(await Database.get(TimerKind.interval, "n"), null)
-        assert.equal(harness.client.intervals.has("n"), false)
+        assert.ok(await waitFor(() => marks.length >= 2, 2000), `it ticked ${marks.length} times`)
+        assert.ok(await Database.get(TimerKind.interval, "n"), "its record was thrown away anyway")
+        assert.equal(harness.client.intervals.has("n"), true, "it was stood down anyway")
     })
 })
 
@@ -218,16 +232,16 @@ describe("the command a timer came from", () => {
 })
 
 describe("the message a timer was scheduled from", () => {
-    const withMessage = (messageID: string) =>
+    const withMessage = (messageID: string, code = "$testMark[$authorID]", authorID = "user-1") =>
         persist(
             new Timer({
                 name: "n",
                 kind: TimerKind.timeout,
-                code: "$testMark[$authorID]",
+                code,
                 duration: 1000,
                 channelID: "chan-msg",
                 messageID,
-                hostID: "user-1",
+                authorID,
             }),
             Date.now() - 1000
         )
@@ -240,11 +254,21 @@ describe("the message a timer was scheduled from", () => {
     })
 
     it("is fetched again and becomes the target", async () => {
+        // a prefix command is the scheduler's own message, its author proves the message is the target
+        await withMessage("msg-1", "$testMark[$authorID]", "author-1")
+        await harness.ready()
+        await waitFor(() => marks.length > 0)
+
+        assert.deepEqual(marks, ["author-1"], "the run should be answering on the message, not on the channel")
+    })
+
+    it("does not hand the run its author, who only wrote the message a component sat on", async () => {
+        harness.users.set("user-1", { id: "user-1" })
         await withMessage("msg-1")
         await harness.ready()
         await waitFor(() => marks.length > 0)
 
-        assert.deepEqual(marks, ["author-1"], "the run should see the original author")
+        assert.deepEqual(marks, ["user-1"], "a button's message belongs to whoever posted it, not to who clicked it")
     })
 
     it("falls back to the channel once the message is gone", async () => {
@@ -266,7 +290,7 @@ describe("the user who scheduled a timer", () => {
                 code: "$testMark[$authorID]",
                 duration: 1000,
                 channelID: "chan-1",
-                hostID: "user-1",
+                authorID: "user-1",
                 guildID,
             }),
             Date.now() - 1000
@@ -284,13 +308,25 @@ describe("the user who scheduled a timer", () => {
     it("is looked up as a member when the timer belongs to a guild", async () => {
         harness.guilds.add("guild-1")
         harness.users.set("user-1", { id: "user-1" })
-        harness.members.set("user-1", { id: "user-1", nickname: "host" })
+        harness.members.set("user-1", { id: "user-1", nickname: "scheduler" })
 
         await hosted("guild-1")
         await harness.ready()
         await waitFor(() => marks.length > 0)
 
         assert.deepEqual(marks, ["user-1"])
+    })
+
+    it("stands in as the member too, which is what the lookup above is for", () => {
+        const member = { id: "user-1", nickname: "scheduler" }
+
+        // a restored run targets a channel at best, and the base context only takes a member
+        // off a real message, without this the run would have none at all
+        const ctx = new TimerContext({ client: {}, data: {}, obj: {}, authorMember: member } as never)
+        assert.equal(ctx.member, member, "a run with no member of its own must borrow the scheduler's")
+
+        const alone = new TimerContext({ client: {}, data: {}, obj: {} } as never)
+        assert.equal(alone.member, null, "and with nobody to borrow from it stays empty")
     })
 
     it("leaves the run without an author when the user is gone", async () => {

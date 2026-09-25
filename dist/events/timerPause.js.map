@@ -1,0 +1,1 @@
+{"version":3,"file":"timerPause.js","sourceRoot":"","sources":["../../src/events/timerPause.ts"],"names":[],"mappings":";;AAAA,0CAA4D;AAE5D,kBAAe,IAAI,4BAAiB,CAAC;IACjC,IAAI,EAAE,YAAY;IAClB,OAAO,EAAE,OAAO;IAChB,WAAW,EAAE,uCAAuC;IACpD,QAAQ,CAAC,WAAW;QAChB,IAAA,sBAAW,EAAC,IAAI,EAAE,YAAY,EAAE,WAAW,CAAC,CAAA;IAChD,CAAC;CACJ,CAAC,CAAA"}

@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, it } from "node:test"
-import { Database, marks, persist, run, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./harness"
+import { Database, marks, persist, run, TestHarness, Timer, TimerKind, useHarness, waitFor } from "./support/harness"
 import { ForgeTimers } from ".."
 import { QUORIEL_TYPE, QuorielDBStore } from "../structures"
 
@@ -122,5 +122,36 @@ describe("timers on lmdb", () => {
         await waitFor(() => marks.length > 0)
 
         assert.deepEqual(marks, ["kept"])
+    })
+})
+
+describe("a record an older version wrote", () => {
+    it("still reads back its author, which went under hostID before 2.0.0", async () => {
+        const { putRecord } = require("@quoriel/db") as {
+            putRecord: (type: string, key: string, value: unknown) => Promise<unknown>
+        }
+
+        await Database.wipe()
+
+        const now = Date.now()
+        await putRecord(QUORIEL_TYPE, "timeout:legacy", {
+            id: "timeout:legacy",
+            name: "legacy",
+            kind: TimerKind.timeout,
+            code: "$testMark[old]",
+            duration: 3_600_000,
+            timestamp: now,
+            fireAt: now + 3_600_000,
+            channelID: "chan-1",
+            hostID: "user-1",
+        })
+
+        const back = await Database.get(TimerKind.timeout, "legacy")
+
+        assert.ok(back, "an upgrade must not lose the timers already stored")
+        assert.equal(back.authorID, "user-1")
+        assert.equal((back as Timer & { hostID?: string }).hostID, undefined, "and the old field is not carried on")
+
+        await Database.wipe()
     })
 })

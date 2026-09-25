@@ -6,7 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_path_1 = require("node:path");
 const node_test_1 = require("node:test");
-const harness_1 = require("./harness");
+const harness_1 = require("./support/harness");
+const ForgeDBStore_1 = require("../structures/stores/ForgeDBStore");
 const folder = (0, harness_1.useTempHome)("forgetimers-forgedb");
 const reminder = () => new harness_1.Timer({
     name: "reminder",
@@ -63,10 +64,18 @@ const reminder = () => new harness_1.Timer({
         strict_1.default.equal(back.fireAt, 1_700_003_600_000);
         strict_1.default.equal(back.duration, 3_600_000);
         strict_1.default.equal(back.channelID, "chan-1");
-        strict_1.default.equal(back.hostID, "user-1");
+        strict_1.default.equal(back.authorID, "user-1");
         strict_1.default.deepEqual(back.args, ["first", "second"]);
         strict_1.default.deepEqual(back.vars?.keywords, { k: "v" });
         await harness_1.Database.wipe();
+    });
+});
+(0, node_test_1.describe)("the entity mongo reads", () => {
+    (0, node_test_1.it)("renames no column, since mongo writes property names and reads column names", () => {
+        const renamed = Object.entries(ForgeDBStore_1.MongoTimerSchema.options.columns)
+            .filter(([property, column]) => column?.name !== undefined && column.name !== property)
+            .map(([property]) => property);
+        strict_1.default.deepEqual(renamed, [], "such a column is written under the property and looked for under the column");
     });
 });
 //# sourceMappingURL=forgedb.test.js.map

@@ -4,7 +4,7 @@ import { ITimer, MongoTimer, Timer, TimerKind } from "../Timer"
 import { IDeleteResult, ITimerStore } from "./ITimerStore"
 import { Logger } from "../../functions/logger"
 
-/** Epoch ms overflows an int32 on mysql and postgres, so these columns are bigint */
+/** Epoch ms overflows int32 on mysql and postgres, hence bigint */
 const numeric = {
     to: (value?: number) => value,
     from: (value?: string | number | null) => (value === null || value === undefined ? value : Number(value)),
@@ -20,33 +20,41 @@ const columns: Record<string, EntitySchemaColumnOptions> = {
     commandName: { type: "text", nullable: true },
     version: { type: "int", nullable: true },
     duration: { type: "bigint", transformer: numeric },
+    cron: { type: "text", nullable: true },
+    timezone: { type: "varchar", nullable: true },
     timestamp: { type: "bigint", transformer: numeric },
     fireAt: { type: "bigint", transformer: numeric },
+    pausedAt: { type: "bigint", nullable: true, transformer: numeric },
     guildID: { type: "varchar", nullable: true },
     channelID: { type: "varchar", nullable: true },
-    hostID: { type: "varchar", nullable: true },
+    authorID: { type: "varchar", nullable: true },
     messageID: { type: "varchar", nullable: true },
     args: { type: "simple-json", nullable: true },
+    config: { type: "simple-json", nullable: true },
     vars: { type: "simple-json", nullable: true },
 }
 
-const TimerSchema = new EntitySchema<ITimer>({
+export const TimerSchema = new EntitySchema<ITimer>({
     name: "Timer",
     tableName: "timer",
     target: Timer,
-    columns,
+    columns: { ...columns, authorID: { ...columns.authorID, name: "hostID" } },
 })
 
-const MongoTimerSchema = new EntitySchema<MongoTimer>({
+export const MongoTimerSchema = new EntitySchema<MongoTimer>({
     name: "MongoTimer",
     tableName: "mongo_timer",
     target: MongoTimer,
-    columns: { mongoId: { type: String, objectId: true }, ...columns },
+    columns: {
+        mongoId: { type: String, objectId: true },
+        ...columns,
+        hostID: { type: "varchar", nullable: true },
+    },
 })
 
 export type AnyTimer = EntitySchema<ITimer> | EntitySchema<MongoTimer>
 
-/** Keeps timers in whatever ForgeDB is already connected to: sqlite, postgres, mysql or mongodb */
+/** Keeps timers in whatever database ForgeDB already uses, be it sqlite, postgres, mysql or mongodb */
 export class ForgeDBStore extends DataBaseManager implements ITimerStore {
     public database = "timers.db"
 
@@ -98,16 +106,30 @@ export class ForgeDBStore extends DataBaseManager implements ITimerStore {
         return this.source.getRepository(this.entity)
     }
 
+    /**
+     * Mongo rows from before 2.0.0 keep the author under hostID. Mongo can't alias a column, it gets read here.
+     * @param timer Row as read, or null.
+     */
+    private static fold<T extends Timer | null>(timer: T): T {
+        const row = timer as (Timer & { hostID?: MongoTimer["hostID"] }) | null
+        if (!row) return timer
+
+        if (row.authorID == null) row.authorID = row.hostID ?? null
+        delete row.hostID
+
+        return timer
+    }
+
     public async get(kind: TimerKind, name: string) {
-        return (await this.repository.findOneBy({ id: Timer.idOf(kind, name) })) as Timer | null
+        return ForgeDBStore.fold((await this.repository.findOneBy({ id: Timer.idOf(kind, name) })) as Timer | null)
     }
 
     public async getAll() {
-        return (await this.repository.find()) as Timer[]
+        return ((await this.repository.find()) as Timer[]).map((timer) => ForgeDBStore.fold(timer))
     }
 
     public async getAllOf(kind: TimerKind) {
-        return (await this.repository.findBy({ kind })) as Timer[]
+        return ((await this.repository.findBy({ kind })) as Timer[]).map((timer) => ForgeDBStore.fold(timer))
     }
 
     public async set(timer: Timer) {

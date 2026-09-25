@@ -1,6 +1,6 @@
 import { execFileSync, execSync } from "child_process"
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs"
-import prompt from "./prompt"
+import prompt from "../functions/prompt"
 import { join } from "path"
 
 const path = "./metadata"
@@ -12,21 +12,19 @@ async function main() {
     let skip = false
 
     const msg = (await prompt("Please write the commit message: "))
-        .replace(/(--?(\w+))/gim, (match) => {
-            const name = /(\w+)/.exec(match)![1].toLowerCase()
-
-            switch (name) {
+        .replace(/(^|\s)--(\w+)/g, (_, before: string, flag: string) => {
+            switch (flag.toLowerCase()) {
                 case "hide": {
                     skip = true
                     break
                 }
 
                 default: {
-                    throw new Error(`--${name} is not a valid flag.`)
+                    throw new Error(`--${flag} is not a valid flag.`)
                 }
             }
 
-            return ""
+            return before
         })
         .trim()
 
